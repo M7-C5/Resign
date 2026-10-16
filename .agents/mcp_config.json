@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "git-inspector": {
+      "command": "node",
+      "args": ["-e", "console.log('MCP Git Inspector ready')"]
+    }
+  }
+}
