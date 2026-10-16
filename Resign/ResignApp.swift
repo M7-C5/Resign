@@ -2,8 +2,6 @@
 //  ResignApp.swift
 //  Resign
 //
-//  Created by Valentino Manuel Gunawan on 16/10/26.
-//
 
 import SwiftUI
 import SwiftData
@@ -12,10 +10,9 @@ import SwiftData
 struct ResignApp: App {
     var sharedModelContainer: ModelContainer = {
         let schema = Schema([
-            Item.self,
+            ScannedRoom.self,
         ])
         let modelConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
-
         do {
             return try ModelContainer(for: schema, configurations: [modelConfiguration])
         } catch {
@@ -25,7 +22,7 @@ struct ResignApp: App {
 
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            DashboardView()
         }
         .modelContainer(sharedModelContainer)
     }
