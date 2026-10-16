@@ -1,5 +1,5 @@
 #!/bin/bash
-set -eo pipefail
+set -o pipefail
 
 echo "=========================================="
 echo "  Resign Autonomous Verification Gate"
@@ -24,7 +24,14 @@ xcodebuild build \
     CODE_SIGNING_ALLOWED=NO \
     CODE_SIGN_IDENTITY="" \
     CODE_SIGNING_REQUIRED=NO \
-    | grep -E '\*\*( BUILD | TEST )|error:|warning:|passed|failed' || true
+    | grep -E '\*\*( BUILD | TEST )|error:|warning:|passed|failed'
+
+if [ ${PIPESTATUS[0]} -ne 0 ]; then
+    echo "=========================================="
+    echo "  ❌ Build FAILED! Check compiler errors above."
+    echo "=========================================="
+    exit 1
+fi
 
 echo "==> Step 2: Running Tests via $TEST_PLAN..."
 xcodebuild test \
@@ -34,7 +41,14 @@ xcodebuild test \
     CODE_SIGNING_ALLOWED=NO \
     CODE_SIGN_IDENTITY="" \
     CODE_SIGNING_REQUIRED=NO \
-    | grep -E 'Test suite|Test case|\*\* TEST' || true
+    | grep -E 'Test suite|Test case|\*\* TEST'
+
+if [ ${PIPESTATUS[0]} -ne 0 ]; then
+    echo "=========================================="
+    echo "  ❌ Test suite FAILED!"
+    echo "=========================================="
+    exit 1
+fi
 
 echo "=========================================="
 echo "  ✅ All verification checks PASSED!"
