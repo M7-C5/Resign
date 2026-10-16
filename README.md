@@ -78,6 +78,15 @@ flowchart TD
 - **Persistence**: SwiftData (`@Model`, `ModelContainer`) with offline-first local storage.
 - **Calculations & Ephemeris**: Astronomical solar position algorithms (Sun azimuth & elevation based on device coordinates and time of day).
 
+### Codebase Organization (Vertical Feature Slices)
+```text
+Resign/
+├── App/         // Lifecycle & type-safe Navigation router (AppRoute)
+├── Features/    // Vertical slices: Dashboard, RoomScan, Orientation, LightingSetup, Insights, Studio3D, ARWalkthrough
+├── Core/        // Models, Algorithms, and Spatial helpers (Zero UI, 100% pure)
+└── Services/    // Hardware & system providers (Location, SwiftData repository)
+```
+
 ---
 
 ## 🗺️ Project Roadmap & Implementation Tracking

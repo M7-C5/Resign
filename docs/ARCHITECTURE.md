@@ -162,3 +162,49 @@ Evaluates layouts across 3 objective mathematical dimensions:
 - **Layout 1: Circadian Productivity**: Maximizes natural sunlight on active work/study zones (desks, reading nooks) with zero screen glare.
 - **Layout 2: Open Flow & Circulation**: Maximizes central continuous floor space and ensures all entry/exit corridors exceed 100 cm.
 - **Layout 3: Restful Sanctuary**: Places beds and relaxation zones in maximum shadow zones shielded from direct door sightlines and outside window drafts.
+
+---
+
+## 5. Codebase Layout & Architectural Invariants
+
+The repository is organized following the **Vertical Feature-Slice Architecture** to maximize team velocity, prevent git merge collisions, and guarantee 120 FPS rendering performance:
+
+```text
+Resign/
+├── App/                                // App lifecycle & Navigation router
+│   ├── ResignApp.swift
+│   └── Navigation/
+│       └── AppRoute.swift             // Type-safe enum AppRoute: Hashable
+├── Features/                          // Vertical Feature Slices (V + VM)
+│   ├── Dashboard/                     // DashboardView, DashboardViewModel
+│   ├── RoomScan/                      // RoomScanView, RoomScanViewModel
+│   ├── Orientation/                   // OrientationView, OrientationViewModel
+│   ├── LightingSetup/                 // LightingSetupView, LightingSetupViewModel
+│   ├── Insights/                      // InsightsView, InsightsViewModel
+│   ├── Studio3D/                      // Studio3DView, Studio3DViewModel
+│   └── ARWalkthrough/                 // ARWalkthroughView, ARWalkthroughViewModel
+├── Core/                              // Horizontal Foundation (The "Brain", Zero UI)
+│   ├── Models/                        // SwiftData @Model skeleton classes
+│   │   ├── ScannedRoom.swift
+│   │   ├── RoomLayout.swift
+│   │   ├── FurniturePlacement.swift
+│   │   ├── LightSource.swift
+│   │   └── RoomInsight.swift
+│   ├── Algorithms/                    // Pure math engines
+│   │   ├── SolarEphemerisEngine.swift
+│   │   ├── SpatialClearanceEngine.swift
+│   │   └── LayoutOptimizerEngine.swift
+│   └── Spatial/                       // Shared 3D RealityKit helpers
+│       ├── FurnitureEntityFactory.swift
+│       └── SunlightEntityController.swift
+└── Services/                          // Hardware & System Providers
+    ├── LocationService.swift
+    ├── RoomRepository.swift
+    └── ModelContainer+Testing.swift
+```
+
+### Key Architectural Invariants:
+1. **The Inward Dependency Rule**: `Core/` has zero dependencies on `Features/`. It can compile and be tested headlessly in milliseconds.
+2. **Inter-Feature Isolation ("No Peer Imports")**: Features never directly instantiate or reference peer feature view models. All navigation and cross-feature routing is coordinated via `AppRoute` passing IDs (never live `@Model` object references).
+3. **Skeleton State**: All classes and structs currently exist as clean, unopinionated skeletons with empty initializers (`init() {}`), ready for collaborative, contract-first implementation.
+

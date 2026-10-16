@@ -17,5 +17,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - In-memory `ModelContainer` test fixture ([`Resign/ModelContainer+Testing.swift`](file:///Users/verzional/Home/Xcode/Resign/Resign/ModelContainer+Testing.swift)) and unit tests.
 - Native Conventional Commits git hook script ([`scripts/install-hooks.sh`](file:///Users/verzional/Home/Xcode/Resign/scripts/install-hooks.sh)).
 - Xcode Test Plans ([`FastUnitTests.xctestplan`](file:///Users/verzional/Home/Xcode/Resign/FastUnitTests.xctestplan) and [`FullSuite.xctestplan`](file:///Users/verzional/Home/Xcode/Resign/FullSuite.xctestplan)).
-- Architecture Decision Records ledger in [`docs/adr/`](file:///Users/verzional/Home/Xcode/Resign/docs/adr/) (ADR 0001 & ADR 0002).
+- Architecture Decision Records ledger in [`docs/adr/`](file:///Users/verzional/Home/Xcode/Resign/docs/adr/) (ADR 0001, ADR 0002, and ADR 0003).
 - Agent Flight Simulator prompt cookbook in [`docs/RECIPES.md`](file:///Users/verzional/Home/Xcode/Resign/docs/RECIPES.md).
+- Scaffolded 4-layer Vertical Feature-Slice architecture (`App/`, `Features/`, `Core/`, `Services/`) with unopinionated skeleton modules.
