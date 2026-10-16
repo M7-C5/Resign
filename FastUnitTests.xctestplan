@@ -1,0 +1,29 @@
+{
+  "configurations": [
+    {
+      "id": "A4B7C952-1200-4789-9A01-C76DF02EFA01",
+      "name": "Fast Unit Tests Configuration",
+      "options": {}
+    }
+  ],
+  "defaultOptions": {},
+  "testTargets": [
+    {
+      "enabled": true,
+      "target": {
+        "containerPath": "container:Resign.xcodeproj",
+        "identifier": "89F4697C3081D69400F738C2",
+        "name": "ResignTests"
+      }
+    },
+    {
+      "enabled": false,
+      "target": {
+        "containerPath": "container:Resign.xcodeproj",
+        "identifier": "89F469863081D69400F738C2",
+        "name": "ResignUITests"
+      }
+    }
+  ],
+  "version": 1
+}

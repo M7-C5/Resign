@@ -1,0 +1,29 @@
+{
+  "configurations": [
+    {
+      "id": "B5C8D063-2311-4890-AB12-D87EF13F0B02",
+      "name": "Full Suite Configuration",
+      "options": {}
+    }
+  ],
+  "defaultOptions": {},
+  "testTargets": [
+    {
+      "enabled": true,
+      "target": {
+        "containerPath": "container:Resign.xcodeproj",
+        "identifier": "89F4697C3081D69400F738C2",
+        "name": "ResignTests"
+      }
+    },
+    {
+      "enabled": true,
+      "target": {
+        "containerPath": "container:Resign.xcodeproj",
+        "identifier": "89F469863081D69400F738C2",
+        "name": "ResignUITests"
+      }
+    }
+  ],
+  "version": 1
+}
