@@ -1,97 +1,94 @@
-# Resign — iOS Application & Agentic Engineering Environment
+# Resign (Working Title) — 3D Room Rearranger & Sunlight Simulator
 
-> Modern native iOS application built with **SwiftUI**, **SwiftData**, and **Swift Testing**, engineered for autonomous AI agent collaboration with **Antigravity**.
-
----
-
-### 📖 Table of Contents
-- [Architecture & Tech Stack](#architecture--tech-stack)
-- [Agentic Workflow & Safety Directives](#agentic-workflow--safety-directives)
-- [Superpower Skills Matrix](#superpower-skills-matrix)
-- [Verification & Quality Loop](#verification--quality-loop)
-- [Git & Conventional Commits Protocol](#git--conventional-commits-protocol)
-- [Documentation & Guides](#documentation--guides)
+> An intelligent iOS spatial computing application that scans real-world rooms with **RoomPlan**, generates photorealistic 3D USDZ models, simulates natural daylight and artificial lighting physics, and generates scientifically optimized room layouts.
 
 ---
 
-## 🛠️ Architecture & Tech Stack
+## 🌟 Product Vision
 
-- **UI Framework**: SwiftUI (Declarative, Apple HIG compliant)
-- **Persistence**: SwiftData (`@Model`, `ModelContainer`)
-- **Unit Testing**: Modern Swift Testing (`import Testing`, `@Test`, `#expect`)
-- **UI Testing**: XCTest (`ResignUITests`)
-- **Target OS**: iOS 17+ (iPhone & iPad)
-- **Concurrency**: Swift 6 Strict Concurrency (`Sendable`, `@MainActor`)
+Resign helps homeowners, renters, and interior designers optimize furniture arrangements not just for aesthetics, but for **circadian lighting, spatial ergonomics, and airflow**. By combining LiDAR room scanning, geographic orientation (CoreLocation & true north alignment), and photometric rendering (RealityKit / SceneKit), Resign models real-world sunlight angles throughout the day and generates mathematically backed layout recommendations.
 
 ---
 
-## 🤖 Agentic Workflow & Safety Directives
+## 🗺️ Complete End-to-End User Flow
 
-This project implements the **Agentic Software Engineering System** adapted from the [Agentic-Workflow](file:///Users/verzional/Home/Zed/Personal/Agentic-Workflow/README.md) foundation:
-
-1. **Root Constitution ([`AGENTS.md`](file:///Users/verzional/Home/Xcode/Resign/AGENTS.md))**:
-   - Zero unauthorized git commits. Commit only when explicitly directed by the human developer.
-   - Atomic commits adhering to the Conventional Commits specification.
-   - Non-artifact documentation invariant (`README.md`, `docs/*.md`).
-
-2. **Modular Rule Base ([`.agents/rules/`](file:///Users/verzional/Home/Xcode/Resign/.agents/rules/))**:
-   - [`00-general-engineering.md`](file:///Users/verzional/Home/Xcode/Resign/.agents/rules/00-general-engineering.md): Defensive typing, Sendable safety, pure domain core.
-   - [`01-verification-loop.md`](file:///Users/verzional/Home/Xcode/Resign/.agents/rules/01-verification-loop.md): Sub-second verification gatekeeper with CPU isolation.
-   - [`02-swift-apple-architecture.md`](file:///Users/verzional/Home/Xcode/Resign/.agents/rules/02-swift-apple-architecture.md): SwiftUI state, SwiftData boundaries, actor isolation.
-   - [`03-multi-agent-orchestration.md`](file:///Users/verzional/Home/Xcode/Resign/.agents/rules/03-multi-agent-orchestration.md): Lead orchestrator and specialized subagents.
-   - [`04-apple-hig-design-standards.md`](file:///Users/verzional/Home/Xcode/Resign/.agents/rules/04-apple-hig-design-standards.md): Apple HIG ergonomics, Dynamic Type, 44×44pt touch targets.
-   - [`05-learned-patterns.md`](file:///Users/verzional/Home/Xcode/Resign/.agents/rules/05-learned-patterns.md): Living post-mortem memory ledger.
-
----
-
-## ⚡ Superpower Skills Matrix
-
-Defined under [`.agents/skills/`](file:///Users/verzional/Home/Xcode/Resign/.agents/skills/):
-
-| Skill Name | Description | Trigger |
-| :--- | :--- | :--- |
-| **`verify-suite`** | Runs `./scripts/verify.sh` and triages compiler or test errors autonomously. | After completing any code modification. |
-| **`code-review`** | Adversarial review for memory retain cycles, concurrency data races, and Apple HIG violations. | Before presenting code diffs to human. |
-| **`scaffold-module`**| 5-step contract-first scaffolding for SwiftUI features and SwiftData models. | When designing a new domain or view. |
-| **`generate-changelog`**| Inspects git Conventional Commits and automatically updates `CHANGELOG.md`. | Before releasing or tagging a milestone. |
-| **`ui-audit`** | Audits SwiftUI layout hierarchy, touch targets, contrast symmetry, and Dynamic Type. | When polishing views. |
-| **`security-audit`** | Scans Keychain usage, App Transport Security, entitlements, and permissions. | Prior to production release. |
-| **`perf-audit`** | Evaluates Swift compile times and view body re-render bottlenecks. | On performance investigations. |
-
----
-
-## 🧪 Verification & Quality Loop
-
-### Quick Start
-To run the fast verification loop (build + unit tests):
-```bash
-./scripts/verify.sh
+```mermaid
+flowchart TD
+    A[1. Layout List] -->|Start New Scan| B[2. RoomPlan LiDAR Scan]
+    B -->|Detect walls, doors, windows, furniture| C[3. USDZ Room Generation]
+    C -->|Premade 3D Asset Substitution| D[4. CoreLocation True North Compass]
+    D -->|Align Phone North & Lock Orientation| E[5. Virtual Person Orientation Sync]
+    E -->|Pinpoint Ceiling/Wall Light Positions| F[6. Light Source Grid 5x5 Selection]
+    F -->|Set Lumens & Color Temp Kelvin| G[7. User Constraints & Preferences]
+    G -->|Algorithmic Evaluation| H[8. Spatial & Lighting Insight View]
+    H -->|Procedural Optimization Engine| I[9. Top 3 Generated Recommended Layouts]
+    I -->|Save to Persistence| A
+    A -->|Select Saved Room Card| J[10. Room Layout Hierarchy Original + 3 Recs]
+    J -->|Open 3D Viewer| K[11. Interactive 3D Room Studio]
+    K --> L[Sims-Style Furniture Manipulation onTap]
+    K --> M[Sunlight & Artificial Lighting Simulator]
+    K --> N[Orthographic Camera Perspectives Top/Sides]
+    K --> O[Furniture Archiving & Staging]
+    K --> P[Immersive 1:1 AR Mode]
 ```
 
-To run the complete suite including UI performance benchmarks:
-```bash
-./scripts/verify.sh --ui
-```
+### Detailed Step-by-Step Flow:
+
+1. **Saved Layouts Dashboard**:
+   - Main entry displaying cards of saved scanned rooms. Empty state guides the user to start their first LiDAR room scan.
+2. **RoomPlan LiDAR Scanning**:
+   - Uses Apple's `RoomPlan` framework (`RoomCaptureView` / `RoomCaptureSession`) with real-time feedback to detect walls, doors, windows, openings, and categorized furniture objects (beds, desks, chairs, sofas, tables, storage).
+3. **Model & USDZ Asset Generation**:
+   - Translates detected bounding boxes and spatial dimensions into a unified USDZ 3D room hierarchy, automatically substituting generic wireframes with curated 3D model assets.
+4. **Geographic True North Orientation**:
+   - Prompts the user with a real-time compass interface powered by `CoreLocation` and device magnetometers (`CLLocationManager`).
+5. **Orientation Lock & Virtual Avatar Sync**:
+   - When pointed north for 2 seconds, the orientation locks. The user then rotates a virtual avatar/point-of-view marker to align the 3D room coordinate system with the exact physical direction they are looking.
+6. **Artificial Light Source Grid Mapping**:
+   - User pinpoints existing ceiling and wall light sources on a spatial grid (e.g. 5×5 ceiling projection).
+7. **Photometric Calibration**:
+   - Allows users to specify luminosity (lux / lumens) and correlated color temperature (Kelvin: warm 2700K to daylight 6500K) for each fixture.
+8. **User Needs & Pain Point Intake**:
+   - Interactive intake questionnaire (e.g., "desk lacks natural sunlight", "bed faces door directly", "cramped walking path", "glare on monitor").
+9. **Automated Diagnostic & Insight Report**:
+   - Evaluates the current configuration against spatial heuristics (Feng Shui command position, circulation clearances >= 36 inches, window glare vectors, task lighting coverage).
+10. **Algorithmic Layout Generator (Top 3 Recommendations)**:
+    - Generates 3 mathematically and theoretically distinct layouts:
+      - *Layout A (Optimal Sunlight & Circadian Productivity)*
+      - *Layout B (Spacious Circulation & Flow)*
+      - *Layout C (Ergonomic / Restful Sanctuary)*
+11. **Multi-Layout Management**:
+    - Scanned rooms persist in SwiftData. Selecting a room opens a sub-list containing the *Original Scan* and the *3 Recommended Layouts*.
+12. **Interactive 3D Studio**:
+    - Free orbit, pan, and pinch-to-zoom 3D viewport.
+    - **Sims-Style Object Interaction**: Tapping any furniture highlights it and spawns radial contextual action buttons (Rotate, Slide along floor plane, Swap asset, Archive/Hide).
+    - **Lighting Simulator**: Toggle artificial lights ON/OFF and scrub a 24-hour time-of-day slider to observe dynamic directional sunlight shadows cast through detected windows based on true solar ephemeris calculations.
+    - **View Angle Presets**: Instant camera snapping (Top-Down 2D floor plan, Left, Right, Front, Back).
+    - **Furniture Archiving**: Temporarily hide or store furniture in an "Inventory Bin" to visualize decluttered or minimalist layouts.
+    - **1:1 Immersive AR View**: Drops the user into the re-arranged 3D render at scale, letting them physically walk through the proposed room redesign in augmented reality using ARKit.
 
 ---
 
-## 📝 Git & Conventional Commits Protocol
+## 🏗️ Technical Architecture
 
-All commits in this repository must use Conventional Commits:
-- `feat:` A new user-facing feature
-- `fix:` A bug fix
-- `docs:` Documentation updates
-- `test:` Adding or updating unit tests
-- `refactor:` Code restructuring without behavior changes
-- `perf:` Performance optimizations
-- `build:` / `chore:` Tooling, scripts, and build system configuration
+- **UI Layer**: SwiftUI with NavigationStack and modular sheets.
+- **3D & Spatial Engine**: RealityKit / SceneKit, USDZ asset pipeline, and ARKit.
+- **Computer Vision & Scanning**: Apple `RoomPlan` (`RoomCaptureSession`, `CapturedRoom`).
+- **Sensors & Location**: `CoreLocation` (`CLLocationManager`), Magnetometer / Heading.
+- **Persistence**: SwiftData (`@Model`, `ModelContainer`) with offline-first local storage.
+- **Calculations & Ephemeris**: Astronomical solar position algorithms (Sun azimuth & elevation based on device coordinates and time of day).
 
 ---
 
-## 📚 Documentation & Guides
+## 🗺️ Project Roadmap & Implementation Tracking
 
-- [Agentic Playbook](file:///Users/verzional/Home/Xcode/Resign/docs/AGENTIC_PLAYBOOK.md)
+Track real-time engineering milestones, algorithm implementations, and feature phases in [ROADMAP.md](file:///Users/verzional/Home/Xcode/Resign/ROADMAP.md).
+
+---
+
+## 📚 Architectural Documentation
+
 - [Architecture Blueprint](file:///Users/verzional/Home/Xcode/Resign/docs/ARCHITECTURE.md)
 - [Architecture Decision Records (ADRs)](file:///Users/verzional/Home/Xcode/Resign/docs/adr/README.md)
-- [Flight Simulator & Prompt Recipes](file:///Users/verzional/Home/Xcode/Resign/docs/RECIPES.md)
+- [Agent Flight Simulator & Prompt Recipes](file:///Users/verzional/Home/Xcode/Resign/docs/RECIPES.md)
 - [Living Changelog](file:///Users/verzional/Home/Xcode/Resign/CHANGELOG.md)
