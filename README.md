@@ -92,4 +92,6 @@ All commits in this repository must use Conventional Commits:
 
 - [Agentic Playbook](file:///Users/verzional/Home/Xcode/Resign/docs/AGENTIC_PLAYBOOK.md)
 - [Architecture Blueprint](file:///Users/verzional/Home/Xcode/Resign/docs/ARCHITECTURE.md)
+- [Architecture Decision Records (ADRs)](file:///Users/verzional/Home/Xcode/Resign/docs/adr/README.md)
+- [Flight Simulator & Prompt Recipes](file:///Users/verzional/Home/Xcode/Resign/docs/RECIPES.md)
 - [Living Changelog](file:///Users/verzional/Home/Xcode/Resign/CHANGELOG.md)
