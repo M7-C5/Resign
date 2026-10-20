@@ -10,7 +10,12 @@ import SwiftData
 struct ResignApp: App {
     var sharedModelContainer: ModelContainer = {
         let schema = Schema([
-            ScannedRoom.self,
+            Room.self,
+            RoomOpening.self,
+            Layout.self,
+            Furniture.self,
+            Light.self,
+            Insight.self,
         ])
         let modelConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
         do {
