@@ -8,12 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- feat(models): implement authentic room layout and lighting domain schema (3343fe0)
 - feat(spatial): bundle mock room USDZ asset for lighting simulation (7bba77d)
 - feat(assets): add procedural mock room generator with flat shading (979401d)
 - feat(rules): establish feature delivery lifecycle and documentation invariants (ed764d8)
 - feat(testing): add in-memory ModelContainer fixture and SwiftData unit tests (b4daaff)
 
 ### Documentation
+- docs(architecture): define whiteboard domain schema and local-first persistence roadmap (1b90094)
 - docs(adr): record architectural decision for mock USDZ reference environment (4da7ecf)
 - docs(spatial): document mock room specifications and scene hierarchy (be1d834)
 - docs: document vertical feature-slice architecture and invariants (a1ee548)
@@ -23,6 +25,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - docs: add agentic playbook, architecture blueprint, and changelog (178cddb)
 
 ### Tooling & Maintenance
+- test(persistence): add room hierarchy persistence and model default initialization tests (20a21f7)
+- chore(tooling): automate changelog generation from conventional commits (8d9466d)
 - test(spatial): verify mock room hierarchy and required entities (3bab6e3)
 - test: update smoke tests for scaffolded architecture (61df380)
 - build: update verification script to strictly check exit codes (20ecbda)
