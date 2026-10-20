@@ -25,7 +25,7 @@ Resign requires a robust spatial and photometric architecture to scan rooms with
 6. **Layout Recommendation Engine**: Chosen **Hybrid Engine**. Deterministic pure Swift scoring engine for instant layout positioning + optional LLM explanations for human-readable design advice.
 7. **Sims-Style Manipulation**: Chosen **Radial Contextual Action Menu + Floor Plane Dragging**. Direct floor plane ($Y=0$) translation with wall boundary collision detection.
 8. **AR Presentation**: Chosen **1:1 Full-Scale Physical Immersion**. Projects virtual furniture directly into the physical room at true scale.
-9. **Persistence**: Chosen **Hierarchical SwiftData Schema** (`ScannedRoom` -> `RoomLayout` -> `FurniturePlacement` / `LightSource`).
+9. **Persistence**: Chosen **Hierarchical SwiftData Schema** (superseded by ADR 0005: `User` -> `Room` -> `Layout` -> `Furniture`, `Light`, `Insight`).
 
 ## Consequences
 

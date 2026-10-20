@@ -11,6 +11,10 @@ Through the comprehensive `/grill-me` architectural design review, all foundatio
 | Domain | Decision | Architectural Rationale |
 | :--- | :--- | :--- |
 | **3D & Spatial Engine** | **RealityKit (`RealityView`)** | Modern Apple spatial standard (iOS 17+), native USDZ rendering, physically based shadows, seamless ARKit anchoring. |
+| **Room Capture Pipeline** | **Apple RoomPlan Framework** | First-party LiDAR room scanning (`RoomCaptureSession`) extracting architectural walls, openings, and bounding boxes. |
+| **Geometry Inspection** | **ModelIO Framework** | Headless mesh inspection (`MDLAsset`, `MDLMesh`) for calculating precise object bounding boxes and transforms. |
+| **Tactile Ergonomics** | **CoreHaptics Framework** | Tactile feedback for wall snapping, collision avoidance, and 90cm corridor boundary warnings. |
+| **State Management** | **Observation Framework (`@Observable`)**| iOS 17+ fine-grained view reactivity eliminating redundant re-renders during 60fps 3D gesture manipulation. |
 | **Hardware Strategy** | **Strict LiDAR Requirement** | RoomPlan LiDAR is strictly required. Non-LiDAR devices are greeted with a dedicated hardware requirement screen. |
 | **Asset Pipeline** | **Bundled Curated USDZ Catalog** | App bundle contains stylized, optimized USDZ models (bed, desk, sofa, etc.) scaled non-uniformly to match RoomPlan bounding boxes. |
 | **Natural Sunlight Engine**| **NOAA Solar Ephemeris Algorithm**| Real-world astronomical sun vector calculations (azimuth & elevation) using device latitude, longitude, and 24-hour time of day. |
@@ -18,7 +22,7 @@ Through the comprehensive `/grill-me` architectural design review, all foundatio
 | **Layout Generator** | **Deterministic Swift Rules + LLM** | Mathematical clearance corridors (>= 90cm), window glare vectors, and Feng Shui command positions generate 3 layouts; LLM provides natural language design rationales. |
 | **3D Object Interaction** | **Sims-Style Radial Menu + Floor Drag**| Tapping furniture spawns floating action pills (Rotate, Slide, Archive); dragging is strictly constrained to the floor plane ($Y=0$) with boundary collision snapping. |
 | **Augmented Reality Mode** | **1:1 Full-Scale Physical Immersion** | Virtual furniture is superimposed directly onto the user's actual room at true 1:1 scale for real-world physical walkthroughs. |
-| **Data Persistence** | **Hierarchical SwiftData Schema** | `ScannedRoom` owns multiple `RoomLayout` revisions, each with independent `FurniturePlacement` and `LightSource` records. |
+| **Data Persistence** | **Hierarchical SwiftData Schema** | `Room` (with `RoomOpening`) owns multiple `Layout` revisions containing `Furniture`, `Light`, and `Insight` records. |
 
 ---
 
@@ -56,10 +60,12 @@ Through the comprehensive `/grill-me` architectural design review, all foundatio
                                          v
 +-----------------------------------------------------------------------------------+
 |                           SWIFTDATA PERSISTENCE LAYER                             |
-|  - ScannedRoom (Metadata, Location, Heading, Dimensions, Layouts, LightSources)   |
-|  - RoomLayout (LayoutType, Placements, Insights, GeneratedDate)                   |
-|  - FurniturePlacement (Category, X/Y/Z, Yaw, Dimensions, IsArchived, AssetKey)   |
-|  - LightSource (GridX, GridY, Elevation, Lumens, Kelvin, IsActive)                |
+|  - Room (Name, Longitude, Latitude, Compass, Dimensions, Openings, Layouts)       |
+|  - RoomOpening (Type, Position X/Y/Z, Dimensions)                                 |
+|  - Layout (Name, USDZ URL, Furnitures, Lights, Insights, Timestamps)              |
+|  - Furniture (Name, Category, Texture, Position X/Y/Z, Yaw, Dimensions, Archived) |
+|  - Light (Name, Coordinate X/Y, Elevation Z, Brightness, ColorTemp, IsOn)         |
+|  - Insight (Title, Type, Detail)                                                  |
 +-----------------------------------------------------------------------------------+
 ```
 
@@ -69,63 +75,75 @@ Through the comprehensive `/grill-me` architectural design review, all foundatio
 
 ```mermaid
 erDiagram
-    ScannedRoom ||--o{ RoomLayout : contains
-    ScannedRoom ||--o{ LightSource : defines
-    RoomLayout ||--o{ FurniturePlacement : arranges
-    RoomLayout ||--o{ RoomInsight : reports
+    Room ||--o{ RoomOpening : has
+    Room ||--o{ Layout : contains
+    Layout ||--o{ Furniture : arranges
+    Layout ||--o{ Light : includes
+    Layout ||--o{ Insight : reports
 
-    ScannedRoom {
+    Room {
         UUID id PK
         String name
-        Date createdAt
-        Double latitude
         Double longitude
-        Double trueNorthHeading
-        Float avatarYaw
-        Float roomWidth
-        Float roomLength
-        Float roomHeight
+        Double latitude
+        Double compass
+        Float length
+        Float width
+        Float height
+        Date createdAt
+        Date updatedAt
     }
 
-    RoomLayout {
+    RoomOpening {
+        UUID id PK
+        String type
+        Float posX
+        Float posY
+        Float posZ
+        Float width
+        Float height
+    }
+
+    Layout {
         UUID id PK
         String name
-        String layoutType
-        Double scoreOverall
-        Double scoreSunlight
-        Double scoreCirculation
+        URL usdzURL
+        Date createdAt
+        Date updatedAt
     }
 
-    FurniturePlacement {
+    Furniture {
         UUID id PK
+        String name
         String category
+        String texture
         Float positionX
         Float positionY
         Float positionZ
         Float rotationYaw
-        Float dimensionWidth
-        Float dimensionHeight
-        Float dimensionDepth
+        Float length
+        Float width
+        Float height
         Boolean isArchived
-        String customAssetKey
+        URL usdzURL
     }
 
-    LightSource {
+    Light {
         UUID id PK
-        Int gridX
-        Int gridY
-        Float elevationY
-        Float lumens
-        Int kelvinTemperature
-        Boolean isPoweredOn
+        String name
+        Float coordinateX
+        Float coordinateY
+        Float elevationZ
+        Float brightness
+        Int colorTemp
+        Boolean isOn
     }
 
-    RoomInsight {
+    Insight {
         UUID id PK
         String title
-        String explanation
-        String severity
-        String affectedCategory
+        String type
+        String detail
     }
 ```
 
@@ -185,11 +203,12 @@ Resign/
 │   └── ARWalkthrough/                 // ARWalkthroughView, ARWalkthroughViewModel
 ├── Core/                              // Horizontal Foundation (The "Brain", Zero UI)
 │   ├── Models/                        // SwiftData @Model skeleton classes
-│   │   ├── ScannedRoom.swift
-│   │   ├── RoomLayout.swift
-│   │   ├── FurniturePlacement.swift
-│   │   ├── LightSource.swift
-│   │   └── RoomInsight.swift
+│   │   ├── Room.swift
+│   │   ├── RoomOpening.swift
+│   │   ├── Layout.swift
+│   │   ├── Furniture.swift
+│   │   ├── Light.swift
+│   │   └── Insight.swift
 │   ├── Algorithms/                    // Pure math engines
 │   │   ├── SolarEphemerisEngine.swift
 │   │   ├── SpatialClearanceEngine.swift
