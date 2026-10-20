@@ -91,13 +91,14 @@ Resign/
 
 ## 🗺️ Project Roadmap & Implementation Tracking
 
-Track real-time engineering milestones, algorithm implementations, and feature phases in [ROADMAP.md](file:///Users/verzional/Home/Xcode/Resign/ROADMAP.md).
+Track real-time engineering milestones, algorithm implementations, and feature phases in [ROADMAP.md](ROADMAP.md).
 
 ---
 
 ## 📚 Architectural Documentation
 
-- [Architecture Blueprint](file:///Users/verzional/Home/Xcode/Resign/docs/ARCHITECTURE.md)
-- [Architecture Decision Records (ADRs)](file:///Users/verzional/Home/Xcode/Resign/docs/adr/README.md)
-- [Agent Flight Simulator & Prompt Recipes](file:///Users/verzional/Home/Xcode/Resign/docs/RECIPES.md)
-- [Living Changelog](file:///Users/verzional/Home/Xcode/Resign/CHANGELOG.md)
+- [Architecture Blueprint](docs/ARCHITECTURE.md)
+- [Mock Room USDZ Specification](docs/MOCK_USDZ_SPEC.md) *(Standard reference room for light simulation and spatial tests)*
+- [Architecture Decision Records (ADRs)](docs/adr/README.md)
+- [Agent Flight Simulator & Prompt Recipes](docs/RECIPES.md)
+- [Living Changelog](CHANGELOG.md)
