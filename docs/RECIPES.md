@@ -77,6 +77,24 @@ Refactor any violations and verify with `./scripts/verify.sh`.
 
 ---
 
+## 🍳 Recipe 5: Zero-Miss Feature & Asset Implementation Loop
+
+### Objective
+Ensure agents never miss a required step (ADR, tests, verification, automated changelog, clean commits) when implementing new features or spatial assets.
+
+### Prompt Template
+```markdown
+Execute the Zero-Miss Feature Delivery Protocol for [Feature/Asset Name]:
+1. Spec & ADR: Create an ADR in `docs/adr/` if introducing an architectural contract, format, or standard.
+2. Tests First: Add Swift Testing assertions in `ResignTests` before or alongside implementation.
+3. Implementation: Implement the minimal clean code satisfying tests (enforcing `subdivisionScheme = "none"` on USD meshes).
+4. Autonomous Verification: Run `./scripts/verify.sh` to confirm zero compilation or test errors.
+5. Automated Changelog: Run `./scripts/changelog.sh` to compile conventional commits—do NOT edit `CHANGELOG.md` manually.
+6. Commit & Push: When instructed by the user, create distinct atomic commits using Conventional Commits with zero raw file paths in commit messages or changelog entries, and push to the remote repository.
+```
+
+---
+
 ## 🚨 Emergency Circuit Breakers
 
 If an agent ever gets stuck in a loop, paste one of these circuit breaker prompts:
