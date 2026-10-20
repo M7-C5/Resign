@@ -4,11 +4,12 @@ This directory documents key architectural decisions for **Resign** using the [M
 
 ## Index of Decisions
 
-- [ADR 0001: Record Architecture Decisions](file:///Users/verzional/Home/Xcode/Resign/docs/adr/0001-record-architecture-decisions.md)
-- [ADR 0002: Test Partitioning and CPU Isolation](file:///Users/verzional/Home/Xcode/Resign/docs/adr/0002-test-partitioning-and-cpu-isolation.md)
-- [ADR 0003: Core Architecture for Room Rearrangement and Lighting Simulation](file:///Users/verzional/Home/Xcode/Resign/docs/adr/0003-room-rearrangement-and-lighting-architecture.md)
+- [ADR 0001: Record Architecture Decisions](0001-record-architecture-decisions.md)
+- [ADR 0002: Test Partitioning and CPU Isolation](0002-test-partitioning-and-cpu-isolation.md)
+- [ADR 0003: Core Architecture for Room Rearrangement and Lighting Simulation](0003-room-rearrangement-and-lighting-architecture.md)
+- [ADR 0004: Standardized Mock USDZ Reference Environment for Simulation Testing](0004-standardized-mock-usdz-reference-environment.md)
 
 ## How to Create a New ADR
-1. Copy [template.md](file:///Users/verzional/Home/Xcode/Resign/docs/adr/template.md) to `docs/adr/NNNN-title-in-kebab-case.md`.
+1. Copy [template.md](template.md) to `docs/adr/NNNN-title-in-kebab-case.md`.
 2. Follow MADR conventions: Context, Decision Drivers, Considered Options, Decision Outcome, and Consequences.
 3. Update the Index above.
