@@ -8,6 +8,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- feat: implement AI spatial diagnostic reasoning and layout solver (5480b56)
+- feat: add ModelIO dynamic USDZ room ingestion pipeline (995aa91)
+- feat: implement Panero & Zelnik spatial clearance detection engine (1198fe6)
 - feat(models): implement authentic room layout and lighting domain schema (3343fe0)
 - feat(spatial): bundle mock room USDZ asset for lighting simulation (7bba77d)
 - feat(assets): add procedural mock room generator with flat shading (979401d)
@@ -15,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - feat(testing): add in-memory ModelContainer fixture and SwiftData unit tests (b4daaff)
 
 ### Documentation
+- docs: record architectural decisions for spatial diagnostics and USDZ parsing (cc3437e)
 - docs(architecture): define whiteboard domain schema and local-first persistence roadmap (1b90094)
 - docs(adr): record architectural decision for mock USDZ reference environment (4da7ecf)
 - docs(spatial): document mock room specifications and scene hierarchy (be1d834)
@@ -25,6 +29,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - docs: add agentic playbook, architecture blueprint, and changelog (178cddb)
 
 ### Tooling & Maintenance
+- chore(changelog): update release changelog for domain schema migration (ada76db)
 - test(persistence): add room hierarchy persistence and model default initialization tests (20a21f7)
 - chore(tooling): automate changelog generation from conventional commits (8d9466d)
 - test(spatial): verify mock room hierarchy and required entities (3bab6e3)
