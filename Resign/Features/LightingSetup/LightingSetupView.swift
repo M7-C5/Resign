@@ -274,7 +274,7 @@ private struct LightSourceMarker: View {
             .overlay {
                 Image(systemName: "lightbulb.fill")
                     .font(.system(size: isSelected ? 12 : 9))
-                    .foregroundStyle(.black.opacity(0.65))
+                    .foregroundStyle(Color(white: 0.42))
             }
             .background {
                 // The halo is decorative and cannot expand the cell's tap target or layout.
@@ -330,7 +330,7 @@ private struct LightingSettingsCard: View {
                     .font(.caption)
                     .monospacedDigit()
                     .frame(maxWidth: .infinity)
-                ColorTemperatureSlider(
+                LightingGradientSlider(
                     value: draft?.colorTemp ?? 5000,
                     range: 2200...6500
                 ) { value in
@@ -356,19 +356,20 @@ private struct LightingSettingsCard: View {
                     .font(.caption)
                     .monospacedDigit()
                     .frame(maxWidth: .infinity)
-                Slider(
-                    value: Binding(
-                        get: { draft?.brightness ?? 1080 },
-                        set: { value in
-                            guard draft != nil else { return }
-                            onBrightnessChange(value)
-                        }
-                    ),
-                    in: 500...3000,
-                    step: 10
-                )
-                .tint(.gray)
+                LightingGradientSlider(
+                    value: Int(draft?.brightness ?? 1080),
+                    range: 500...3000,
+                    step: 10,
+                    stops: [
+                        .init(color: Color(white: 0.25), location: 0),
+                        .init(color: Color(white: 0.9), location: 1)
+                    ]
+                ) { value in
+                    guard draft != nil else { return }
+                    onBrightnessChange(Float(value))
+                }
                 .disabled(draft == nil)
+                .allowsHitTesting(draft != nil)
                 .accessibilityLabel("Brightness")
                 HStack {
                     Text("500 lm")
@@ -451,62 +452,76 @@ private struct MockRoomLightingBackground: UIViewRepresentable {
     }
 }
 
-// MARK: - Color Temperature Slider
+// MARK: - Shared Lighting Slider
 
-/// A custom gradient-track slider for selecting Kelvin color temperature.
-/// The track renders a warm-orange → neutral-white → cool-blue gradient
-/// matching the visual language of the design mockup.
-private struct ColorTemperatureSlider: View {
+/// Both lighting controls share track geometry, thumb styling and interaction.
+private struct LightingGradientSlider: View {
+    @Environment(\.isEnabled) private var isEnabled
 
-    var value: Int
-    var range: ClosedRange<Int>
-    var onChange: (Int) -> Void
+    let value: Int
+    let range: ClosedRange<Int>
+    var step: Int = 1
+    var stops: [Gradient.Stop] = [
+        .init(color: Color(red: 1.0, green: 0.68, blue: 0.26), location: 0),
+        .init(color: Color(red: 1.0, green: 0.88, blue: 0.60), location: 0.25),
+        .init(color: Color(red: 1.0, green: 0.98, blue: 0.90), location: 0.55),
+        .init(color: Color(red: 0.82, green: 0.91, blue: 1.0), location: 1)
+    ]
+    let onChange: (Int) -> Void
 
     private var fraction: CGFloat {
-        CGFloat(value - range.lowerBound) / CGFloat(range.upperBound - range.lowerBound)
+        let span = max(1, range.upperBound - range.lowerBound)
+        return min(1, max(0, CGFloat(value - range.lowerBound) / CGFloat(span)))
     }
 
     var body: some View {
-        GeometryReader { geo in
+        GeometryReader { geometry in
             let thumbDiameter: CGFloat = 22
-            let trackWidth = geo.size.width - thumbDiameter
+            let trackWidth = max(1, geometry.size.width - thumbDiameter)
 
             ZStack(alignment: .leading) {
-                // Gradient track
-                LinearGradient(
-                    stops: [
-                        .init(color: Color(red: 1.0, green: 0.68, blue: 0.26), location: 0.0),   // 2200 K candlelight
-                        .init(color: Color(red: 1.0, green: 0.88, blue: 0.60), location: 0.25),  // 3500 K warm white
-                        .init(color: Color(red: 1.0, green: 0.98, blue: 0.90), location: 0.55),  // 5000 K neutral
-                        .init(color: Color(red: 0.82, green: 0.91, blue: 1.0), location: 1.0),   // 6500 K daylight
-                    ],
-                    startPoint: .leading,
-                    endPoint: .trailing
-                )
-                .frame(height: 6)
-                .cornerRadius(3)
-                .offset(x: thumbDiameter / 2)
-                .frame(width: geo.size.width - thumbDiameter / 2)
+                LinearGradient(stops: stops, startPoint: .leading, endPoint: .trailing)
+                    .frame(width: trackWidth, height: 6)
+                    .clipShape(Capsule())
+                    .offset(x: thumbDiameter / 2)
 
-                // Thumb
                 Circle()
-                    .fill(.white)
+                    .fill(isEnabled ? Color.white : Color(white: 0.8))
                     .frame(width: thumbDiameter, height: thumbDiameter)
                     .shadow(color: .black.opacity(0.20), radius: 3, x: 0, y: 1)
                     .offset(x: fraction * trackWidth)
             }
+            .frame(height: 44)
             .contentShape(Rectangle())
             .gesture(
                 DragGesture(minimumDistance: 0)
                     .onChanged { drag in
+                        guard isEnabled else { return }
                         let rawFraction = (drag.location.x - thumbDiameter / 2) / trackWidth
-                        let clamped = max(0.0, min(1.0, rawFraction))
-                        let kelvin = range.lowerBound + Int(clamped * CGFloat(range.upperBound - range.lowerBound))
-                        onChange(kelvin)
+                        let clamped = min(1, max(0, rawFraction))
+                        let span = CGFloat(range.upperBound - range.lowerBound)
+                        let increment = max(1, step)
+                        let steps = Int((clamped * span / CGFloat(increment)).rounded())
+                        updateValue(range.lowerBound + steps * increment)
                     }
             )
         }
-        .frame(height: 22)
+        .frame(height: 44)
+        .accessibilityElement(children: .ignore)
+        .accessibilityValue(Text("\(value)"))
+        .accessibilityAdjustableAction { direction in
+            guard isEnabled else { return }
+            let increment = max(step, (range.upperBound - range.lowerBound) / 100)
+            switch direction {
+            case .increment: updateValue(value + increment)
+            case .decrement: updateValue(value - increment)
+            @unknown default: break
+            }
+        }
+    }
+
+    private func updateValue(_ newValue: Int) {
+        onChange(min(range.upperBound, max(range.lowerBound, newValue)))
     }
 }
 
