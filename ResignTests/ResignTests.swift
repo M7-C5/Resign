@@ -143,3 +143,183 @@ struct ResignTests {
         #expect(chair.rotationYaw == .pi / 4)
     }
 }
+
+// MARK: - LightingSetup ViewModel Tests
+
+@Suite("LightingSetup ViewModel Tests")
+struct LightingSetupViewModelTests {
+
+    // MARK: Grid interaction
+
+    @Test @MainActor func tapCell_emptyCell_addsNewDraftAndSelectsIt() {
+        let vm = LightingSetupViewModel()
+        vm.tapCell(col: 2, row: 3)
+
+        #expect(vm.drafts.count == 1)
+        #expect(vm.drafts[0].gridColumn == 2)
+        #expect(vm.drafts[0].gridRow == 3)
+        #expect(vm.selectedDraftID == vm.drafts[0].id)
+    }
+
+    @Test @MainActor func tapCell_existingCell_selectsWithoutCreatingDuplicate() {
+        let vm = LightingSetupViewModel()
+        vm.tapCell(col: 1, row: 1)
+        let firstID = vm.drafts[0].id
+        vm.tapCell(col: 1, row: 1) // tap same cell again
+
+        #expect(vm.drafts.count == 1, "Should not create a second draft on the same cell")
+        #expect(vm.selectedDraftID == firstID)
+    }
+
+    @Test @MainActor func deselectLight_clearsSelectionWithoutRemovingDraft() {
+        let vm = LightingSetupViewModel()
+        vm.tapCell(col: 0, row: 0)
+        vm.deselectLight()
+
+        #expect(vm.drafts.count == 1, "Draft should still exist after deselect")
+        #expect(vm.selectedDraftID == nil)
+    }
+
+    @Test @MainActor func deleteSelectedDraft_removesDraftAndClearsSelection() {
+        let vm = LightingSetupViewModel()
+        vm.tapCell(col: 0, row: 0)
+        vm.deleteSelectedDraft()
+
+        #expect(vm.drafts.isEmpty)
+        #expect(vm.selectedDraftID == nil)
+    }
+
+    // MARK: Auto-naming
+
+    @Test @MainActor func autoNaming_incrementsCorrectlyAsDraftsAreAdded() {
+        let vm = LightingSetupViewModel()
+        vm.tapCell(col: 0, row: 0)
+        vm.tapCell(col: 1, row: 0)
+        vm.tapCell(col: 2, row: 0)
+
+        #expect(vm.drafts[0].name == "Lighting 1")
+        #expect(vm.drafts[1].name == "Lighting 2")
+        #expect(vm.drafts[2].name == "Lighting 3")
+    }
+
+    // MARK: Property mutators
+
+    @Test @MainActor func updateBrightness_mutatesSelectedDraft() {
+        let vm = LightingSetupViewModel()
+        vm.tapCell(col: 1, row: 1)
+        vm.updateBrightness(2500)
+
+        #expect(vm.selectedDraft?.brightness == 2500)
+    }
+
+    @Test @MainActor func updateColorTemp_mutatesSelectedDraft() {
+        let vm = LightingSetupViewModel()
+        vm.tapCell(col: 2, row: 2)
+        vm.updateColorTemp(4000)
+
+        #expect(vm.selectedDraft?.colorTemp == 4000)
+    }
+
+    // MARK: Persistence
+
+    @Test @MainActor func saveToLayout_persistsAllDraftsAsLightRecords() throws {
+        let container = try ModelContainer.createInMemoryContainer()
+        let context = container.mainContext
+
+        let layout = Layout(name: "Test Layout")
+        context.insert(layout)
+        try context.save()
+
+        let vm = LightingSetupViewModel()
+        vm.tapCell(col: 0, row: 0)
+        vm.tapCell(col: 2, row: 2)
+        vm.tapCell(col: 4, row: 4)
+        vm.updateBrightness(1500)  // mutate selected (4,4)
+        vm.updateColorTemp(3500)
+
+        try vm.saveToLayout(layout, context: context)
+
+        let descriptor = FetchDescriptor<Light>()
+        let lights = try context.fetch(descriptor)
+        #expect(lights.count == 3, "All three drafts should be persisted as Light records")
+
+        let coords = Set(lights.map { "\(Int($0.coordinateX)),\(Int($0.coordinateY))" })
+        #expect(coords.contains("0,0"))
+        #expect(coords.contains("2,2"))
+        #expect(coords.contains("4,4"))
+
+        // Validate the mutated light at (4,4)
+        let mutated = lights.first { Int($0.coordinateX) == 4 && Int($0.coordinateY) == 4 }
+        #expect(mutated?.brightness == 1500)
+        #expect(mutated?.colorTemp == 3500)
+        #expect(mutated?.elevationZ == 2.6, "Elevation should default to 2.6m ceiling height")
+    }
+
+    @Test @MainActor func saveToLayout_emptyDrafts_persistsZeroLights() throws {
+        let container = try ModelContainer.createInMemoryContainer()
+        let context = container.mainContext
+
+        let layout = Layout(name: "Empty Layout")
+        context.insert(layout)
+        try context.save()
+
+        let vm = LightingSetupViewModel()
+        try vm.saveToLayout(layout, context: context)
+
+        let descriptor = FetchDescriptor<Light>()
+        let lights = try context.fetch(descriptor)
+        #expect(lights.isEmpty, "No lights should be inserted if drafts was empty")
+    }
+
+    // MARK: Edge cases
+
+    @Test @MainActor func lightDraft_defaultInitialization_hasSensibleDefaults() {
+        let draft = LightDraft(gridColumn: 2, gridRow: 2)
+        #expect(draft.name == "Lighting")
+        #expect(draft.brightness == 1080.0)
+        #expect(draft.colorTemp == 5000)
+        #expect(draft.isOn == true)
+        #expect(draft.gridColumn == 2)
+        #expect(draft.gridRow == 2)
+    }
+
+    @Test @MainActor func deleteSelectedDraft_whenNoneSelected_doesNothing() {
+        let vm = LightingSetupViewModel()
+        vm.tapCell(col: 0, row: 0)
+        vm.deselectLight()
+
+        #expect(vm.drafts.count == 1)
+        vm.deleteSelectedDraft()
+        #expect(vm.drafts.count == 1, "Should not delete anything when no light is selected")
+    }
+
+    @Test @MainActor func updateProperties_whenNoneSelected_doesNothing() {
+        let vm = LightingSetupViewModel()
+        vm.tapCell(col: 1, row: 1)
+        vm.deselectLight()
+
+        vm.updateBrightness(2800)
+        vm.updateColorTemp(3000)
+
+        #expect(vm.drafts[0].brightness == 1080.0, "Draft brightness should remain untouched")
+        #expect(vm.drafts[0].colorTemp == 5000, "Draft colorTemp should remain untouched")
+    }
+
+    @Test @MainActor func tapCell_switchSelectionBetweenExistingLights() {
+        let vm = LightingSetupViewModel()
+        vm.tapCell(col: 0, row: 0)
+        let firstID = vm.selectedDraftID
+
+        vm.tapCell(col: 4, row: 4)
+        let secondID = vm.selectedDraftID
+
+        #expect(firstID != secondID)
+        #expect(vm.selectedDraft?.id == secondID)
+
+        // Tap back on first cell
+        vm.tapCell(col: 0, row: 0)
+        #expect(vm.selectedDraftID == firstID)
+        #expect(vm.drafts.count == 2, "Should still have exactly 2 drafts")
+    }
+}
+
