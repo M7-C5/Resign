@@ -7,6 +7,7 @@
 
 import Testing
 import ModelIO
+import RealityKit
 import Foundation
 import SwiftData
 @testable import Resign
@@ -362,5 +363,84 @@ struct LightingSimulationModalTests {
     @Test func timeLabelsCoverDayBoundaries() {
         #expect(LightingSimulationSettings(minuteOfDay: 0).timeLabel == "00.00")
         #expect(LightingSimulationSettings(minuteOfDay: 1439).timeLabel == "23.59")
+    }
+}
+
+@Suite("Mock room lighting preview")
+struct MockRoomLightingPreviewTests {
+    @Test func daylightPeaksAtNoonAndFadesAtNight() {
+        let noon = LightingSimulationSettings(minuteOfDay: 720)
+        let midnight = LightingSimulationSettings(minuteOfDay: 0)
+        #expect(abs(noon.daylightFactor - 1) < 0.0001)
+        #expect(midnight.daylightFactor == 0)
+        #expect(noon.ambientIntensity == midnight.ambientIntensity)
+        #expect(LightingSimulationSettings(minuteOfDay: 360).daylightFactor == 0)
+        #expect(LightingSimulationSettings(minuteOfDay: 1200).daylightFactor == 0)
+    }
+
+    @Test func artificialLightsAreIndependentOfTime() {
+        let off = LightingSimulationSettings(artificialLightsOn: false, minuteOfDay: 720)
+        let on = LightingSimulationSettings(artificialLightsOn: true, minuteOfDay: 0)
+        #expect(off.artificialIntensity == 0)
+        #expect(on.artificialIntensity > 0)
+        #expect(off.daylightIntensity > on.daylightIntensity)
+    }
+
+    @Test @MainActor func previewRollsBackOnCancelAndPersistsOnConfirm() {
+        let model = Studio3DViewModel()
+        let original = model.previewLighting
+        model.beginLightingEditing()
+        model.lightingDraft.minuteOfDay = 0
+        model.lightingDraft.artificialLightsOn = false
+        #expect(model.previewLighting.artificialIntensity == 0)
+        #expect(model.previewLighting.daylightFactor == 0)
+        model.discardLightingEditing()
+        #expect(model.previewLighting == original)
+        model.beginLightingEditing()
+        model.lightingDraft.minuteOfDay = 1200
+        model.confirmLightingEditing()
+        #expect(model.previewLighting.minuteOfDay == 1200)
+    }
+}
+
+@Suite("Window daylight")
+struct WindowDaylightTests {
+    @Test func ambientDoesNotActAsUnrestrictedDaylight() {
+        for minute in [0, 360, 720, 1080, 1439] {
+            let settings = LightingSimulationSettings(minuteOfDay: minute)
+            #expect(settings.ambientIntensity == 60)
+        }
+    }
+
+    @Test @MainActor func realityKitWindowLightingAndDraftUpdates() async throws {
+        let scene = MockRoomRealityScene(topDown: false)
+        try await scene.load()
+        let room = try #require(scene.room)
+        let eastWall = try #require(room.findEntity(named: "Wall_East_North"))
+        let glass = try #require(room.findEntity(named: "Glass"))
+        #expect(eastWall.isEnabled)
+        #expect(glass.components[DynamicLightShadowComponent.self]?.castsShadow == false)
+        #expect(scene.daylight.shadow != nil)
+        #expect(scene.daylight.position.x > 2.6)
+        #expect(scene.daylight.light.outerAngleInDegrees == 24)
+        scene.apply(LightingSimulationSettings(artificialLightsOn: false, minuteOfDay: 0))
+        #expect(scene.daylight.light.intensity == 0)
+        #expect(scene.fixtures.allSatisfy { $0.light.intensity == 0 })
+        scene.apply(LightingSimulationSettings())
+        #expect(scene.daylight.light.intensity > 0)
+        #expect(scene.fixtures.count == 2)
+        #expect(scene.fixtures.allSatisfy { $0.light.intensity > 0 })
+        let original = scene.room
+        try await scene.load()
+        #expect(scene.room === original)
+    }
+
+    @Test @MainActor func placementUsesFixedOrthographicCamera() async throws {
+        let scene = MockRoomRealityScene(topDown: true)
+        try await scene.load()
+        let camera = try #require(scene.camera.components[OrthographicCameraComponent.self])
+        #expect(camera.scale == 4.2)
+        #expect(scene.fixtures.isEmpty)
+        #expect(scene.room?.findEntity(named: "Ceiling")?.isEnabled == false)
     }
 }

@@ -7,8 +7,13 @@ public struct Studio3DView: View {
 
     public var body: some View {
         ZStack(alignment: .topTrailing) {
-            Text("3D Studio")
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            GeometryReader { geometry in
+                MockRoomSimulationView(settings: viewModel.previewLighting)
+                    .frame(
+                        width: geometry.size.width,
+                        height: max(180, geometry.size.height - (viewModel.isLightingPresented ? 250 : 0))
+                    )
+            }
 
             Button {
                 viewModel.beginLightingEditing()

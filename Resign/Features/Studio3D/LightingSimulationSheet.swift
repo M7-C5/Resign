@@ -37,16 +37,21 @@ struct LightingSimulationSheet: View {
                 }
                 .buttonStyle(.plain)
 
-                HStack(spacing: 10) {
-                    Text("Off")
-                    Toggle("Artificial lights", isOn: $settings.artificialLightsOn)
-                        .labelsHidden()
-                        .tint(.green)
-                    Text("On")
-                    Spacer()
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Natural light from east window")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    HStack(spacing: 10) {
+                        Text("Off")
+                        Toggle("Artificial lights", isOn: $settings.artificialLightsOn)
+                            .labelsHidden()
+                            .tint(.orange)
+                        Text("On")
+                        Spacer()
+                    }
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
                 }
-                .font(.caption)
-                .foregroundStyle(.secondary)
 
                 LightingTimeSlider(minuteOfDay: $settings.minuteOfDay)
             }
@@ -58,6 +63,7 @@ struct LightingSimulationSheet: View {
         .presentationDragIndicator(.visible)
         .presentationCornerRadius(28)
         .presentationBackground(.regularMaterial)
+        .presentationBackgroundInteraction(.enabled(upThrough: .height(230)))
     }
 }
 

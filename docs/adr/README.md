@@ -14,6 +14,10 @@ This directory documents key architectural decisions for **Resign** using the [M
 
 - [ADR 0008: Lighting Simulation Modal Session](0008-lighting-simulation-modal-session.md)
 
+- [ADR 0009: Mock Room Lighting Preview](0009-mock-room-lighting-preview.md)
+
+- [ADR 0010: Window-Gated Mock Daylight](0010-window-gated-mock-daylight.md)
+
 ## How to Create a New ADR
 1. Copy [template.md](template.md) to `docs/adr/NNNN-title-in-kebab-case.md`.
 2. Follow MADR conventions: Context, Decision Drivers, Considered Options, Decision Outcome, and Consequences.

@@ -5,7 +5,7 @@
 
 import SwiftUI
 import SwiftData
-import SceneKit
+import RealityKit
 
 /// The "Add Your Light Source" screen — Phase 4 of the Resign onboarding flow.
 ///
@@ -391,64 +391,26 @@ private struct LightingSettingsCard: View {
 // MARK: - Mock Room Background
 
 /// A fixed ceiling projection of the bundled reference room, matching the grid bounds.
-private struct MockRoomLightingBackground: UIViewRepresentable {
-    func makeUIView(context: Context) -> UIImageView {
-        let view = UIImageView()
-        view.contentMode = .scaleAspectFit
-        view.backgroundColor = .secondarySystemBackground
-        view.isUserInteractionEnabled = false
+private struct MockRoomLightingBackground: View {
+    @State private var scene = MockRoomRealityScene(topDown: true)
 
-        do {
-            guard let url = Bundle.main.url(forResource: "MockRoom", withExtension: "usdz") else {
-                throw CocoaError(.fileNoSuchFile)
+    var body: some View {
+        RealityView { content in
+            content.camera = .virtual
+            do {
+                try await scene.load()
+                content.add(scene.root)
+            } catch {
+                scene.loadFailed = true
             }
-            let scene = try SCNScene(url: url)
-            scene.rootNode.childNode(withName: "Ceiling", recursively: true)?.isHidden = true
-
-            let camera = SCNCamera()
-            camera.usesOrthographicProjection = true
-            // Half the 4.2 m depth; the 5:4.2 viewport also fits the room width.
-            camera.orthographicScale = 2.1
-            camera.zNear = 0.1
-            camera.zFar = 100
-
-            let viewpoint = SCNNode()
-            viewpoint.camera = camera
-            viewpoint.position = SCNVector3(0, 10, 0)
-            // North (-Z) at the top, east (+X) at the right.
-            viewpoint.eulerAngles.x = -.pi / 2
-            scene.rootNode.addChildNode(viewpoint)
-            // Render the fixed 3D viewpoint once; grid edits do not need a render loop.
-            let renderer = SCNRenderer(device: nil, options: nil)
-            renderer.scene = scene
-            renderer.pointOfView = viewpoint
-            renderer.autoenablesDefaultLighting = true
-            view.image = renderer.snapshot(
-                atTime: 0,
-                with: CGSize(width: 1000, height: 840),
-                antialiasingMode: .multisampling4X
-            )
-        } catch {
-            let label = UILabel()
-            label.text = String(localized: "Room preview unavailable")
-            label.textAlignment = .center
-            label.font = .preferredFont(forTextStyle: .caption1)
-            label.textColor = .secondaryLabel
-            label.translatesAutoresizingMaskIntoConstraints = false
-            view.addSubview(label)
-            NSLayoutConstraint.activate([
-                label.centerXAnchor.constraint(equalTo: view.centerXAnchor),
-                label.centerYAnchor.constraint(equalTo: view.centerYAnchor)
-            ])
         }
-        return view
-    }
-
-    func updateUIView(_ uiView: UIImageView, context: Context) {}
-
-    func sizeThatFits(_ proposal: ProposedViewSize, uiView: UIImageView, context: Context) -> CGSize? {
-        guard let width = proposal.width, let height = proposal.height else { return nil }
-        return CGSize(width: width, height: height)
+        .overlay {
+            if scene.loadFailed {
+                Text("Room preview unavailable")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        }
     }
 }
 
