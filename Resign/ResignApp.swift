@@ -25,6 +25,17 @@ struct ResignApp: App {
         }
     }()
 
+    init() {
+        let context = sharedModelContainer.mainContext
+        let descriptor = FetchDescriptor<Room>()
+        if let count = try? context.fetchCount(descriptor), count == 0 {
+            if let mock = try? RoomRepository.loadMockRoomFromUSDZ() {
+                context.insert(mock)
+                try? context.save()
+            }
+        }
+    }
+
     var body: some Scene {
         WindowGroup {
             DashboardView()
