@@ -25,9 +25,21 @@ struct ResignApp: App {
         }
     }()
 
+    @State private var activeRoomId: UUID? = nil
+
     var body: some Scene {
         WindowGroup {
-            DashboardView()
+            Group {
+                if let roomId = activeRoomId {
+                    RoomScanResultView(roomId: roomId) {
+                        activeRoomId = nil
+                    }
+                } else {
+                    RoomScanView { savedRoomId in
+                        activeRoomId = savedRoomId
+                    }
+                }
+            }
         }
         .modelContainer(sharedModelContainer)
     }
