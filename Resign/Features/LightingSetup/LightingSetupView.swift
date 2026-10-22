@@ -107,7 +107,7 @@ public struct LightingSetupView: View {
                 } label: {
                     Image(systemName: "chevron.left")
                         .font(.body.weight(.semibold))
-                        .foregroundStyle(.primary)
+                        .foregroundStyle(.black)
                         .frame(width: 44, height: 44)
                 }
                 .accessibilityLabel("Back")
