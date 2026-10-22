@@ -8,6 +8,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- feat: auto-seed reference room on startup and connect tab navigation (997c2bf)
+- feat: integrate spatial diagnostics dashboard with live room presets (b8f77f5)
+- feat: render USDZ mock room with 45-degree isometric orbit controls (04b3f1d)
 - feat: implement AI spatial diagnostic reasoning and layout solver (5480b56)
 - feat: add ModelIO dynamic USDZ room ingestion pipeline (995aa91)
 - feat: implement Panero & Zelnik spatial clearance detection engine (1198fe6)
@@ -29,6 +32,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - docs: add agentic playbook, architecture blueprint, and changelog (178cddb)
 
 ### Tooling & Maintenance
+- chore: update changelog for spatial diagnostics and layout solver (f0bd9af)
 - chore(changelog): update release changelog for domain schema migration (ada76db)
 - test(persistence): add room hierarchy persistence and model default initialization tests (20a21f7)
 - chore(tooling): automate changelog generation from conventional commits (8d9466d)
