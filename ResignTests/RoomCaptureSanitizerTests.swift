@@ -1,0 +1,378 @@
+//
+//  RoomCaptureSanitizerTests.swift
+//  ResignTests
+//
+
+import Testing
+import simd
+import SwiftData
+@testable import Resign
+
+@Suite("RoomPlan Capture Sanitizer & Mapper Tests")
+struct RoomCaptureSanitizerTests {
+
+    @Test func floorGroundingClampsFloatingYPositionToZero() {
+        let sanitizer = RoomCaptureSanitizer()
+
+        let floatingBed = ScannedObjectPayload(
+            rawCategory: "bed",
+            position: SIMD3<Float>(1.2, 0.08, -1.5), // Y is floating 8 cm
+            dimensions: SIMD3<Float>(1.6, 1.0, 2.0),
+            rotationYaw: 0
+        )
+
+        let sanitized = sanitizer.sanitize(
+            objects: [floatingBed],
+            roomWidth: 5.0,
+            roomLength: 4.2
+        )
+
+        #expect(sanitized.count == 1)
+        #expect(sanitized[0].position.y == 0.0)
+        #expect(sanitized[0].position.x == 1.2)
+        #expect(sanitized[0].position.z == -1.5)
+    }
+
+    @Test func bathroomAndApplianceDetectionsAreDiscarded() {
+        let sanitizer = RoomCaptureSanitizer()
+
+        let falseBathtub = ScannedObjectPayload(
+            rawCategory: "bathtub",
+            position: SIMD3<Float>(0, 0, 0),
+            dimensions: SIMD3<Float>(1.5, 0.6, 0.8),
+            rotationYaw: 0
+        )
+        let falseToilet = ScannedObjectPayload(
+            rawCategory: "toilet",
+            position: SIMD3<Float>(1.0, 0, 1.0),
+            dimensions: SIMD3<Float>(0.5, 0.7, 0.6),
+            rotationYaw: 0
+        )
+        let falseSink = ScannedObjectPayload(
+            rawCategory: "sink",
+            position: SIMD3<Float>(-1.0, 0, -1.0),
+            dimensions: SIMD3<Float>(0.6, 0.8, 0.5),
+            rotationYaw: 0
+        )
+        let falseRefrigerator = ScannedObjectPayload(
+            rawCategory: "refrigerator",
+            position: SIMD3<Float>(2.0, 0, 0),
+            dimensions: SIMD3<Float>(0.9, 1.8, 0.8),
+            rotationYaw: 0
+        )
+        let validBed = ScannedObjectPayload(
+            rawCategory: "bed",
+            position: SIMD3<Float>(-1.2, 0, 0),
+            dimensions: SIMD3<Float>(1.6, 1.0, 2.0),
+            rotationYaw: 0
+        )
+
+        let sanitized = sanitizer.sanitize(
+            objects: [falseBathtub, falseToilet, falseSink, falseRefrigerator, validBed],
+            roomWidth: 5.0,
+            roomLength: 4.2
+        )
+
+        #expect(sanitized.count == 1)
+        #expect(sanitized[0].category == "bed")
+    }
+
+    @Test func homeownerLivingCategoriesAreWhitelistedAndMapped() {
+        let sanitizer = RoomCaptureSanitizer()
+
+        let objects = [
+            ScannedObjectPayload(rawCategory: "bed", position: .zero, dimensions: [1.6, 1.0, 2.0], rotationYaw: 0),
+            ScannedObjectPayload(rawCategory: "sofa", position: .zero, dimensions: [2.1, 0.85, 0.95], rotationYaw: 0),
+            ScannedObjectPayload(rawCategory: "chair", position: .zero, dimensions: [0.65, 0.85, 0.65], rotationYaw: 0),
+            ScannedObjectPayload(rawCategory: "storage", position: .zero, dimensions: [1.2, 2.0, 0.6], rotationYaw: 0),
+            ScannedObjectPayload(rawCategory: "television", position: .zero, dimensions: [1.3, 1.1, 0.4], rotationYaw: 0),
+            ScannedObjectPayload(rawCategory: "fireplace", position: .zero, dimensions: [1.2, 1.0, 0.5], rotationYaw: 0),
+        ]
+
+        let sanitized = sanitizer.sanitize(
+            objects: objects,
+            roomWidth: 6.0,
+            roomLength: 6.0
+        )
+
+        let categories = sanitized.map(\.category)
+        #expect(categories == ["bed", "sofa", "chair", "closet", "television", "fireplace"])
+    }
+
+    @Test func tableCategorizationDistinguishesWorkDeskFromDiningTable() {
+        let sanitizer = RoomCaptureSanitizer()
+
+        // Desk dimensions (height ~0.75m, width ~1.2m, length ~0.65m)
+        let deskObject = ScannedObjectPayload(
+            rawCategory: "table",
+            position: .zero,
+            dimensions: SIMD3<Float>(1.2, 0.74, 0.65),
+            rotationYaw: 0
+        )
+
+        // Dining table dimensions (width ~1.8m, length ~1.0m, height ~0.76m)
+        let diningTableObject = ScannedObjectPayload(
+            rawCategory: "table",
+            position: .zero,
+            dimensions: SIMD3<Float>(1.8, 0.76, 1.0),
+            rotationYaw: 0
+        )
+
+        let sanitized = sanitizer.sanitize(
+            objects: [deskObject, diningTableObject],
+            roomWidth: 5.0,
+            roomLength: 5.0
+        )
+
+        #expect(sanitized.count == 2)
+        #expect(sanitized[0].category == "desk")
+        #expect(sanitized[1].category == "table")
+    }
+
+    @Test func uniformScaleMultiplierMatchesWidthRatio() {
+        let sanitizer = RoomCaptureSanitizer()
+
+        // Detected twin bed (1.0m width) vs Queen master model (1.6m width)
+        let twinBed = ScannedObjectPayload(
+            rawCategory: "bed",
+            position: .zero,
+            dimensions: SIMD3<Float>(1.0, 0.9, 1.9),
+            rotationYaw: 0
+        )
+
+        let sanitized = sanitizer.sanitize(
+            objects: [twinBed],
+            roomWidth: 4.0,
+            roomLength: 4.0
+        )
+
+        #expect(sanitized.count == 1)
+        let expectedScale = Float(1.0 / 1.6)
+        #expect(abs(sanitized[0].uniformScale - expectedScale) < 0.001)
+    }
+
+    @Test @MainActor func mapperAssemblesCompleteSwiftDataGraph() throws {
+        let container = try ModelContainer.createInMemoryContainer()
+        let context = container.mainContext
+
+        let payload = CapturedRoomPayload(
+            roomLength: 4.2,
+            roomWidth: 5.0,
+            roomHeight: 2.6,
+            openings: [
+                ScannedOpeningPayload(type: "window", position: [2.5, 1.45, 0.0], dimensions: [1.6, 1.2, 0.1]),
+                ScannedOpeningPayload(type: "door", position: [0.0, 1.05, -2.1], dimensions: [0.9, 2.1, 0.1])
+            ],
+            objects: [
+                ScannedObjectPayload(rawCategory: "bed", position: [-1.3, 0.05, -1.0], dimensions: [1.6, 1.0, 2.0], rotationYaw: 0),
+                ScannedObjectPayload(rawCategory: "table", position: [1.8, 0.0, -1.2], dimensions: [1.2, 0.75, 0.65], rotationYaw: .pi / 2),
+                ScannedObjectPayload(rawCategory: "bathtub", position: [0, 0, 0], dimensions: [1.5, 0.6, 0.8], rotationYaw: 0) // Should be discarded
+            ]
+        )
+
+        let mapper = RoomCaptureMapper()
+        let room = mapper.mapToRoom(payload: payload, roomName: "Guest Bedroom")
+        context.insert(room)
+        try context.save()
+
+        let fetched = try context.fetch(FetchDescriptor<Room>())
+        #expect(fetched.count == 1)
+
+        let savedRoom = fetched[0]
+        #expect(savedRoom.name == "Guest Bedroom")
+        #expect(savedRoom.length == 4.2)
+        #expect(savedRoom.width == 5.0)
+        #expect(savedRoom.height == 2.6)
+
+        // Verify openings
+        #expect(savedRoom.openings.count == 2)
+        let types = Set(savedRoom.openings.map(\.type))
+        #expect(types.contains("window"))
+        #expect(types.contains("door"))
+
+        // Verify layout & furniture
+        #expect(savedRoom.layouts.count == 1)
+        let layout = savedRoom.layouts[0]
+        #expect(layout.name == "Original Scan")
+        #expect(layout.furnitures.count == 2) // Bed and Desk (bathtub discarded)
+
+        let furnitureCategories = Set(layout.furnitures.map(\.category))
+        #expect(furnitureCategories.contains("bed"))
+        #expect(furnitureCategories.contains("desk"))
+
+        // Verify all furniture is grounded at Y = 0.0
+        for item in layout.furnitures {
+            #expect(item.positionY == 0.0)
+        }
+    }
+
+    @Test func snapsDeskToAngledWallSegmentWithinThreshold() {
+        let sanitizer = RoomCaptureSanitizer()
+
+        // 45 degree wall segment running from (0, 0) to (2, 2)
+        let wall = ScannedWallPayload(
+            position: SIMD3<Float>(1.0, 1.3, 1.0),
+            dimensions: SIMD3<Float>(2.828, 2.6, 0.1),
+            rotationYaw: .pi / 4
+        )
+
+        // Desk near the wall (gap ~ 8cm, well within 15cm threshold)
+        let desk = ScannedObjectPayload(
+            rawCategory: "table",
+            position: SIMD3<Float>(1.0, 0.0, 1.0),
+            dimensions: SIMD3<Float>(1.2, 0.75, 0.7),
+            rotationYaw: .pi / 4
+        )
+
+        let sanitized = sanitizer.sanitize(
+            objects: [desk],
+            roomWidth: 6.0,
+            roomLength: 6.0,
+            walls: [wall]
+        )
+
+        #expect(sanitized.count == 1)
+        #expect(sanitized[0].category == "desk")
+        #expect(sanitized[0].position.y == 0.0)
+        #expect(abs(sanitized[0].rotationYaw - (.pi / 4)) < 0.01)
+    }
+
+    @Test func snappingToWallFactorsInWallThicknessWithZeroDrywallPenetration() {
+        let sanitizer = RoomCaptureSanitizer()
+
+        // South wall running along X at Z = 2.0m, wall thickness = 0.10m
+        // Inner plaster surface is at Z = 2.0 - 0.05 = 1.95m
+        let wall = ScannedWallPayload(
+            position: SIMD3<Float>(0, 1.3, 2.0),
+            dimensions: SIMD3<Float>(4.0, 2.6, 0.10),
+            rotationYaw: 0
+        )
+
+        // Desk placed near the wall: width = 1.2m, depth = 0.60m (dimensions.z)
+        // Center at Z = 1.68m (within 15cm snap threshold)
+        let desk = ScannedObjectPayload(
+            rawCategory: "table",
+            position: SIMD3<Float>(0, 0, 1.68),
+            dimensions: SIMD3<Float>(1.2, 0.75, 0.60),
+            rotationYaw: 0
+        )
+
+        let sanitized = sanitizer.sanitize(
+            objects: [desk],
+            roomWidth: 5.0,
+            roomLength: 4.0,
+            walls: [wall]
+        )
+
+        #expect(sanitized.count == 1)
+        // Plaster face is at 1.95m. Desk half-depth is 0.30m.
+        // True desk center must sit at 1.95 - 0.30 = 1.65m (NOT 1.70m, which would penetrate 5cm into plaster)
+        #expect(abs(sanitized[0].position.z - 1.65) < 0.01)
+        // Back edge of desk must sit precisely on the plaster face (1.65 + 0.30 = 1.95m)
+        let backEdgeZ = sanitized[0].position.z + (desk.dimensions.z / 2.0)
+        #expect(abs(backEdgeZ - 1.95) < 0.01)
+    }
+
+    @Test func perpendicularObjectSnapsToPerpendicularAngle() {
+        let sanitizer = RoomCaptureSanitizer()
+
+        // Wall with yaw = 0 (runs along X)
+        let wall = ScannedWallPayload(
+            position: SIMD3<Float>(0, 1.3, -2.0),
+            dimensions: SIMD3<Float>(4.0, 2.6, 0.10),
+            rotationYaw: 0
+        )
+
+        // Bed placed perpendicular to wall (yaw = pi/2)
+        let bed = ScannedObjectPayload(
+            rawCategory: "bed",
+            position: SIMD3<Float>(0, 0, -1.0),
+            dimensions: SIMD3<Float>(1.6, 1.0, 2.0),
+            rotationYaw: .pi / 2
+        )
+
+        let sanitized = sanitizer.sanitize(
+            objects: [bed],
+            roomWidth: 5.0,
+            roomLength: 4.0,
+            walls: [wall]
+        )
+
+        #expect(sanitized.count == 1)
+        // Must preserve perpendicular orientation (pi / 2), NOT forcefully spin parallel (0)
+        #expect(abs(sanitized[0].rotationYaw - (.pi / 2)) < 0.01)
+    }
+
+    @Test func classifiesFurnitureIntoDiscreteArchetypeNames() {
+        let sanitizer = RoomCaptureSanitizer()
+
+        let twinBed = ScannedObjectPayload(rawCategory: "bed", position: [0, 0, 0], dimensions: [1.0, 0.9, 2.0], rotationYaw: 0)
+        let queenBed = ScannedObjectPayload(rawCategory: "bed", position: [0, 0, 0], dimensions: [1.6, 0.9, 2.0], rotationYaw: 0)
+        let kingBed = ScannedObjectPayload(rawCategory: "bed", position: [0, 0, 0], dimensions: [1.9, 0.9, 2.0], rotationYaw: 0)
+        let compactDesk = ScannedObjectPayload(rawCategory: "table", position: [0, 0, 0], dimensions: [1.1, 0.75, 0.6], rotationYaw: 0)
+        let workDesk = ScannedObjectPayload(rawCategory: "table", position: [0, 0, 0], dimensions: [1.6, 0.75, 0.8], rotationYaw: 0)
+        let loveseat = ScannedObjectPayload(rawCategory: "sofa", position: [0, 0, 0], dimensions: [1.5, 0.85, 0.9], rotationYaw: 0)
+        let sofa = ScannedObjectPayload(rawCategory: "sofa", position: [0, 0, 0], dimensions: [2.2, 0.85, 0.9], rotationYaw: 0)
+
+        let sanitized = sanitizer.sanitize(
+            objects: [twinBed, queenBed, kingBed, compactDesk, workDesk, loveseat, sofa],
+            roomWidth: 8.0,
+            roomLength: 8.0
+        )
+
+        #expect(sanitized[0].name == "Twin Bed")
+        #expect(sanitized[1].name == "Queen Bed")
+        #expect(sanitized[2].name == "King Bed")
+        #expect(sanitized[3].name == "Compact Desk")
+        #expect(sanitized[4].name == "Work Desk")
+        #expect(sanitized[5].name == "2-Seat Sofa")
+        #expect(sanitized[6].name == "3-Seat Sofa")
+    }
+
+    @Test func floorGroundingClampsToCapturedFloorLevel() {
+        let sanitizer = RoomCaptureSanitizer()
+
+        let floatingBed = ScannedObjectPayload(
+            rawCategory: "bed",
+            position: SIMD3<Float>(1.2, -1.35, -1.5),
+            dimensions: SIMD3<Float>(1.6, 1.0, 2.0),
+            rotationYaw: 0
+        )
+
+        let sanitized = sanitizer.sanitize(
+            objects: [floatingBed],
+            roomWidth: 5.0,
+            roomLength: 4.2,
+            floorLevel: -1.69
+        )
+
+        #expect(sanitized.count == 1)
+        #expect(abs(sanitized[0].position.y - (-1.69)) < 0.001)
+    }
+
+    @Test func mapperCarriesFloorLevelFromPayloadIntoSanitizedLayout() {
+        let mapper = RoomCaptureMapper()
+
+        let payload = CapturedRoomPayload(
+            roomLength: 4.2,
+            roomWidth: 5.0,
+            roomHeight: 2.6,
+            floorLevel: -1.69,
+            openings: [],
+            objects: [
+                ScannedObjectPayload(
+                    rawCategory: "bed",
+                    position: SIMD3<Float>(1.0, -1.2, -1.0),
+                    dimensions: SIMD3<Float>(1.6, 1.0, 2.0),
+                    rotationYaw: 0
+                )
+            ]
+        )
+
+        let room = mapper.mapToRoom(payload: payload)
+        let layout = room.layouts.first
+        #expect(layout != nil)
+        #expect(layout?.furnitures.count == 1)
+        #expect(abs((layout?.furnitures.first?.positionY ?? 0) - (-1.69)) < 0.001)
+    }
+}
