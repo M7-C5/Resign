@@ -323,3 +323,44 @@ struct LightingSetupViewModelTests {
     }
 }
 
+@Suite("Lighting simulation modal")
+struct LightingSimulationModalTests {
+    @Test @MainActor func editsRemainDraftUntilConfirmed() {
+        let model = Studio3DViewModel()
+        model.beginLightingEditing()
+        model.lightingDraft.artificialLightsOn = false
+        model.lightingDraft.minuteOfDay = 1140
+        #expect(model.lightingSettings == LightingSimulationSettings())
+        model.confirmLightingEditing()
+        #expect(!model.isLightingPresented)
+        model.beginLightingEditing()
+        #expect(!model.lightingDraft.artificialLightsOn)
+        #expect(model.lightingDraft.minuteOfDay == 1140)
+    }
+
+    @Test @MainActor func discardRestoresLastConfirmedChoices() {
+        let model = Studio3DViewModel()
+        model.beginLightingEditing()
+        model.lightingDraft.minuteOfDay = 360
+        model.confirmLightingEditing()
+        model.beginLightingEditing()
+        model.lightingDraft.minuteOfDay = 1200
+        model.lightingDraft.artificialLightsOn = false
+        model.discardLightingEditing()
+        model.beginLightingEditing()
+        #expect(model.lightingDraft.minuteOfDay == 360)
+        #expect(model.lightingDraft.artificialLightsOn)
+    }
+
+    @Test @MainActor func newViewerStartsAtNoonWithLightsOn() {
+        let model = Studio3DViewModel()
+        #expect(model.lightingSettings.artificialLightsOn)
+        #expect(model.lightingSettings.timeLabel == "12.00")
+        #expect(!model.isLightingPresented)
+    }
+
+    @Test func timeLabelsCoverDayBoundaries() {
+        #expect(LightingSimulationSettings(minuteOfDay: 0).timeLabel == "00.00")
+        #expect(LightingSimulationSettings(minuteOfDay: 1439).timeLabel == "23.59")
+    }
+}
