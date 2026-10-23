@@ -156,6 +156,7 @@ public final class RoomScanViewModel {
         let floorCorners = room.floors.first?.polygonCorners ?? []
         let dims = RoomDimensionExtractor.extractDimensions(
             polygonCorners: floorCorners,
+            walls: walls,
             wallHeights: wallHeights,
             wallLengths: wallLengths
         )
