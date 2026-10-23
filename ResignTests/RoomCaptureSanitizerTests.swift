@@ -375,4 +375,130 @@ struct RoomCaptureSanitizerTests {
         #expect(layout?.furnitures.count == 1)
         #expect(abs((layout?.furnitures.first?.positionY ?? 0) - (-1.69)) < 0.001)
     }
+
+    @Test func standingTelevisionRestsFlushOnTopOfMediaConsoleAndAlignsYaw() {
+        let sanitizer = RoomCaptureSanitizer()
+        let floorLevel: Float = -1.6906
+
+        // East wall running along Z (yaw = pi / 2) at X = 1.72m
+        let eastWall = ScannedWallPayload(
+            position: SIMD3<Float>(1.72, -0.09, 0.0),
+            dimensions: SIMD3<Float>(4.06, 3.21, 0.10),
+            rotationYaw: .pi / 2
+        )
+
+        // Floor-standing media console (storage -> closet, height = 0.845m)
+        let console = ScannedObjectPayload(
+            rawCategory: "storage",
+            position: SIMD3<Float>(1.408, -1.268, 0.233),
+            dimensions: SIMD3<Float>(1.713, 0.845, 0.572),
+            rotationYaw: .pi / 2
+        )
+
+        // Standing TV resting on top of the console with 5° scanning yaw jitter
+        let standingTV = ScannedObjectPayload(
+            rawCategory: "television",
+            position: SIMD3<Float>(1.394, -0.570, 0.113),
+            dimensions: SIMD3<Float>(1.097, 0.683, 0.080),
+            rotationYaw: (.pi / 2) - 0.087
+        )
+
+        let sanitized = sanitizer.sanitize(
+            objects: [console, standingTV],
+            roomWidth: 4.23,
+            roomLength: 4.06,
+            walls: [eastWall],
+            floorLevel: floorLevel
+        )
+
+        #expect(sanitized.count == 2)
+
+        let sanitizedConsole = sanitized[0]
+        #expect(sanitizedConsole.category == "closet")
+        #expect(sanitizedConsole.name == "Media Console")
+        #expect(abs(sanitizedConsole.position.y - floorLevel) < 0.001)
+
+        let sanitizedTV = sanitized[1]
+        #expect(sanitizedTV.category == "television")
+        #expect(sanitizedTV.name == "Television")
+        // TV base must sit flush on top of the console (floorLevel + 0.845), NOT on the floor
+        let expectedTVBaseY = floorLevel + console.dimensions.y
+        #expect(abs(sanitizedTV.position.y - expectedTVBaseY) < 0.001)
+        // TV must remain centered on the console horizontally rather than yanked into the drywall
+        #expect(abs(sanitizedTV.position.x - standingTV.position.x) < 0.001)
+        // TV yaw jitter must still snap parallel to the East wall (pi / 2)
+        #expect(abs(sanitizedTV.rotationYaw - (.pi / 2)) < 0.001)
+    }
+
+    @Test func wallMountedTelevisionAndFloatingShelfPreserveElevatedHeight() {
+        let sanitizer = RoomCaptureSanitizer()
+        let floorLevel: Float = -1.6906
+
+        // Floating wall shelf mounted 1.52m above the floor
+        let floatingShelf = ScannedObjectPayload(
+            rawCategory: "storage",
+            position: SIMD3<Float>(-1.73, 0.049, -1.21),
+            dimensions: SIMD3<Float>(0.65, 0.44, 0.31),
+            rotationYaw: 0
+        )
+
+        // Wall-mounted TV with no console underneath
+        let wallTV = ScannedObjectPayload(
+            rawCategory: "television",
+            position: SIMD3<Float>(0.0, -0.40, 1.85),
+            dimensions: SIMD3<Float>(1.30, 0.74, 0.07),
+            rotationYaw: 0
+        )
+
+        let sanitized = sanitizer.sanitize(
+            objects: [floatingShelf, wallTV],
+            roomWidth: 4.23,
+            roomLength: 4.06,
+            floorLevel: floorLevel
+        )
+
+        #expect(sanitized.count == 2)
+
+        // Floating shelf preserves its elevated bottom Y (0.049 - 0.22 = -0.171) and is named "Wall Shelf"
+        #expect(sanitized[0].name == "Wall Shelf")
+        #expect(abs(sanitized[0].position.y - (-0.171)) < 0.005)
+        #expect(sanitized[0].position.y > floorLevel + 1.0)
+
+        // Wall-mounted TV preserves its elevated bottom Y (-0.40 - 0.37 = -0.77)
+        #expect(sanitized[1].name == "Television")
+        #expect(abs(sanitized[1].position.y - (-0.77)) < 0.005)
+        #expect(sanitized[1].position.y > floorLevel + 0.5)
+    }
+
+    @Test func orthogonalYawSnappingEliminatesMicroRotationalJitterAgainstWall() {
+        let sanitizer = RoomCaptureSanitizer()
+
+        // North wall along X at Z = -2.0m, thickness = 0.10m (inner plaster face at Z = -1.95m)
+        let northWall = ScannedWallPayload(
+            position: SIMD3<Float>(0, 1.3, -2.0),
+            dimensions: SIMD3<Float>(4.0, 2.6, 0.10),
+            rotationYaw: 0
+        )
+
+        // Desk placed against North wall with 8 degrees (0.14 rad) of rotational scanning jitter
+        let jitteredDesk = ScannedObjectPayload(
+            rawCategory: "table",
+            position: SIMD3<Float>(0.5, 0.0, -1.62),
+            dimensions: SIMD3<Float>(1.40, 0.75, 0.60),
+            rotationYaw: 0.14
+        )
+
+        let sanitized = sanitizer.sanitize(
+            objects: [jitteredDesk],
+            roomWidth: 4.0,
+            roomLength: 4.0,
+            walls: [northWall]
+        )
+
+        #expect(sanitized.count == 1)
+        // Yaw must snap cleanly to 0.0 rad
+        #expect(abs(sanitized[0].rotationYaw - 0.0) < 0.001)
+        // Using orthogonalized depth (0.60 / 2 = 0.30m), center Z must sit at -1.95 + 0.30 = -1.65m
+        #expect(abs(sanitized[0].position.z - (-1.65)) < 0.005)
+    }
 }
