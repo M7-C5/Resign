@@ -32,7 +32,7 @@ Conversely, Apple's native export has one major weakness: **furniture representa
    * *Rejected*: RoomPlan furniture items remain crude wireframe boxes with no realistic materials, no plaster offset, and no archetype substitution.
 3. **Option 3: Hybrid Native Parametric Shell + Sanitized Furniture Engine (Chosen)**:
    - Export Apple's native CAD-grade parametric room shell directly via `capturedRoom.export(to: url, exportOptions: .parametric)`.
-   - Use Resign's pure Swift `RoomDimensionCalculator` (OBB) and `RoomCaptureSanitizer` to extract room dimensions, ground furniture to the captured floor level, snap items flush with plaster walls, and classify archetypes.
+   - Use Resign's pure Swift `RoomDimensionExtractor` and `RoomCaptureSanitizer` to extract inner clear-span room dimensions, ground floor furniture to the captured floor level, preserve elevated surface items (such as standing televisions on media consoles and floating wall shelves), snap items flush with plaster walls, and classify archetypes.
    - In RealityKit, load the native `.usdz`, disable Apple's crude wireframe `Object_grp`, and instantiate Resign's sanitized 3D furniture models.
    - Apply warm architectural PBR finishes (natural oak flooring, matte plaster walls) dynamically at runtime.
 
@@ -49,10 +49,10 @@ flowchart TD
     
     NE --> USDZ["Room.usdz (Watertight Shell)"]
     
-    CRP --> RDC["RoomDimensionCalculator (OBB Dimensions)"]
-    CRP --> RCS["RoomCaptureSanitizer (Plaster Snapping & Grounding)"]
+    CRP --> RDE["RoomDimensionExtractor (Inner Clear-Span Dimensions)"]
+    CRP --> RCS["RoomCaptureSanitizer (Plaster Snapping, Surface Elevation & Grounding)"]
     
-    RDC --> RoomModel["Room (Length, Width, Height)"]
+    RDE --> RoomModel["Room (Length, Width, Height)"]
     RCS --> LayoutModel["Layout.furnitures (Sanitized Archetypes)"]
     
     USDZ --> RV["RealityKit Room3DRealityViewport"]
