@@ -80,9 +80,16 @@ public final class RoomCaptureSanitizer: Sendable {
                 continue
             }
 
-            // Grounding: Sit flush on the captured floor plane
+            // Elevate surface/wall-mounted objects (e.g., standing TV on console, floating wall shelf)
+            // while grounding standard furniture flush to the captured floor plane.
+            let elevation = resolveElevation(
+                for: obj,
+                category: category,
+                allObjects: objects,
+                floorLevel: floorLevel
+            )
             var groundedPos = obj.position
-            groundedPos.y = floorLevel
+            groundedPos.y = elevation.baseY
 
             // Wall alignment snapping: use multi-wall segments if available, else bounding box
             let snapped: (pos: SIMD3<Float>, yaw: Float)
@@ -91,15 +98,21 @@ public final class RoomCaptureSanitizer: Sendable {
                     position: groundedPos,
                     dimensions: obj.dimensions,
                     yaw: obj.rotationYaw,
-                    walls: walls
+                    walls: walls,
+                    snapPositionToWall: !elevation.isSupportedByFurniture
                 )
             } else {
-                let p = snapToRectangularWalls(
-                    position: groundedPos,
-                    dimensions: obj.dimensions,
-                    roomWidth: roomWidth,
-                    roomLength: roomLength
-                )
+                let p: SIMD3<Float>
+                if elevation.isSupportedByFurniture {
+                    p = groundedPos
+                } else {
+                    p = snapToRectangularWalls(
+                        position: groundedPos,
+                        dimensions: obj.dimensions,
+                        roomWidth: roomWidth,
+                        roomLength: roomLength
+                    )
+                }
                 snapped = (pos: p, yaw: obj.rotationYaw)
             }
 
@@ -107,7 +120,11 @@ public final class RoomCaptureSanitizer: Sendable {
             let masterWidth = masterAssetWidths[category] ?? max(obj.dimensions.x, 0.1)
             let uniformScale = obj.dimensions.x / masterWidth
 
-            let name = defaultName(for: category, dimensions: obj.dimensions)
+            let name = defaultName(
+                for: category,
+                dimensions: obj.dimensions,
+                isElevated: elevation.isElevated
+            )
 
             let sanitized = SanitizedObject(
                 name: name,
@@ -149,13 +166,88 @@ public final class RoomCaptureSanitizer: Sendable {
         }
     }
 
+    private struct ElevationResolution {
+        let baseY: Float
+        let isElevated: Bool
+        let isSupportedByFurniture: Bool
+    }
+
+    private func resolveElevation(
+        for obj: ScannedObjectPayload,
+        category: String,
+        allObjects: [ScannedObjectPayload],
+        floorLevel: Float
+    ) -> ElevationResolution {
+        // Only televisions and elevated storage (floating wall shelves) may sit above the floor plane.
+        // All standard floor furniture (beds, sofas, chairs, tables, desks, fireplaces) grounds to floorLevel.
+        guard category == "television" || category == "closet" else {
+            return ElevationResolution(baseY: floorLevel, isElevated: false, isSupportedByFurniture: false)
+        }
+
+        let rawBottomY = obj.position.y - (obj.dimensions.y * 0.5)
+        let heightAboveFloor = rawBottomY - floorLevel
+        let elevationThreshold: Float = (category == "television") ? 0.15 : 0.25
+
+        guard heightAboveFloor > elevationThreshold else {
+            return ElevationResolution(baseY: floorLevel, isElevated: false, isSupportedByFurniture: false)
+        }
+
+        // Check if this elevated item rests on a floor-grounded supporting surface (console, cabinet, desk, table)
+        for candidate in allObjects {
+            let candidateRaw = candidate.rawCategory.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+            guard let candidateCategory = mapCategory(raw: candidateRaw, dimensions: candidate.dimensions),
+                  candidateCategory == "closet" || candidateCategory == "table" || candidateCategory == "desk" else {
+                continue
+            }
+
+            // Candidate must itself be floor-grounded and console/table height (not a tall wardrobe)
+            let candidateBottomY = candidate.position.y - (candidate.dimensions.y * 0.5)
+            guard (candidateBottomY - floorLevel) <= 0.25,
+                  candidate.dimensions.y <= 1.25 else {
+                continue
+            }
+
+            // Check 2D horizontal overlap (accounting for candidate's yaw orientation)
+            let cosYaw = abs(cos(candidate.rotationYaw))
+            let sinYaw = abs(sin(candidate.rotationYaw))
+            let halfExtentX = (cosYaw * candidate.dimensions.x + sinYaw * candidate.dimensions.z) * 0.5
+            let halfExtentZ = (sinYaw * candidate.dimensions.x + cosYaw * candidate.dimensions.z) * 0.5
+
+            let dx = abs(obj.position.x - candidate.position.x)
+            let dz = abs(obj.position.z - candidate.position.z)
+            let margin: Float = 0.12
+
+            guard dx <= halfExtentX + margin, dz <= halfExtentZ + margin else {
+                continue
+            }
+
+            let supportTopY = floorLevel + candidate.dimensions.y
+            if rawBottomY >= (floorLevel + candidate.dimensions.y * 0.4) && rawBottomY <= (supportTopY + 0.35) {
+                return ElevationResolution(
+                    baseY: supportTopY,
+                    isElevated: true,
+                    isSupportedByFurniture: true
+                )
+            }
+        }
+
+        // Wall-mounted television or floating wall shelf with no supporting surface underneath
+        return ElevationResolution(
+            baseY: max(rawBottomY, floorLevel),
+            isElevated: true,
+            isSupportedByFurniture: false
+        )
+    }
+
     private func snapToWallSegments(
         position: SIMD3<Float>,
         dimensions: SIMD3<Float>,
         yaw: Float,
-        walls: [ScannedWallPayload]
+        walls: [ScannedWallPayload],
+        snapPositionToWall: Bool = true
     ) -> (pos: SIMD3<Float>, yaw: Float) {
         let snapThreshold: Float = 0.15
+        let yawSnapGapThreshold: Float = 0.40
         let p2D = SIMD2<Float>(position.x, position.z)
 
         var closestWall: ScannedWallPayload?
@@ -193,15 +285,26 @@ public final class RoomCaptureSanitizer: Sendable {
         // Half wall thickness (centerline to inner drywall surface)
         let halfWallThickness = max(wall.dimensions.z, 0.10) / 2.0
 
-        // True object extent along wall normal taking relative orientation into account
+        // Snap yaw to nearest orthogonal angle (parallel or perpendicular) when near a wall
         let relYaw = yaw - wall.rotationYaw
-        let cosRel = abs(cos(relYaw))
-        let sinRel = abs(sin(relYaw))
+        let quarterTurn = Float.pi * 0.5
+        let k = round(relYaw / quarterTurn)
+        var snappedYaw = yaw
+        let isNearOrthogonal = abs(relYaw - k * quarterTurn) < 0.26
+
+        // True object extent along wall normal using orthogonalized yaw if applicable
+        let effectiveRelYaw = isNearOrthogonal ? (k * quarterTurn) : relYaw
+        let cosRel = abs(cos(effectiveRelYaw))
+        let sinRel = abs(sin(effectiveRelYaw))
         let halfObjDepth = (sinRel * dimensions.x + cosRel * dimensions.z) * 0.5
 
         let gap = minDistance - (halfWallThickness + halfObjDepth)
 
-        if abs(gap) < snapThreshold {
+        if abs(gap) < yawSnapGapThreshold && isNearOrthogonal {
+            snappedYaw = wall.rotationYaw + k * quarterTurn
+        }
+
+        if snapPositionToWall && abs(gap) < snapThreshold {
             let dir = p2D - bestProjected
             let dirLen = length(dir)
             let outNormal = dirLen > 1e-4 ? (dir / dirLen) : bestNormal
@@ -211,18 +314,10 @@ public final class RoomCaptureSanitizer: Sendable {
             let snapped2D = bestProjected + outNormal * totalOffset
             let snappedPos = SIMD3<Float>(snapped2D.x, position.y, snapped2D.y)
 
-            // Snap yaw to nearest orthogonal angle (parallel or perpendicular)
-            var snappedYaw = yaw
-            let quarterTurn = Float.pi * 0.5
-            let k = round(relYaw / quarterTurn)
-            if abs(relYaw - k * quarterTurn) < 0.26 {
-                snappedYaw = wall.rotationYaw + k * quarterTurn
-            }
-
             return (snappedPos, snappedYaw)
         }
 
-        return (position, yaw)
+        return (position, snappedYaw)
     }
 
     private func snapToRectangularWalls(
@@ -258,7 +353,11 @@ public final class RoomCaptureSanitizer: Sendable {
         return pos
     }
 
-    private func defaultName(for category: String, dimensions: SIMD3<Float>) -> String {
+    private func defaultName(
+        for category: String,
+        dimensions: SIMD3<Float>,
+        isElevated: Bool = false
+    ) -> String {
         switch category {
         case "bed":
             if dimensions.x <= 1.25 {
@@ -289,9 +388,15 @@ public final class RoomCaptureSanitizer: Sendable {
         case "chair":
             return "Chair"
         case "closet":
-            return "Wardrobe"
+            if isElevated {
+                return "Wall Shelf"
+            } else if dimensions.y < 1.1 {
+                return "Media Console"
+            } else {
+                return "Wardrobe"
+            }
         case "television":
-            return "TV Console"
+            return "Television"
         case "fireplace":
             return "Fireplace"
         default:
