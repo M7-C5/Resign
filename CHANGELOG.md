@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- feat(spatial): preserve elevated surface objects and orthogonalize wall yaw alignment (630e39c)
+- feat(spatial): extract masonry-to-masonry clear-span dimensions from opposing walls (2c660c7)
 - feat(scanner): add room capture workflow with two-decimal metric display and realitykit preview (2e3e964)
 - feat(spatial): implement clear-span floor dimension extraction and domain payload mapping (06cd811)
 - feat(models): implement authentic room layout and lighting domain schema (3343fe0)
@@ -17,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - feat(testing): add in-memory ModelContainer fixture and SwiftData unit tests (b4daaff)
 
 ### Documentation
+- docs(adr): update hybrid parametric shell architecture with surface elevation and clear-span pipeline (fa0fc42)
 - docs(spatial): document room capture architecture, floor polygon contracts, and hybrid parametric shell adrs (50edd61)
 - docs(architecture): define whiteboard domain schema and local-first persistence roadmap (1b90094)
 - docs(adr): record architectural decision for mock USDZ reference environment (4da7ecf)
@@ -28,6 +31,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - docs: add agentic playbook, architecture blueprint, and changelog (178cddb)
 
 ### Tooling & Maintenance
+- test(spatial): add unit tests for masonry-to-masonry dimensions and elevated furniture sanitization (b8457b4)
+- chore(changelog): update release changelog for spatial capture and clear-span dimension extraction (eb9fda6)
 - test(spatial): add unit tests for clear-span floor dimensions, payload mapping, and scanner lifecycle (c2aa38f)
 - chore(changelog): update release changelog for domain schema migration (ada76db)
 - test(persistence): add room hierarchy persistence and model default initialization tests (20a21f7)
