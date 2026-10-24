@@ -19,12 +19,14 @@ public final class RoomScanViewModel {
         case ready
         case scanning
         case processing
+        case cancelled
         case completed(roomId: UUID)
         case error(String)
     }
 
     public var state: ScanState = .checkingHardware
-    public var instructionText: String?
+    public var isShowingConfirmationAlert: Bool = false
+    public var isCancelled: Bool = false
 
     public var isSupported: Bool {
         RoomCaptureSession.isSupported
@@ -71,34 +73,47 @@ public final class RoomScanViewModel {
             return
         }
 
+        isCancelled = false
+        isShowingConfirmationAlert = false
         let configuration = RoomCaptureSession.Configuration()
         captureView.captureSession.run(configuration: configuration)
         state = .scanning
     }
 
     @MainActor
+    public func requestFinishScanning() {
+        guard state == .scanning else { return }
+        isShowingConfirmationAlert = true
+    }
+
+    @MainActor
+    public func dismissConfirmationAlert() {
+        isShowingConfirmationAlert = false
+    }
+
+    @MainActor
+    public func confirmFinishScanning() {
+        isShowingConfirmationAlert = false
+        stopScanning()
+    }
+
+    @MainActor
     public func stopScanning() {
-        captureView.captureSession.stop()
+        isCancelled = false
+        _captureView?.captureSession.stop()
         state = .processing
     }
 
-    public func handleInstruction(_ instruction: RoomCaptureSession.Instruction) {
-        switch instruction {
-        case .moveCloseToWall:
-            instructionText = "Move closer to the wall for accurate surface capture"
-        case .moveAwayFromWall:
-            instructionText = "Step back slightly from the wall"
-        case .turnOnLight:
-            instructionText = "More light needed for accurate LiDAR detection"
-        case .slowDown:
-            instructionText = "Slow down your scanning pace"
-        case .lowTexture:
-            instructionText = "Scan textured areas or corners"
-        case .normal:
-            instructionText = nil
-        @unknown default:
-            instructionText = nil
-        }
+    @MainActor
+    public func cancelScanning() {
+        isCancelled = true
+        isShowingConfirmationAlert = false
+        _captureView?.captureSession.stop(pauseARSession: true)
+        state = .cancelled
+    }
+
+    public func isValidScan(payload: CapturedRoomPayload) -> Bool {
+        !payload.walls.isEmpty && payload.roomWidth >= 0.5 && payload.roomLength >= 0.5
     }
 
     public func process(
@@ -106,32 +121,55 @@ public final class RoomScanViewModel {
         modelContext: ModelContext,
         roomName: String = "Scanned Room"
     ) {
+        guard !isCancelled else { return }
         state = .processing
 
         let payload = makePayload(from: capturedRoom)
-        let room = mapper.mapToRoom(payload: payload, roomName: roomName)
+        processPayload(payload, modelContext: modelContext, roomName: roomName) { fileURL in
+            try self.exportRoom(capturedRoom, fileURL)
+        }
+    }
 
-        // Export Apple's native watertight parametric USDZ room shell
-        let docsDir = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
-        let roomDir = docsDir.appendingPathComponent("Rooms/\(room.id)", isDirectory: true)
+    public func processPayload(
+        _ payload: CapturedRoomPayload,
+        modelContext: ModelContext,
+        roomName: String = "Scanned Room",
+        exportAction: ((URL) throws -> Void)? = nil
+    ) {
+        guard !isCancelled else { return }
+        state = .processing
 
-        try? FileManager.default.createDirectory(at: roomDir, withIntermediateDirectories: true)
-        let fileURL = roomDir.appendingPathComponent("Room.usdz")
-
-        do {
-            try exportRoom(capturedRoom, fileURL)
-        } catch {
-            print("[RoomScanViewModel] Failed to export parametric USDZ: \(error)")
+        guard isValidScan(payload: payload) else {
+            state = .error("Invalid scan: Not enough room geometry was captured. Please scan the room walls and floor before finishing.")
+            return
         }
 
-        if let firstLayout = room.layouts.first {
-            firstLayout.usdzURL = fileURL
+        let room = mapper.mapToRoom(payload: payload, roomName: roomName)
+
+        if let exportAction {
+            let docsDir = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+            let roomDir = docsDir.appendingPathComponent("Rooms/\(room.id)", isDirectory: true)
+
+            try? FileManager.default.createDirectory(at: roomDir, withIntermediateDirectories: true)
+            let fileURL = roomDir.appendingPathComponent("Room.usdz")
+
+            do {
+                try exportAction(fileURL)
+                if let firstLayout = room.layouts.first {
+                    firstLayout.usdzURL = fileURL
+                }
+            } catch {
+                print("[RoomScanViewModel] Failed to export parametric USDZ: \(error)")
+            }
         }
 
         modelContext.insert(room)
-        try? modelContext.save()
-
-        state = .completed(roomId: room.id)
+        do {
+            try modelContext.save()
+            state = .completed(roomId: room.id)
+        } catch {
+            state = .error("Failed to save scanned room: \(error.localizedDescription)")
+        }
     }
 
     private func makePayload(from room: CapturedRoom) -> CapturedRoomPayload {
