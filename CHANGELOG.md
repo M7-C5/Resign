@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- feat(spatial): render two-wing geometry with open chair cutout for L-shaped desks (2781be9)
+- feat(spatial): synthesize colliding table and credenza wings into L-shaped desks and apply category-aware wall snapping (fb61c0d)
 - feat(spatial): preserve elevated surface objects and orthogonalize wall yaw alignment (630e39c)
 - feat(spatial): extract masonry-to-masonry clear-span dimensions from opposing walls (2c660c7)
 - feat(scanner): add room capture workflow with two-decimal metric display and realitykit preview (2e3e964)
@@ -19,6 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - feat(testing): add in-memory ModelContainer fixture and SwiftData unit tests (b4daaff)
 
 ### Documentation
+- docs(adr): document L-shaped desk SAT wing synthesis and category-aware wall snapping in ADR 0010 (7efbe8a)
 - docs(adr): update hybrid parametric shell architecture with surface elevation and clear-span pipeline (fa0fc42)
 - docs(spatial): document room capture architecture, floor polygon contracts, and hybrid parametric shell adrs (50edd61)
 - docs(architecture): define whiteboard domain schema and local-first persistence roadmap (1b90094)
@@ -31,6 +34,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - docs: add agentic playbook, architecture blueprint, and changelog (178cddb)
 
 ### Tooling & Maintenance
+- test(spatial): verify L-shaped desk wing merging and free-floating living room furniture preservation (c21b366)
+- chore(changelog): update release changelog for masonry clear-span and surface elevation sanitization (4d2e552)
 - test(spatial): add unit tests for masonry-to-masonry dimensions and elevated furniture sanitization (b8457b4)
 - chore(changelog): update release changelog for spatial capture and clear-span dimension extraction (eb9fda6)
 - test(spatial): add unit tests for clear-span floor dimensions, payload mapping, and scanner lifecycle (c2aa38f)
