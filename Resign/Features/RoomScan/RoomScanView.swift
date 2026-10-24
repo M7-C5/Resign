@@ -13,9 +13,35 @@ public struct RoomScanView: View {
     @State private var viewModel = RoomScanViewModel()
 
     public var onScanComplete: ((UUID) -> Void)?
+    public var onCancel: (() -> Void)?
 
-    public init(onScanComplete: ((UUID) -> Void)? = nil) {
+    public init(
+        onScanComplete: ((UUID) -> Void)? = nil,
+        onCancel: (() -> Void)? = nil
+    ) {
         self.onScanComplete = onScanComplete
+        self.onCancel = onCancel
+    }
+
+    private var isShowingErrorAlert: Binding<Bool> {
+        Binding(
+            get: {
+                if case .error = viewModel.state { return true }
+                return false
+            },
+            set: { newValue in
+                if !newValue, case .error = viewModel.state {
+                    viewModel.state = .ready
+                }
+            }
+        )
+    }
+
+    private var errorMessage: String {
+        if case .error(let message) = viewModel.state {
+            return message
+        }
+        return ""
     }
 
     public var body: some View {
@@ -26,11 +52,42 @@ public struct RoomScanView: View {
                 scannerView
             }
         }
+        .onAppear {
+            if viewModel.state == .ready {
+                viewModel.startScanning()
+            }
+        }
         .onChange(of: viewModel.state) { _, newState in
-            if case .completed(let roomId) = newState {
+            switch newState {
+            case .completed(let roomId):
                 onScanComplete?(roomId)
                 dismiss()
+            case .cancelled:
+                onCancel?()
+                dismiss()
+            default:
+                break
             }
+        }
+        .alert("Are you done scanning?", isPresented: $viewModel.isShowingConfirmationAlert) {
+            Button("No", role: .cancel) {
+                viewModel.dismissConfirmationAlert()
+            }
+            Button("Yes") {
+                viewModel.confirmFinishScanning()
+            }
+        } message: {
+            Text("Your progress will be processed and you can't go back")
+        }
+        .alert("Scan Incomplete", isPresented: isShowingErrorAlert) {
+            Button("Try Again") {
+                viewModel.startScanning()
+            }
+            Button("Cancel", role: .cancel) {
+                viewModel.cancelScanning()
+            }
+        } message: {
+            Text(errorMessage)
         }
     }
 
@@ -40,29 +97,25 @@ public struct RoomScanView: View {
 
             RoomCaptureViewWrapper(
                 captureView: viewModel.captureView,
+                isCancelled: viewModel.isCancelled,
                 onComplete: { capturedRoom in
                     viewModel.process(capturedRoom: capturedRoom, modelContext: modelContext)
                 },
-                onInstruction: { instruction in
-                    viewModel.handleInstruction(instruction)
-                },
                 onError: { error in
-                    viewModel.state = .error(error.localizedDescription)
+                    if !viewModel.isCancelled {
+                        viewModel.state = .error(error.localizedDescription)
+                    }
                 }
             )
             .ignoresSafeArea()
 
             RoomScanOverlayView(
                 state: viewModel.state,
-                instructionText: viewModel.instructionText,
-                onStart: {
-                    viewModel.startScanning()
-                },
-                onFinish: {
-                    viewModel.stopScanning()
+                onDone: {
+                    viewModel.requestFinishScanning()
                 },
                 onCancel: {
-                    dismiss()
+                    viewModel.cancelScanning()
                 }
             )
         }
@@ -90,7 +143,8 @@ public struct RoomScanView: View {
 
             Spacer()
 
-            Button("Dismiss") {
+            Button("Cancel") {
+                onCancel?()
                 dismiss()
             }
             .font(.headline)
