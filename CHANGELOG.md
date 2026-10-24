@@ -8,6 +8,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- feat(navigation): add root home screen state switcher for scan launch and cancellation (0444327)
+- feat(room-scan): update scanner overlay to top Cancel/Done navigation and remove redundant instruction banner (8298dd8)
+- feat(room-scan): implement scan confirmation state machine, cancellation guard, and invalid scan validation (890e13b)
 - feat(spatial): render two-wing geometry with open chair cutout for L-shaped desks (2781be9)
 - feat(spatial): synthesize colliding table and credenza wings into L-shaped desks and apply category-aware wall snapping (fb61c0d)
 - feat(spatial): preserve elevated surface objects and orthogonalize wall yaw alignment (630e39c)
@@ -34,6 +37,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - docs: add agentic playbook, architecture blueprint, and changelog (178cddb)
 
 ### Tooling & Maintenance
+- test(room-scan): verify confirmation alert transitions, scan cancellation, and invalid scan rejection (21ab947)
+- chore(release): update changelog for L-shaped desk synthesis and category-aware wall snapping (de02b43)
 - test(spatial): verify L-shaped desk wing merging and free-floating living room furniture preservation (c21b366)
 - chore(changelog): update release changelog for masonry clear-span and surface elevation sanitization (4d2e552)
 - test(spatial): add unit tests for masonry-to-masonry dimensions and elevated furniture sanitization (b8457b4)
