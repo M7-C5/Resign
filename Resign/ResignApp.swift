@@ -25,22 +25,63 @@ struct ResignApp: App {
         }
     }()
 
-    @State private var activeRoomId: UUID? = nil
+    private enum RootScreen: Equatable {
+        case home
+        case scanning
+        case result(UUID)
+    }
+
+    @State private var currentScreen: RootScreen = .home
 
     var body: some Scene {
         WindowGroup {
             Group {
-                if let roomId = activeRoomId {
+                switch currentScreen {
+                case .home:
+                    mockHomeView
+                case .scanning:
+                    RoomScanView(
+                        onScanComplete: { savedRoomId in
+                            currentScreen = .result(savedRoomId)
+                        },
+                        onCancel: {
+                            currentScreen = .home
+                        }
+                    )
+                case .result(let roomId):
                     RoomScanResultView(roomId: roomId) {
-                        activeRoomId = nil
-                    }
-                } else {
-                    RoomScanView { savedRoomId in
-                        activeRoomId = savedRoomId
+                        currentScreen = .scanning
                     }
                 }
             }
         }
         .modelContainer(sharedModelContainer)
+    }
+
+    private var mockHomeView: some View {
+        NavigationStack {
+            VStack(spacing: 20) {
+                Spacer()
+
+                Text("Home")
+                    .font(.title2)
+                    .fontWeight(.semibold)
+                    .foregroundStyle(.secondary)
+
+                Button {
+                    currentScreen = .scanning
+                } label: {
+                    Label("Scan Room", systemImage: "camera.viewfinder")
+                        .font(.headline)
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 28)
+                        .frame(height: 50)
+                        .background(Color.blue, in: RoundedRectangle(cornerRadius: 14))
+                }
+
+                Spacer()
+            }
+            .navigationTitle("Resign")
+        }
     }
 }
