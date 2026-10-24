@@ -32,8 +32,8 @@ Conversely, Apple's native export has one major weakness: **furniture representa
    * *Rejected*: RoomPlan furniture items remain crude wireframe boxes with no realistic materials, no plaster offset, and no archetype substitution.
 3. **Option 3: Hybrid Native Parametric Shell + Sanitized Furniture Engine (Chosen)**:
    - Export Apple's native CAD-grade parametric room shell directly via `capturedRoom.export(to: url, exportOptions: .parametric)`.
-   - Use Resign's pure Swift `RoomDimensionExtractor` and `RoomCaptureSanitizer` to extract inner clear-span room dimensions, ground floor furniture to the captured floor level, preserve elevated surface items (such as standing televisions on media consoles and floating wall shelves), snap items flush with plaster walls, and classify archetypes.
-   - In RealityKit, load the native `.usdz`, disable Apple's crude wireframe `Object_grp`, and instantiate Resign's sanitized 3D furniture models.
+   - Use Resign's pure Swift `RoomDimensionExtractor` and `RoomCaptureSanitizer` to extract inner clear-span room dimensions, merge colliding perpendicular table/credenza wings into unified L-shaped desks via 2D OBB Separating Axis Theorem (SAT) intersection, ground floor furniture to the captured floor level, preserve elevated surface items (such as standing televisions on media consoles or desk credenzas and floating wall shelves), apply category-aware wall position snapping ($\le 8\,\text{cm}$ for closets/televisions, $\le 6\,\text{cm}$ for beds/desks, and $0\,\text{cm}$ free-floating preservation for sofas, chairs, and tables), and classify archetypes.
+   - In RealityKit, load the native `.usdz`, disable Apple's crude wireframe `Object_grp`, and instantiate Resign's sanitized 3D furniture models (including 2-wing L-shaped desk geometry with an open inner chair cutout).
    - Apply warm architectural PBR finishes (natural oak flooring, matte plaster walls) dynamically at runtime.
 
 ## Decision Outcome
