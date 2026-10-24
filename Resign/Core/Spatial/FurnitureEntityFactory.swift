@@ -25,6 +25,42 @@ public final class FurnitureEntityFactory {
 
         // Procedural bounding box fallback representing the detected furniture bounding volume
         let material = material(for: furniture.category)
+
+        if furniture.name == "L-Shaped Desk" {
+            let totalW = furniture.width
+            let totalH = furniture.height
+            let totalL = furniture.length
+            let wingDepth = min(0.60, min(totalW, totalL) * 0.45)
+
+            let mainMesh = MeshResource.generateBox(
+                size: SIMD3<Float>(totalW, totalH, wingDepth),
+                cornerRadius: 0.02
+            )
+            let mainWing = ModelEntity(mesh: mainMesh, materials: [material])
+            mainWing.name = "MainWingMesh"
+            mainWing.position = SIMD3<Float>(
+                0,
+                totalH / 2.0,
+                -(totalL / 2.0) + (wingDepth / 2.0)
+            )
+            container.addChild(mainWing)
+
+            let returnLength = max(totalL - wingDepth, 0.20)
+            let returnMesh = MeshResource.generateBox(
+                size: SIMD3<Float>(wingDepth, totalH, returnLength),
+                cornerRadius: 0.02
+            )
+            let returnWing = ModelEntity(mesh: returnMesh, materials: [material])
+            returnWing.name = "ReturnWingMesh"
+            returnWing.position = SIMD3<Float>(
+                (totalW / 2.0) - (wingDepth / 2.0),
+                totalH / 2.0,
+                wingDepth / 2.0
+            )
+            container.addChild(returnWing)
+            return container
+        }
+
         let mesh = MeshResource.generateBox(
             size: SIMD3<Float>(furniture.width, furniture.height, furniture.length),
             cornerRadius: 0.02
