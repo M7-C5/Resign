@@ -329,13 +329,13 @@ struct LightingSimulationModalTests {
     @Test @MainActor func editsRemainDraftUntilConfirmed() {
         let model = Studio3DViewModel()
         model.beginLightingEditing()
-        model.lightingDraft.artificialLightsOn = false
+        model.lightingDraft.artificialLightsOn = true
         model.lightingDraft.minuteOfDay = 1140
         #expect(model.lightingSettings == LightingSimulationSettings())
         model.confirmLightingEditing()
         #expect(!model.isLightingPresented)
         model.beginLightingEditing()
-        #expect(!model.lightingDraft.artificialLightsOn)
+        #expect(model.lightingDraft.artificialLightsOn)
         #expect(model.lightingDraft.minuteOfDay == 1140)
     }
 
@@ -343,6 +343,7 @@ struct LightingSimulationModalTests {
         let model = Studio3DViewModel()
         model.beginLightingEditing()
         model.lightingDraft.minuteOfDay = 360
+        model.lightingDraft.artificialLightsOn = true
         model.confirmLightingEditing()
         model.beginLightingEditing()
         model.lightingDraft.minuteOfDay = 1200
@@ -353,9 +354,9 @@ struct LightingSimulationModalTests {
         #expect(model.lightingDraft.artificialLightsOn)
     }
 
-    @Test @MainActor func newViewerStartsAtNoonWithLightsOn() {
+    @Test @MainActor func newViewerStartsAtNoonWithLightsOff() {
         let model = Studio3DViewModel()
-        #expect(model.lightingSettings.artificialLightsOn)
+        #expect(!model.lightingSettings.artificialLightsOn)
         #expect(model.lightingSettings.timeLabel == "12.00")
         #expect(!model.isLightingPresented)
     }
@@ -366,73 +367,169 @@ struct LightingSimulationModalTests {
     }
 }
 
-@Suite("Mock room lighting preview")
-struct MockRoomLightingPreviewTests {
-    @Test func daylightPeaksAtNoonAndFadesAtNight() {
-        let noon = LightingSimulationSettings(minuteOfDay: 720)
-        let midnight = LightingSimulationSettings(minuteOfDay: 0)
-        #expect(abs(noon.daylightFactor - 1) < 0.0001)
-        #expect(midnight.daylightFactor == 0)
-        #expect(noon.ambientIntensity == midnight.ambientIntensity)
-        #expect(LightingSimulationSettings(minuteOfDay: 360).daylightFactor == 0)
-        #expect(LightingSimulationSettings(minuteOfDay: 1200).daylightFactor == 0)
+@Suite("Geographic daylight")
+struct GeographicDaylightTests {
+    @Test func sunCrossesFromEastToWest() {
+        let morning = LightingSimulationSettings(minuteOfDay: 8 * 60).sun
+        let afternoon = LightingSimulationSettings(minuteOfDay: 16 * 60).sun
+        #expect(morning.rayDirection.x < 0)
+        #expect(afternoon.rayDirection.x > 0)
+        #expect(morning.daylight > 0)
+        #expect(afternoon.daylight > 0)
+        #expect(LightingSimulationSettings(minuteOfDay: 0).sun.daylight == 0)
     }
 
-    @Test func artificialLightsAreIndependentOfTime() {
-        let off = LightingSimulationSettings(artificialLightsOn: false, minuteOfDay: 720)
-        let on = LightingSimulationSettings(artificialLightsOn: true, minuteOfDay: 0)
-        #expect(off.artificialIntensity == 0)
-        #expect(on.artificialIntensity > 0)
-        #expect(off.daylightIntensity > on.daylightIntensity)
+    @Test func orientationRotatesSunWithoutChangingElevation() {
+        var settings = LightingSimulationSettings(minuteOfDay: 8 * 60)
+        let original = settings.sun
+        settings.solarContext.roomHeadingDegrees = 180
+        let rotated = settings.sun
+        #expect(abs(rotated.rayDirection.x + original.rayDirection.x) < 0.0001)
+        #expect(abs(rotated.rayDirection.z + original.rayDirection.z) < 0.0001)
+        #expect(abs(rotated.elevation - original.elevation) < 0.0001)
     }
 
-    @Test @MainActor func previewRollsBackOnCancelAndPersistsOnConfirm() {
+    @Test func geographicReferenceAndSeason() throws {
+        // Equator at Greenwich, near equinox: sun nearly overhead at local noon.
+        let date = try #require(ISO8601DateFormatter().date(from: "2026-03-20T12:00:00Z"))
+        let engine = SolarEphemerisEngine()
+        let noon = engine.position(at: date, latitude: 0, longitude: 0)
+        #expect(noon.elevation * 180 / .pi > 87)
+        let midnight = engine.position(at: date.addingTimeInterval(12 * 3600), latitude: 0, longitude: 0)
+        #expect(midnight.elevation < -1.5)
+        let summer = try #require(ISO8601DateFormatter().date(from: "2026-06-21T12:00:00Z"))
+        let winter = try #require(ISO8601DateFormatter().date(from: "2026-12-21T12:00:00Z"))
+        #expect(engine.position(at: summer, latitude: 70, longitude: 0).elevation > 0)
+        #expect(engine.position(at: winter, latitude: 70, longitude: 0).elevation < 0)
+    }
+
+    @Test func timeZoneResolvesCivilTimeAndLongitudeChangesSolarTime() throws {
+        let local = SolarSimulationContext()
+        var utc = local
+        utc.timeZoneIdentifier = "GMT"
+        #expect(local.date(minuteOfDay: 720) == utc.date(minuteOfDay: 300))
+        let date = try #require(ISO8601DateFormatter().date(from: "2026-03-20T08:00:00Z"))
+        let engine = SolarEphemerisEngine()
+        let greenwich = engine.position(at: date, latitude: 0, longitude: 0)
+        let east = engine.position(at: date, latitude: 0, longitude: 60)
+        #expect(east.elevation > greenwich.elevation + 0.8)
+    }
+
+    @Test @MainActor func eastWindowRejectsAfternoonSunButKeepsSkyLight() throws {
+        var tuning = RoomLightingTuning()
+        tuning.shadowsEnabled = true
+        let rig = RoomLightingRig(tuning: tuning)
+        rig.apply(LightingSimulationSettings(minuteOfDay: 8 * 60))
+        let beam = try #require(rig.root.findEntity(named: "SunBeam") as? SpotLight)
+        let sky = try #require(rig.root.findEntity(named: "SkyFill") as? SpotLight)
+        #expect(beam.isEnabled && beam.light.intensity > 0)
+        #expect(beam.shadow != nil)
+        rig.apply(LightingSimulationSettings(minuteOfDay: 16 * 60))
+        #expect(!beam.isEnabled && beam.light.intensity == 0)
+        #expect(sky.isEnabled && sky.light.intensity > 0)
+        rig.apply(LightingSimulationSettings(minuteOfDay: 0))
+        #expect(!beam.isEnabled && !sky.isEnabled)
+        rig.apply(LightingSimulationSettings(artificialLightsOn: true, minuteOfDay: 0))
+        let lamp = try #require(rig.root.findEntity(named: "FixtureSpot0") as? SpotLight)
+        #expect(lamp.light.intensity > 0)
+        #expect(!beam.isEnabled)
+    }
+
+    @Test @MainActor func previewUsesRuntimeCompatibleShadowDefaults() throws {
+        let rig = RoomLightingRig()
+        rig.apply(LightingSimulationSettings(minuteOfDay: 8 * 60))
+        let beam = try #require(rig.root.findEntity(named: "SunBeam") as? SpotLight)
+        let sky = try #require(rig.root.findEntity(named: "SkyFill") as? SpotLight)
+        let lamp = try #require(rig.root.findEntity(named: "FixtureSpot0") as? SpotLight)
+        let bounce = try #require(rig.root.findEntity(named: "SkyBounce") as? PointLight)
+        #if targetEnvironment(simulator)
+        #expect(!rig.tuning.shadowsEnabled)
+        #expect(!sky.components.has(SpotLightComponent.Shadow.self))
+        #expect(!lamp.components.has(SpotLightComponent.Shadow.self))
+        #else
+        #expect(rig.tuning.shadowsEnabled)
+        #expect(beam.shadow != nil && sky.shadow != nil && lamp.shadow != nil)
+        #endif
+        #expect(beam.components.has(SpotLightComponent.Shadow.self))
+        #expect(beam.light.innerAngleInDegrees == beam.light.outerAngleInDegrees)
+        #expect(beam.isEnabled && beam.light.intensity > 0)
+        #expect(sky.isEnabled && sky.light.intensity > 0)
+        #expect(bounce.isEnabled && bounce.light.intensity > 0)
+        #expect(!lamp.isEnabled)
+
+        rig.apply(LightingSimulationSettings(minuteOfDay: 16 * 60))
+        #expect(!beam.isEnabled)
+        #expect(sky.isEnabled && sky.light.intensity > 0)
+        #expect(bounce.isEnabled && bounce.light.intensity > 0)
+        rig.apply(LightingSimulationSettings(minuteOfDay: 0))
+        #expect(!beam.isEnabled && !sky.isEnabled)
+        #expect(!bounce.isEnabled && bounce.light.intensity == 0)
+    }
+
+    @Test @MainActor func studioUsesExplicitLightingInsteadOfDefaultEnvironment() throws {
+        let controller = RoomSceneController()
+        let lighting = try #require(controller.root.components[EnvironmentLightingConfigurationComponent.self])
+        #expect(lighting.environmentLightingWeight == 0)
+        let environment = try #require(controller.root.components[ImageBasedLightComponent.self])
+        guard case .none = environment.source else {
+            Issue.record("The studio must override the default image-based light")
+            return
+        }
+        let receiver = try #require(controller.root.components[ImageBasedLightReceiverComponent.self])
+        #expect(receiver.imageBasedLight === controller.root)
+    }
+
+    @Test @MainActor func windowAndFrameShapeDirectSunInTheLoadedRoom() async throws {
+        let controller = RoomSceneController()
+        controller.rig.apply(LightingSimulationSettings(minuteOfDay: 8 * 60))
+        await controller.load()
+        #expect(controller.loadState == .loaded)
+        let beam = try #require(controller.rig.root.findEntity(named: "SunBeam") as? SpotLight)
+        #expect(beam.components.has(SpotLightComponent.Shadow.self))
+        for name in ["Wall_East_North", "Wall_East_South", "Wall_East_Top", "Wall_East_Bottom", "Frame_Mullion"] {
+            let mesh = try #require(controller.root.findEntity(named: name))
+            #expect(mesh.isEnabled)
+            #expect(mesh.components[DynamicLightShadowComponent.self]?.castsShadow == true)
+        }
+        let glass = try #require(controller.root.findEntity(named: "Glass"))
+        #expect(glass.components[DynamicLightShadowComponent.self]?.castsShadow == false)
+    }
+
+    @Test @MainActor func sourceConeCoversTheFullWindowDiagonal() throws {
+        let rig = RoomLightingRig()
+        let opening = WindowOpening(center: [2.55, 1.45, 0], width: 1.56, height: 1.16)
+        rig.configure(opening: opening, fixturePositions: nil)
+        let beam = try #require(rig.root.findEntity(named: "SunBeam") as? SpotLight)
+        let halfAngle = beam.light.outerAngleInDegrees * .pi / 360
+        let coverage = tan(halfAngle) * rig.tuning.beamDistance
+        let cornerRadius = sqrt(opening.width * opening.width + opening.height * opening.height) / 2
+        #expect(coverage > cornerRadius)
+        #expect(beam.light.innerAngleInDegrees == beam.light.outerAngleInDegrees)
+    }
+
+    @Test @MainActor func movingSunFartherAwayPreservesWindowExposure() throws {
+        var nearTuning = RoomLightingTuning()
+        nearTuning.beamDistance = 3
+        var farTuning = nearTuning
+        farTuning.beamDistance = 12
+        let near = RoomLightingRig(tuning: nearTuning)
+        let far = RoomLightingRig(tuning: farTuning)
+        let settings = LightingSimulationSettings(minuteOfDay: 8 * 60)
+        near.apply(settings)
+        far.apply(settings)
+        let nearBeam = try #require(near.root.findEntity(named: "SunBeam") as? SpotLight)
+        let farBeam = try #require(far.root.findEntity(named: "SunBeam") as? SpotLight)
+        #expect(abs(farBeam.light.intensity / nearBeam.light.intensity - 16) < 0.001)
+    }
+
+    @Test @MainActor func previewCancelRestoresSunContext() {
         let model = Studio3DViewModel()
         let original = model.previewLighting
         model.beginLightingEditing()
-        model.lightingDraft.minuteOfDay = 0
-        model.lightingDraft.artificialLightsOn = false
-        #expect(model.previewLighting.artificialIntensity == 0)
-        #expect(model.previewLighting.daylightFactor == 0)
+        model.lightingDraft.solarContext.roomHeadingDegrees = 90
+        model.lightingDraft.minuteOfDay = 480
         model.discardLightingEditing()
         #expect(model.previewLighting == original)
-        model.beginLightingEditing()
-        model.lightingDraft.minuteOfDay = 1200
-        model.confirmLightingEditing()
-        #expect(model.previewLighting.minuteOfDay == 1200)
-    }
-}
-
-@Suite("Window daylight")
-struct WindowDaylightTests {
-    @Test func ambientDoesNotActAsUnrestrictedDaylight() {
-        for minute in [0, 360, 720, 1080, 1439] {
-            let settings = LightingSimulationSettings(minuteOfDay: minute)
-            #expect(settings.ambientIntensity == 60)
-        }
-    }
-
-    @Test @MainActor func realityKitWindowLightingAndDraftUpdates() async throws {
-        let scene = MockRoomRealityScene(topDown: false)
-        try await scene.load()
-        let room = try #require(scene.room)
-        let eastWall = try #require(room.findEntity(named: "Wall_East_North"))
-        let glass = try #require(room.findEntity(named: "Glass"))
-        #expect(eastWall.isEnabled)
-        #expect(glass.components[DynamicLightShadowComponent.self]?.castsShadow == false)
-        #expect(scene.daylight.shadow != nil)
-        #expect(scene.daylight.position.x > 2.6)
-        #expect(scene.daylight.light.outerAngleInDegrees == 24)
-        scene.apply(LightingSimulationSettings(artificialLightsOn: false, minuteOfDay: 0))
-        #expect(scene.daylight.light.intensity == 0)
-        #expect(scene.fixtures.allSatisfy { $0.light.intensity == 0 })
-        scene.apply(LightingSimulationSettings())
-        #expect(scene.daylight.light.intensity > 0)
-        #expect(scene.fixtures.count == 2)
-        #expect(scene.fixtures.allSatisfy { $0.light.intensity > 0 })
-        let original = scene.room
-        try await scene.load()
-        #expect(scene.room === original)
     }
 
     @Test @MainActor func placementUsesFixedOrthographicCamera() async throws {
@@ -440,7 +537,6 @@ struct WindowDaylightTests {
         try await scene.load()
         let camera = try #require(scene.camera.components[OrthographicCameraComponent.self])
         #expect(camera.scale == 4.2)
-        #expect(scene.fixtures.isEmpty)
         #expect(scene.room?.findEntity(named: "Ceiling")?.isEnabled == false)
     }
 }

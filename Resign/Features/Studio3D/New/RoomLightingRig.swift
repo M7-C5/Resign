@@ -12,12 +12,14 @@ struct WindowOpening {
 /// All the numbers worth tweaking live here.
 struct RoomLightingTuning {
     // Daylight
-    /// Narrow beam of direct sun entering through the window, in lumens at full daylight.
+    /// Direct sun exposure calibrated at a 3-meter source distance, in lumens at full daylight.
     var sunBeamLumens: Float = 100_000
     /// Soft sky light spreading from the window into the room, in lumens at full skylight.
-    var skyFillLumens: Float = 40_000
+    var skyFillLumens: Float = 12_000
+    /// Approximate diffuse daylight bounce from the window; RealityKit has no real-time GI.
+    var skyBounceLumens: Float = 24_000
     /// How far outside the window the sun beam starts (meters).
-    var beamDistance: Float = 3
+    var beamDistance: Float = 12
     /// 1.0 = beam cone exactly as wide as the window. Larger = softer, wider patch.
     var beamSpread: Float = 1.0
 
@@ -33,13 +35,15 @@ struct RoomLightingTuning {
     /// Used when no lamps are found in the model (meters, room space).
     var fixturePositions: [SIMD3<Float>] = [[-1.3, 2.4, 0], [1.3, 2.4, 0]]
 
-    /// Dynamic shadows are what let the walls and window frame shape the daylight.
-    /// If the simulator renders them badly, set this to false.
+    /// Optional fixture and diffuse-sky shadows. Direct sun has its own aperture shadow policy.
+    #if targetEnvironment(simulator)
+    var shadowsEnabled = false
+    #else
     var shadowsEnabled = true
-    /// Shadows for the two daylight lights. Off by default: the wall around the window can swallow
-    /// all of the light. Turn `sunBeamShadows` on later to get a sharp window-shaped patch.
-    var sunBeamShadows = false
-    var skyFillShadows = false
+    #endif
+    /// Required on simulator and device: the solid wall and frame shape the window aperture.
+    var sunBeamShadows = true
+    var skyFillShadows = true
 }
 
 extension simd_quatf {
@@ -63,6 +67,7 @@ extension simd_quatf {
 /// - `sunBeam`: a narrow spot placed outside the window, aimed through it, so it only paints
 ///   the patch of floor and wall that the window would actually let the sun reach.
 /// - `skyFill`: a wide soft spot sitting in the window plane, facing into the room.
+/// - `skyBounce`: an unshadowed fill at the same opening, approximating diffuse bounce.
 ///
 /// Ceiling fixtures are a downward spot plus a small point-light fill, and only emit when switched on.
 @MainActor
@@ -73,6 +78,7 @@ final class RoomLightingRig {
 
     private let sunBeam = SpotLight()
     private let skyFill = SpotLight()
+    private let skyBounce = PointLight()
     private var fixtureSpots: [SpotLight] = []
     private var fixtureFills: [PointLight] = []
     private var bulbs: [ModelEntity] = []
@@ -100,7 +106,8 @@ final class RoomLightingRig {
         sunBeam.name = "SunBeam"
         sunBeam.light.intensity = 0
         sunBeam.light.attenuationRadius = tuning.beamDistance + 20
-        if tuning.shadowsEnabled && tuning.sunBeamShadows { sunBeam.shadow = SpotLightComponent.Shadow() }
+        sunBeam.components[SpotLightComponent.Shadow.self] =
+            tuning.sunBeamShadows ? SpotLightComponent.Shadow() : nil
         root.addChild(sunBeam)
 
         skyFill.name = "SkyFill"
@@ -108,8 +115,14 @@ final class RoomLightingRig {
         skyFill.light.innerAngleInDegrees = 50
         skyFill.light.outerAngleInDegrees = 85
         skyFill.light.attenuationRadius = 14
-        if tuning.shadowsEnabled && tuning.skyFillShadows { skyFill.shadow = SpotLightComponent.Shadow() }
+        skyFill.components[SpotLightComponent.Shadow.self] =
+            tuning.shadowsEnabled && tuning.skyFillShadows ? SpotLightComponent.Shadow() : nil
         root.addChild(skyFill)
+
+        skyBounce.name = "SkyBounce"
+        skyBounce.light.intensity = 0
+        skyBounce.light.attenuationRadius = 14
+        root.addChild(skyBounce)
 
         updateBeamCone()
         buildFixtures(at: fixturePositions)
@@ -133,9 +146,10 @@ final class RoomLightingRig {
     private func updateBeamCone() {
         let radius = 0.55 * (opening.width * opening.width + opening.height * opening.height).squareRoot()
         let fullDegrees = 2 * atan(radius / tuning.beamDistance) * 180 / .pi * tuning.beamSpread
-        let outer = min(60, max(6, fullDegrees))
+        let outer = min(60, max(1, fullDegrees))
         sunBeam.light.outerAngleInDegrees = outer
-        sunBeam.light.innerAngleInDegrees = outer * 0.75
+        // The window and its mullion shape the patch, rather than a circular cone falloff.
+        sunBeam.light.innerAngleInDegrees = outer
     }
 
     private func rebuildFixtures() {
@@ -160,7 +174,7 @@ final class RoomLightingRig {
             spot.light.outerAngleInDegrees = 88      // keep below 90 degrees
             spot.light.attenuationRadius = 14
             spot.light.intensity = 0
-            if tuning.shadowsEnabled { spot.shadow = SpotLightComponent.Shadow() }
+            spot.components[SpotLightComponent.Shadow.self] = tuning.shadowsEnabled ? SpotLightComponent.Shadow() : nil
             spot.position = position
             spot.orientation = .facing([0, -1, 0])
             root.addChild(spot)
@@ -199,15 +213,30 @@ final class RoomLightingRig {
         sunBeam.position = opening.center + towardSun * tuning.beamDistance
         sunBeam.orientation = .facing(state.rayDirection)
         sunBeam.light.color = UIColor(kelvin: state.kelvin)
-        sunBeam.light.intensity = tuning.sunBeamLumens * state.daylight
-        sunBeam.isEnabled = state.daylight > 0.001
+        // East-wall outward normal is +X. Never put an afternoon sun inside the room.
+        let incidence = max(0, towardSun.x)
+        let grazing = min(1, incidence / 0.15)
+        let transmission = grazing * grazing * (3 - 2 * grazing)
+        let direct = state.daylight * incidence * transmission
+        // Moving the source farther away reduces beam divergence but also dims it.
+        // Preserve the exposure calibrated at 3 m with inverse-square compensation.
+        let distanceScale = tuning.beamDistance / 3
+        sunBeam.light.intensity = tuning.sunBeamLumens * distanceScale * distanceScale * direct
+        sunBeam.isEnabled = direct > 0.001
 
         // Sky light: from the window plane, into the room (-X).
-        skyFill.position = opening.center + SIMD3<Float>(-0.05, 0, 0)
+        skyFill.position = opening.center + SIMD3<Float>(-0.16, 0, 0)
         skyFill.orientation = .facing([-1, 0, 0])
-        skyFill.light.color = UIColor(kelvin: 3500 + 3000 * Double(state.skylight))
+        skyFill.light.color = UIColor(kelvin: 6500 + 1000 * Double(1 - state.skylight))
         skyFill.light.intensity = tuning.skyFillLumens * state.skylight
         skyFill.isEnabled = state.skylight > 0.001
+
+        // Diffuse bounce keeps the unlit parts of the room readable without
+        // restoring the automatic environment that masks time-of-day changes.
+        skyBounce.position = skyFill.position
+        skyBounce.light.color = skyFill.light.color
+        skyBounce.light.intensity = tuning.skyBounceLumens * state.skylight
+        skyBounce.isEnabled = state.skylight > 0.001
 
         // Ceiling fixtures
         let lightsOn = settings.artificialLightsOn

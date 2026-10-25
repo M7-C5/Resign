@@ -18,6 +18,12 @@ This directory documents key architectural decisions for **Resign** using the [M
 
 - [ADR 0010: Window-Gated Mock Daylight](0010-window-gated-mock-daylight.md)
 
+- [ADR 0011: Geographic Daylight in the New Room Renderer](0011-geographic-mock-daylight.md)
+
+- [ADR 0012: Simulator Daylight Rendering Fallback](0012-simulator-daylight-fallback.md)
+
+- [ADR 0013: Window-Shaped Direct Sunlight](0013-window-shaped-sunlight.md)
+
 ## How to Create a New ADR
 1. Copy [template.md](template.md) to `docs/adr/NNNN-title-in-kebab-case.md`.
 2. Follow MADR conventions: Context, Decision Drivers, Considered Options, Decision Outcome, and Consequences.

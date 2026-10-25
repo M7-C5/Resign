@@ -5,6 +5,7 @@ import UIKit
 struct LightingSimulationSettings: Equatable, Sendable {
     var artificialLightsOn = false
     var minuteOfDay = 12 * 60
+    var solarContext = SolarSimulationContext()
 
     var clampedMinute: Int { min(1439, max(0, minuteOfDay)) }
     var hourOfDay: Double { Double(clampedMinute) / 60 }
@@ -14,47 +15,62 @@ struct LightingSimulationSettings: Equatable, Sendable {
     }
 }
 
-/// Mock sun for the east-facing window. This is a simple curve, not a geographic solar model.
+/// Explicit reference site for the mock room, not the user's measured location.
+/// Local -Z faces true north when heading is zero; +X is then east.
+struct SolarSimulationContext: Equatable, Sendable {
+    var latitude: Double = -6.2088
+    var longitude: Double = 106.8456
+    var year = 2026
+    var month = 10
+    var day = 24
+    var timeZoneIdentifier = "Asia/Jakarta"
+    /// Clockwise true-north bearing of the room's -Z axis.
+    var roomHeadingDegrees: Double = 0
+
+    func date(minuteOfDay: Int) -> Date {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: timeZoneIdentifier) ?? .gmt
+        let minute = min(1439, max(0, minuteOfDay))
+        let parts = DateComponents(year: year, month: month, day: day,
+                                   hour: minute / 60, minute: minute % 60)
+        return calendar.date(from: parts) ?? Date(timeIntervalSince1970: 0)
+    }
+}
+
 struct SunState: Equatable, Sendable {
-    /// Radians above the horizon. 0 at night.
+    /// Geometric radians above the horizon, negative at night.
     var elevation: Float
-    /// Radians. 0 = sun due east of the room, +/- swings slightly north/south during the day.
+    /// Clockwise azimuth relative to the room's -Z axis.
     var azimuth: Float
-    /// 0...1 strength of direct sunlight (0 at night).
     var daylight: Float
-    /// 0...1 soft sky light. Also non-zero during dawn and dusk.
     var skylight: Float
-    /// Color temperature of the direct sun.
     var kelvin: Double
 
-    /// Direction the sunlight travels: from the sun toward the room.
     var rayDirection: SIMD3<Float> {
-        let towardSun = SIMD3<Float>(
-            cos(elevation) * cos(azimuth),
-            sin(elevation),
-            cos(elevation) * sin(azimuth)
-        )
-        return -towardSun
+        -SIMD3<Float>(cos(elevation) * sin(azimuth), sin(elevation),
+                      -cos(elevation) * cos(azimuth))
     }
 }
 
 extension LightingSimulationSettings {
-    /// Sunrise at 06:00, sunset at 18:00, peak elevation about 60 degrees at noon.
     var sun: SunState {
-        let hour = hourOfDay
-        let t = (hour - 6) / 12                       // 0 at sunrise, 1 at sunset
-        let isDay = t > 0 && t < 1
-        let arc: Double = isDay ? sin(t * .pi) : 0    // 0...1 bell curve
-
-        let skyT = (hour - 5) / 14                    // wider window so dawn/dusk are not pitch black
-        let sky: Double = (skyT > 0 && skyT < 1) ? pow(sin(skyT * .pi), 1.2) : 0
-
+        let position = SolarEphemerisEngine().position(
+            at: solarContext.date(minuteOfDay: clampedMinute),
+            latitude: solarContext.latitude, longitude: solarContext.longitude
+        )
+        let elevation = position.elevation
+        let altitudeDegrees = elevation * 180 / .pi
+        // Clear-sky artistic exposure: continuous at the horizon; not calibrated lux.
+        let height = max(0, sin(elevation))
+        let direct = pow(height, 0.65)
+        let twilight = min(1, max(0, (altitudeDegrees + 6) / 12))
+        let smoothTwilight = twilight * twilight * (3 - 2 * twilight)
+        let sky = smoothTwilight * (0.2 + 0.8 * sqrt(height))
         return SunState(
-            elevation: isDay ? Float(max(0.06, arc * 1.05)) : 0,
-            azimuth: isDay ? Float((0.5 - t) * 0.7) : 0,
-            daylight: Float(pow(arc, 0.8)),
-            skylight: Float(sky),
-            kelvin: 2200 + 3400 * pow(arc, 0.7)
+            elevation: Float(elevation),
+            azimuth: Float(position.azimuth - solarContext.roomHeadingDegrees * .pi / 180),
+            daylight: Float(direct), skylight: Float(sky),
+            kelvin: 2200 + 3500 * min(1, height / 0.65)
         )
     }
 }

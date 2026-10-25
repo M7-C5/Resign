@@ -25,6 +25,11 @@ final class RoomSceneController {
 
     init() {
         root.name = "MockRoomRoot"
+        // The default non-AR environment otherwise washes out the window lights,
+        // even when the view's environment intensity exponent is reduced.
+        root.components.set(EnvironmentLightingConfigurationComponent(environmentLightingWeight: 0))
+        root.components.set(ImageBasedLightComponent(source: .none))
+        root.components.set(ImageBasedLightReceiverComponent(imageBasedLight: root))
         camera.camera.fieldOfViewInDegrees = 40
         camera.camera.near = 0.1
         camera.camera.far = 60
