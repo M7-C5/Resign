@@ -1,17 +1,34 @@
 import SwiftUI
 import Observation
+import SwiftData
 
 public struct Studio3DView: View {
+    private let layoutID: UUID?
     @State private var viewModel = Studio3DViewModel()
+    @Query(sort: \Layout.updatedAt, order: .reverse) private var layouts: [Layout]
 
-    public init() {}
+    public init(layoutID: UUID? = nil) {
+        self.layoutID = layoutID
+    }
+
+    private var lightingFixtures: [RoomLightingFixture]? {
+        let layout: Layout?
+        if let layoutID {
+            layout = layouts.first { $0.id == layoutID }
+        } else {
+            layout = layouts.first
+        }
+        return layout?.lights
+            .sorted { $0.name < $1.name }
+            .map { RoomLightingFixture(light: $0) }
+    }
 
     public var body: some View {
         @Bindable var viewModel = viewModel
 
         ZStack(alignment: .topTrailing) {
             // Shrink the room while the sheet is open so it stays visible above it.
-            RoomSimulationView(settings: viewModel.previewLighting)
+            RoomSimulationView(settings: viewModel.previewLighting, fixtures: lightingFixtures)
                 .padding(.bottom, viewModel.isLightingPresented ? LightingSimulationSheet.collapsedHeight + 20 : 0)
 
             Button {

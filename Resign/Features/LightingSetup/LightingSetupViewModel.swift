@@ -118,6 +118,7 @@ public final class LightingSetupViewModel {
             layout.lights.append(light)
             context.insert(light)
         }
+        layout.updatedAt = Date()
         try context.save()
     }
 

@@ -110,7 +110,7 @@ public struct LayoutDetailsView: View {
                     // Action Buttons when a layout is selected
                     if let selected = selectedLayout {
                         NavigationLink {
-                            Studio3DView()
+                            Studio3DView(layoutID: selected.id)
                         } label: {
                             HStack(spacing: 8) {
                                 Image(systemName: "cube.transparent")

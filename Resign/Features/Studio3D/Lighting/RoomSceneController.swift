@@ -14,7 +14,7 @@ final class RoomSceneController {
     private(set) var loadState: LoadState = .idle
 
     let root = Entity()
-    let rig = RoomLightingRig()
+    let rig: RoomLightingRig
     private let camera = PerspectiveCamera()
     private var room: Entity?
 
@@ -23,7 +23,8 @@ final class RoomSceneController {
     @ObservationIgnored var pitch: Float = 0.55
     @ObservationIgnored var distance: Float = 12
 
-    init() {
+    init(fixtures: [RoomLightingFixture]? = nil) {
+        rig = RoomLightingRig(fixtures: fixtures)
         root.name = "MockRoomRoot"
         // The default non-AR environment otherwise washes out the window lights,
         // even when the view's environment intensity exponent is reduced.
@@ -36,6 +37,10 @@ final class RoomSceneController {
         root.addChild(rig.root)
         root.addChild(camera)
         updateCamera()
+    }
+
+    func setLightingFixtures(_ fixtures: [RoomLightingFixture]?) {
+        rig.setFixtures(fixtures)
     }
 
     /// Puts the scene into an ARView (non-AR) and creates the lights.
@@ -59,11 +64,10 @@ final class RoomSceneController {
             root.addChild(loaded)
             room = loaded
             let opening = findWindow(in: loaded)
-            let lamps = findFixtures(in: loaded)
-            rig.configure(opening: opening, fixturePositions: lamps)
+            rig.configure(opening: opening)
             #if DEBUG
             let windowText = opening.map { "center=\($0.center) size=\($0.width)x\($0.height)" } ?? "not found, using default"
-            print("[MockRoom] window: \(windowText) | lamps found: \(lamps.count) \(lamps)")
+            print("[MockRoom] window: \(windowText) | layout fixtures: \(rig.fixtureCount)")
             #endif
             loadState = .loaded
             #if DEBUG
@@ -115,7 +119,7 @@ final class RoomSceneController {
         }
     }
 
-    // MARK: - Finding the window and lamps in the model
+    // MARK: - Finding the window in the model
 
     private func modelEntities(in entity: Entity) -> [Entity] {
         var result: [Entity] = []
@@ -139,30 +143,6 @@ final class RoomSceneController {
             return nil
         }
         return WindowOpening(center: box.center, width: box.extents.z, height: box.extents.y)
-    }
-
-    /// Looks for ceiling lamp meshes by name and returns a spot position just below each one.
-    private func findFixtures(in model: Entity) -> [SIMD3<Float>] {
-        let keywords = ["light", "lamp", "fixture", "bulb", "pendant"]
-        var boxes: [BoundingBox] = []
-        for entity in modelEntities(in: model) {
-            let name = entity.name.lowercased()
-            guard !name.contains("glass"), keywords.contains(where: { name.contains($0) }) else { continue }
-            let box = entity.visualBounds(relativeTo: nil)
-            if box.center.y > 1.5 { boxes.append(box) }
-        }
-
-        var clusters: [BoundingBox] = []
-        for box in boxes {
-            if let index = clusters.firstIndex(where: { simd_distance($0.center, box.center) < 0.35 }) {
-                clusters[index] = union([clusters[index], box]) ?? clusters[index]
-            } else {
-                clusters.append(box)
-            }
-        }
-        return clusters.prefix(6).map {
-            SIMD3<Float>($0.center.x, $0.min.y - 0.03, $0.center.z)
-        }
     }
 
     /// Glass and anything that looks like a lamp must not cast shadows,

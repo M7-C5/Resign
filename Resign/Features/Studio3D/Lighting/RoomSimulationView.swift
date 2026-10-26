@@ -4,10 +4,17 @@ import UIKit
 
 struct RoomSimulationView: View {
     let settings: LightingSimulationSettings
+    let fixtures: [RoomLightingFixture]?
 
-    @State private var controller = RoomSceneController()
+    @State private var controller: RoomSceneController
     @State private var dragOrigin: SIMD2<Float>?
     @State private var zoomOrigin: Float?
+
+    init(settings: LightingSimulationSettings, fixtures: [RoomLightingFixture]? = nil) {
+        self.settings = settings
+        self.fixtures = fixtures
+        _controller = State(initialValue: RoomSceneController(fixtures: fixtures))
+    }
 
     var body: some View {
         RoomRenderSurface(controller: controller, settings: settings)
@@ -41,6 +48,9 @@ struct RoomSimulationView: View {
             )
             .accessibilityLabel("Room lighting preview")
             .accessibilityHint("Drag to rotate. Pinch to zoom.")
+            .onChange(of: fixtures) { _, newFixtures in
+                controller.setLightingFixtures(newFixtures)
+            }
     }
 }
 

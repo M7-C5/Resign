@@ -23,6 +23,7 @@ This directory documents key architectural decisions for **Resign** using the [M
 - [ADR 0017: Window-Shaped Direct Sunlight](0017-window-shaped-sunlight.md)
 - [ADR 0018: Dashboard Persistence and Navigation Architecture](0018-dashboard-persistence-and-navigation-architecture.md)
 - [ADR 0019: End-to-End View Navigation Architecture](0019-end-to-end-view-navigation-architecture.md)
+- [ADR 0018: Simulate Layout-Saved Light Fixtures](0018-layout-lights-in-room-simulation.md)
 
 ## How to Create a New ADR
 1. Copy [template.md](template.md) to `docs/adr/NNNN-title-in-kebab-case.md`.
