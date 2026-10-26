@@ -17,6 +17,7 @@ This directory documents key architectural decisions for **Resign** using the [M
 - [ADR 0015: Geographic Daylight in the New Room Renderer](0015-geographic-mock-daylight.md)
 - [ADR 0016: Simulator Daylight Rendering Fallback](0016-simulator-daylight-fallback.md)
 - [ADR 0017: Window-Shaped Direct Sunlight](0017-window-shaped-sunlight.md)
+- [ADR 0018: Dashboard Persistence and Navigation Architecture](0018-dashboard-persistence-and-navigation-architecture.md)
 
 ## How to Create a New ADR
 1. Copy [template.md](template.md) to `docs/adr/NNNN-title-in-kebab-case.md`.
