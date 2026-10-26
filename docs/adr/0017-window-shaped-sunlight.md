@@ -12,17 +12,17 @@ Disabling all spotlight shadows on the simulator restored visible light but left
 
 Require direct-sun shadow mapping on both simulator and physical device, independently of the optional diffuse-sky and fixture shadows. The retained east wall segments and window frame clip the source to the actual loaded opening. Glass remains transparent to shadow casting. The mullion divides the sunlight patch according to the model geometry.
 
-Use the full spotlight cone at uniform intensity by matching its inner and outer angles. Cover the window diagonal with a full cone angle of `2 * atan(radius / distance)`, including a 10% corner margin. This replaces the half-angle setting in ADR 0015: visual inspection showed that setting cropped the window projection into a curved footprint. The wall and frame determine the illuminated footprint. Geographic sun direction still controls the patch's position and perspective throughout the morning. Diffuse sky bounce remains soft and is not expected to form a sharp window silhouette.
+Use a spotlight cone wider than the window diagonal, with a gradual intensity falloff between its inner and outer angles. This keeps the circular source boundary outside the aperture and softens the edge; the east wall, frame, and mullion shape the beam that reaches the room. Geographic sun direction still controls the patch's position and perspective throughout the morning. Keep the diffuse sky fill broad, and reduce and move the unshadowed bounce into the room so it does not create a bright circular pool on the facade.
 
 Keep the environment override, distance compensation, afternoon rejection, night shutdown, and independent lamp control from ADR 0016.
 
 ## Consequences
 
-The sunlight footprint follows the window aperture instead of the circular source boundary. Shadow mapping is required for this contract; a runtime without working spotlight shadows cannot provide an equivalent unshadowed fallback. The sun remains a finite-distance approximation and does not model glass refraction or global illumination.
+The direct sunlight footprint follows the window aperture with a soft cone edge instead of exposing a hard circular source boundary. Shadow mapping is required for this contract; a runtime without working spotlight shadows cannot provide an equivalent unshadowed fallback. The sun remains a finite-distance approximation and does not model glass refraction or global illumination.
 
 ## Validation
 
-Unit coverage loads the actual room and checks that all four east wall segments and the mullion remain active shadow casters, glass does not cast an opaque shadow, direct-sun shadows are present in the simulator, and source cone intensity remains uniform across its coverage.
+Unit coverage loads the actual room and checks that all four east wall segments and the mullion remain active shadow casters, glass does not cast an opaque shadow, direct-sun shadows are present in the simulator, and the cone has a feathered edge while covering the window diagonal.
 
 An aperture-coverage regression checks that the cone reaches beyond every window corner. Simulator spotlight shadows render successfully after the exposure and environment fixes; the earlier pipeline warning does not justify removing direct-sun occlusion on the verified iOS 26.5 runtime.
 

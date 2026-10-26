@@ -451,10 +451,15 @@ struct GeographicDaylightTests {
         #expect(beam.shadow != nil && sky.shadow != nil && lamp.shadow != nil)
         #endif
         #expect(beam.components.has(SpotLightComponent.Shadow.self))
-        #expect(beam.light.innerAngleInDegrees == beam.light.outerAngleInDegrees)
+        #expect(beam.light.innerAngleInDegrees < beam.light.outerAngleInDegrees)
+        #expect(
+            abs((beam.light.outerAngleInDegrees - beam.light.innerAngleInDegrees) / beam.light.outerAngleInDegrees - rig.tuning.beamEdgeFeather) < 0.001
+        )
         #expect(beam.isEnabled && beam.light.intensity > 0)
         #expect(sky.isEnabled && sky.light.intensity > 0)
         #expect(bounce.isEnabled && bounce.light.intensity > 0)
+        #expect(bounce.position.x < sky.position.x)
+        #expect(rig.tuning.skyBounceLumens < rig.tuning.skyFillLumens)
         #expect(!lamp.isEnabled)
 
         rig.apply(LightingSimulationSettings(minuteOfDay: 16 * 60))
@@ -504,7 +509,7 @@ struct GeographicDaylightTests {
         let coverage = tan(halfAngle) * rig.tuning.beamDistance
         let cornerRadius = sqrt(opening.width * opening.width + opening.height * opening.height) / 2
         #expect(coverage > cornerRadius)
-        #expect(beam.light.innerAngleInDegrees == beam.light.outerAngleInDegrees)
+        #expect(beam.light.innerAngleInDegrees < beam.light.outerAngleInDegrees)
     }
 
     @Test @MainActor func movingSunFartherAwayPreservesWindowExposure() throws {
