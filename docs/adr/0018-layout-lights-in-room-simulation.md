@@ -14,7 +14,7 @@ Dashboard routes a layout into Studio 3D by its stable identifier. Studio 3D rea
 
 Map grid columns and rows 0–4 to centered room-space X and Z positions at 0.65-meter spacing. Map `elevationZ` to RealityKit's Y axis, and preserve each record's lumens, Kelvin temperature, and `isOn` value. The simulation's artificial-light switch acts as a session-only master switch over the saved per-fixture state. Natural sunlight remains independent.
 
-The Dashboard's create action creates a `Layout`, opens the existing light-placement flow, and continues to Studio 3D with that same layout after saving. Returning before saving removes the newly created empty layout. Existing layouts can be opened directly in their own lighting simulation.
+The Dashboard's create action creates a `Room` and `Layout`, opens north alignment, then continues to the existing light-placement flow and Studio 3D with the same layout. Returning before saving removes the newly created room and layout. Existing layouts can be opened directly in their own lighting simulation.
 
 ## Consequences
 
