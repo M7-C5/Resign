@@ -57,10 +57,7 @@ public struct Studio3DView: View {
                 onConfirm: { viewModel.confirmLightingEditing() }
             )
         }
-        .onAppear {
-            viewModel.updateRoomHeading(roomHeading)
-        }
-        .onChange(of: roomHeading) { _, newHeading in
+        .onChange(of: roomHeading, initial: true) { _, newHeading in
             viewModel.updateRoomHeading(newHeading)
         }
     }

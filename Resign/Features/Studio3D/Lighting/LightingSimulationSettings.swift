@@ -27,6 +27,16 @@ struct SolarSimulationContext: Equatable, Sendable {
     /// Clockwise true-north bearing of the room's -Z axis.
     var roomHeadingDegrees: Double = 0
 
+    /// The reference room's window faces local +X, 90° clockwise from its -Z axis.
+    var windowBearingDegrees: Double {
+        NorthAlignmentCalibration.normalized(roomHeadingDegrees + 90)
+    }
+
+    var windowCompassDirection: String {
+        let directions = ["north", "northeast", "east", "southeast", "south", "southwest", "west", "northwest"]
+        return directions[Int((windowBearingDegrees + 22.5) / 45) % directions.count]
+    }
+
     func date(minuteOfDay: Int) -> Date {
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = TimeZone(identifier: timeZoneIdentifier) ?? .gmt
@@ -68,7 +78,7 @@ extension LightingSimulationSettings {
         let sky = smoothTwilight * (0.2 + 0.8 * sqrt(height))
         return SunState(
             elevation: Float(elevation),
-            azimuth: Float(position.azimuth - solarContext.roomHeadingDegrees * .pi / 180),
+            azimuth: Float(position.azimuth - NorthAlignmentCalibration.normalized(solarContext.roomHeadingDegrees) * .pi / 180),
             daylight: Float(direct), skylight: Float(sky),
             kelvin: 2200 + 3500 * min(1, height / 0.65)
         )

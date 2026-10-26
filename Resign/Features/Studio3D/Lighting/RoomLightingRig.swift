@@ -2,7 +2,7 @@ import RealityKit
 import UIKit
 import simd
 
-/// The glass opening that lets daylight in (east wall). Detected from the model when possible.
+/// The reference room's opening is on its local +X wall. Its compass bearing follows the saved room heading.
 struct WindowOpening {
     var center: SIMD3<Float> = [2.55, 1.45, 0]
     var width: Float = 1.4
@@ -232,7 +232,8 @@ final class RoomLightingRig {
         sunBeam.position = opening.center + towardSun * tuning.beamDistance
         sunBeam.orientation = .facing(state.rayDirection)
         sunBeam.light.color = UIColor(kelvin: state.kelvin)
-        // East-wall outward normal is +X. Never put an afternoon sun inside the room.
+        // The window's outward normal stays +X in room coordinates. The sun ray has
+        // already been rotated by the saved compass heading, so +X need not face east.
         let incidence = max(0, towardSun.x)
         let grazing = min(1, incidence / 0.15)
         let transmission = grazing * grazing * (3 - 2 * grazing)
@@ -253,7 +254,7 @@ final class RoomLightingRig {
         // Diffuse bounce keeps the unlit parts of the room readable without
         // restoring the automatic environment that masks time-of-day changes.
         // Approximate diffuse sky bounce near the room center so noon remains bright even
-        // when the east-facing window rejects direct sunlight.
+        // when the window faces away from direct sunlight.
         skyBounce.position = opening.center + SIMD3<Float>(-2.3, 0.9, 0)
         skyBounce.light.color = skyFill.light.color
         skyBounce.light.intensity = tuning.skyBounceLumens * state.skylight
