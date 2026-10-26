@@ -23,6 +23,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - feat(rules): establish feature delivery lifecycle and documentation invariants (ed764d8)
 - feat(testing): add in-memory ModelContainer fixture and SwiftData unit tests (b4daaff)
 
+### Changed
+- refactor(arch): scaffold vertical feature-slice architecture with skeleton modules (3419a7d)
+
 ### Documentation
 - docs(adr): document L-shaped desk SAT wing synthesis and category-aware wall snapping in ADR 0010 (7efbe8a)
 - docs(adr): update hybrid parametric shell architecture with surface elevation and clear-span pipeline (fa0fc42)
@@ -37,6 +40,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - docs: add agentic playbook, architecture blueprint, and changelog (178cddb)
 
 ### Tooling & Maintenance
+- chore(merge): sync main and pull request template into feature branch (fcd075c)
+- chore(release): update changelog for semantic pull request template (93fc68e)
+- chore(tooling): add semantic pull request template for team workflow (96b0254)
 - chore(release): update changelog for scan confirmation alert and lifecycle navigation (ebd395a)
 - test(room-scan): verify confirmation alert transitions, scan cancellation, and invalid scan rejection (21ab947)
 - chore(release): update changelog for L-shaped desk synthesis and category-aware wall snapping (de02b43)

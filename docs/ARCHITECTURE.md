@@ -200,6 +200,7 @@ Resign/
 │   ├── LightingSetup/                 // LightingSetupView, LightingSetupViewModel
 │   ├── Insights/                      // InsightsView, InsightsViewModel
 │   ├── Studio3D/                      // Studio3DView, Studio3DViewModel
+│   │   └── Lighting/                  // RoomSimulationView, RoomLightingRig, scene controller
 │   └── ARWalkthrough/                 // ARWalkthroughView, ARWalkthroughViewModel
 ├── Core/                              // Horizontal Foundation (The "Brain", Zero UI)
 │   ├── Models/                        // SwiftData @Model skeleton classes

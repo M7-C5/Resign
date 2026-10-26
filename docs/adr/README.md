@@ -14,6 +14,14 @@ This directory documents key architectural decisions for **Resign** using the [M
 - [ADR 0008: Arbitrary Polygon and Multi-Wall Room Geometry Engine](0008-arbitrary-polygon-and-multi-wall-room-geometry.md)
 - [ADR 0009: Dimensional Precision, Oriented Bounding Box, and Plaster Wall Snapping](0009-dimensional-precision-and-plaster-snapping.md)
 - [ADR 0010: Hybrid Native Parametric Room Shell and Sanitized Furniture Pipeline](0010-hybrid-native-parametric-room-and-sanitized-furniture.md)
+- [ADR 0011: LightDraft Transient Value Type for Ceiling Grid Editing](0011-lightdraft-transient-edit-pattern.md)
+- [ADR 0012: Lighting Simulation Modal Session](0012-lighting-simulation-modal-session.md)
+- [ADR 0013: Mock Room Lighting Preview](0013-mock-room-lighting-preview.md)
+- [ADR 0014: Window-Gated Mock Daylight](0014-window-gated-mock-daylight.md)
+- [ADR 0015: Geographic Daylight in the New Room Renderer](0015-geographic-mock-daylight.md)
+- [ADR 0016: Simulator Daylight Rendering Fallback](0016-simulator-daylight-fallback.md)
+- [ADR 0017: Window-Shaped Direct Sunlight](0017-window-shaped-sunlight.md)
+- [ADR 0018: Dashboard Persistence and Navigation Architecture](0018-dashboard-persistence-and-navigation-architecture.md)
 
 ## How to Create a New ADR
 1. Copy [template.md](template.md) to `docs/adr/NNNN-title-in-kebab-case.md`.
