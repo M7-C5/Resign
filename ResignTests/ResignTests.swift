@@ -487,6 +487,63 @@ struct LightingSimulationModalTests {
 
 @Suite("Geographic daylight")
 struct GeographicDaylightTests {
+    @Test(arguments: [0.0, 45.0, 90.0, 135.0, 180.0, 225.0, 270.0, 315.0])
+    func windowDirectionFollowsSavedRoomBearing(heading: Double) {
+        var context = SolarSimulationContext()
+        context.roomHeadingDegrees = heading
+        let directions = ["east", "southeast", "south", "southwest", "west", "northwest", "north", "northeast"]
+        #expect(context.windowCompassDirection == directions[Int(heading / 45)])
+        #expect(context.windowBearingDegrees == (heading + 90).truncatingRemainder(dividingBy: 360))
+    }
+
+    @Test func equivalentCompassBearingsKeepWindowAndSunAligned() {
+        var settings = LightingSimulationSettings(minuteOfDay: 8 * 60)
+        settings.solarContext.roomHeadingDegrees = 180
+        let expectedRay = settings.sun.rayDirection
+        for heading in [-180.0, 540.0] {
+            settings.solarContext.roomHeadingDegrees = heading
+            #expect(settings.solarContext.windowCompassDirection == "west")
+            #expect(settings.sun.rayDirection == expectedRay)
+        }
+    }
+
+    @Test @MainActor func savedCompassChangesWindowSunExposureAfterReload() throws {
+        let container = try ModelContainer.createInMemoryContainer()
+        let room = Room(compass: NorthAlignmentCalibration.roomHeadingDegrees(northArrowPlanRotationDegrees: 180))
+        let layout = Layout(name: "West-facing room")
+        room.layouts.append(layout)
+        container.mainContext.insert(room)
+        try container.mainContext.save()
+
+        let reloadedContext = ModelContext(container)
+        let reloaded = try #require(reloadedContext.fetch(FetchDescriptor<Layout>()).first)
+        let savedRoom = try #require(reloaded.room)
+        let model = Studio3DViewModel()
+        model.updateRoomHeading(savedRoom.compass)
+        model.beginLightingEditing()
+        model.lightingDraft.minuteOfDay = 8 * 60
+        let rig = RoomLightingRig(fixtures: [])
+        rig.apply(model.previewLighting)
+        let beam = try #require(rig.root.findEntity(named: "SunBeam") as? SpotLight)
+        let sky = try #require(rig.root.findEntity(named: "SkyFill") as? SpotLight)
+        #expect(model.previewLighting.solarContext.windowCompassDirection == "west")
+        #expect(!beam.isEnabled && beam.light.intensity == 0)
+        #expect(sky.isEnabled && sky.light.intensity > 0)
+
+        model.lightingDraft.minuteOfDay = 16 * 60
+        rig.apply(model.previewLighting)
+        #expect(beam.isEnabled && beam.light.intensity > 0)
+        model.confirmLightingEditing()
+        model.beginLightingEditing()
+        model.lightingDraft.minuteOfDay = 0
+        rig.apply(model.previewLighting)
+        #expect(!beam.isEnabled && !sky.isEnabled)
+        model.discardLightingEditing()
+        #expect(model.previewLighting.solarContext.roomHeadingDegrees == savedRoom.compass)
+        rig.apply(model.previewLighting)
+        #expect(beam.isEnabled && beam.light.intensity > 0)
+    }
+
     @Test func sunCrossesFromEastToWest() {
         let morning = LightingSimulationSettings(minuteOfDay: 8 * 60).sun
         let afternoon = LightingSimulationSettings(minuteOfDay: 16 * 60).sun
