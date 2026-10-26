@@ -1,4 +1,4 @@
-# ADR 0018: Simulate Layout-Saved Light Fixtures
+# ADR 0020: Simulate Layout-Saved Light Fixtures
 
 - Status: Accepted
 - Date: 2026-10-26
@@ -14,7 +14,7 @@ Dashboard routes a layout into Studio 3D by its stable identifier. Studio 3D rea
 
 Map grid columns and rows 0–4 to centered room-space X and Z positions at 0.65-meter spacing. Map `elevationZ` to RealityKit's Y axis, and preserve each record's lumens, Kelvin temperature, and `isOn` value. The simulation's artificial-light switch acts as a session-only master switch over the saved per-fixture state. Natural sunlight remains independent.
 
-The Dashboard's create action creates a `Room` and `Layout`, opens north alignment, then continues to the existing light-placement flow and Studio 3D with the same layout. Returning before saving removes the newly created room and layout. Existing layouts can be opened directly in their own lighting simulation.
+The Dashboard starts the dedicated room-creation flow. Scan review passes its saved layout to north alignment and then light placement. Saving lights dismisses the creation flow; the saved-layout detail action opens Studio 3D with that specific layout identifier. Returning from orientation or lighting goes to the preceding creation step and preserves the scanned room.
 
 ## Consequences
 

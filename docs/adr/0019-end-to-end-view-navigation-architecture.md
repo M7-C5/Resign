@@ -4,6 +4,8 @@
 * Date: 2026-10-26
 * Deciders: Core Architecture Team, Antigravity Agent
 
+> North alignment is now implemented and inserted between scan review and light placement; see [ADR 0021](0021-room-north-alignment.md). Saved-layout Studio 3D navigation passes the selected layout identifier as described in [ADR 0020](0020-layout-lights-in-room-simulation.md).
+
 ## Context and Problem Statement
 
 The application contains several implemented feature modules (`DashboardView`, `LayoutDetailsView`, `RoomScanView`, `RoomScanResultView`, `LightingSetupView`, and `Studio3DView`), but until now they operated as isolated screens or mockups. A unified, end-to-end navigation architecture is required to guide users seamlessly from initial LiDAR room capture through 3D review, ceiling light configuration, and persistent multi-layout exploration.

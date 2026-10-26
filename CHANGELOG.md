@@ -38,6 +38,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - refactor(arch): scaffold vertical feature-slice architecture with skeleton modules (3419a7d)
 
 ### Fixed
+- fix(lighting-simulation): align daylight source with saved compass (a1fe01a)
 - fix(lighting-simulation): move daylight caption below time slider (33e8910)
 - fix(lighting-simulation): keep midday diffuse light bright (1bc7dcf)
 - fix(lighting-simulation): soften natural window light (37e055b)
@@ -50,6 +51,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - fix(lighting-simulation): shape natural light to the window (5fbb493)
 
 ### Documentation
+- docs(changelog): record room north alignment (3e3092e)
 - docs(changelog): record daylight caption adjustment (c52fa3a)
 - docs(changelog): record layout light simulation integration (3b502c9)
 - docs(changelog): record noon daylight fill (76bbf1b)
