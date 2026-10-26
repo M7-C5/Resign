@@ -215,6 +215,10 @@ Resign/
 │   │   ├── SpatialClearanceEngine.swift
 │   │   └── LayoutOptimizerEngine.swift
 │   └── Spatial/                       // Shared 3D RealityKit helpers
+│       ├── ProceduralRoomUSDZGenerator.swift
+│       ├── RoomCaptureMapper.swift
+│       ├── RoomCapturePayload.swift
+│       ├── RoomCaptureSanitizer.swift
 │       ├── FurnitureEntityFactory.swift
 │       └── SunlightEntityController.swift
 └── Services/                          // Hardware & System Providers

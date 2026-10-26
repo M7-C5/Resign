@@ -16,7 +16,7 @@ public struct DashboardView: View {
     @State private var roomToDelete: Room?
     @State private var swipedRoomID: UUID?
     @State private var selectedRoom: Room?
-    @State private var isShowingRoomScan = false
+    @State private var isShowingRoomCreation = false
 
     public init() {}
 
@@ -50,7 +50,7 @@ public struct DashboardView: View {
                             .multilineTextAlignment(.center)
 
                         Button {
-                            isShowingRoomScan = true
+                            isShowingRoomCreation = true
                         } label: {
                             Label("Scan a Room", systemImage: "plus")
                                 .font(.subheadline.weight(.semibold))
@@ -184,7 +184,7 @@ public struct DashboardView: View {
             }
             .overlay(alignment: .bottomTrailing) {
                 Button {
-                    isShowingRoomScan = true
+                    isShowingRoomCreation = true
                 } label: {
                     Image(systemName: "plus")
                         .font(.system(size: 24, weight: .semibold))
@@ -197,17 +197,8 @@ public struct DashboardView: View {
                 .padding(.bottom, 24)
                 .accessibilityLabel("Scan new room")
             }
-            .sheet(isPresented: $isShowingRoomScan) {
-                NavigationStack {
-                    RoomScanView()
-                        .toolbar {
-                            ToolbarItem(placement: .cancellationAction) {
-                                Button("Close") {
-                                    isShowingRoomScan = false
-                                }
-                            }
-                        }
-                }
+            .fullScreenCover(isPresented: $isShowingRoomCreation) {
+                RoomCreationFlowView()
             }
         }
     }

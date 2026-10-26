@@ -107,7 +107,7 @@ public struct LayoutDetailsView: View {
                         }
                     }
 
-                    // Open in 3D Button when a layout is selected
+                    // Action Buttons when a layout is selected
                     if let selected = selectedLayout {
                         NavigationLink {
                             Studio3DView()
@@ -124,6 +124,22 @@ public struct LayoutDetailsView: View {
                             .foregroundStyle(.white)
                         }
                         .padding(.top, 8)
+
+                        NavigationLink {
+                            LightingSetupView(layout: selected)
+                        } label: {
+                            HStack(spacing: 8) {
+                                Image(systemName: "lightbulb.fill")
+                                    .font(.headline)
+                                Text("Configure Ceiling Lights")
+                                    .font(.subheadline.weight(.semibold))
+                            }
+                            .frame(maxWidth: .infinity)
+                            .frame(minHeight: 44)
+                            .background(Color(uiColor: .secondarySystemFill), in: RoundedRectangle(cornerRadius: 14))
+                            .foregroundStyle(.primary)
+                        }
+                        .padding(.top, 4)
                     }
                 }
             }
