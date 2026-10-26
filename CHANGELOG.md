@@ -37,6 +37,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - refactor(arch): scaffold vertical feature-slice architecture with skeleton modules (3419a7d)
 
 ### Fixed
+- fix(lighting-simulation): move daylight caption below time slider (33e8910)
 - fix(lighting-simulation): keep midday diffuse light bright (1bc7dcf)
 - fix(lighting-simulation): soften natural window light (37e055b)
 - fix(dashboard): erase light symbol (0f52ca0)
@@ -48,6 +49,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - fix(lighting-simulation): shape natural light to the window (5fbb493)
 
 ### Documentation
+- docs(changelog): record layout light simulation integration (3b502c9)
 - docs(changelog): record noon daylight fill (76bbf1b)
 - docs(changelog): record softened daylight behavior (f5fde07)
 - docs(adr): document end-to-end view navigation architecture in ADR 0019 (7c02b33)
