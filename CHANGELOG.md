@@ -25,6 +25,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - docs: add agentic playbook, architecture blueprint, and changelog (178cddb)
 
 ### Tooling & Maintenance
+- chore(tooling): add semantic pull request template for team workflow (96b0254)
+- chore(changelog): update release changelog for domain schema migration (ada76db)
 - test(persistence): add room hierarchy persistence and model default initialization tests (20a21f7)
 - chore(tooling): automate changelog generation from conventional commits (8d9466d)
 - test(spatial): verify mock room hierarchy and required entities (3bab6e3)
