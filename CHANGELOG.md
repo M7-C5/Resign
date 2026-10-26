@@ -45,6 +45,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - docs: add agentic playbook, architecture blueprint, and changelog (178cddb)
 
 ### Tooling & Maintenance
+- chore(build): set ITSAppUsesNonExemptEncryption to false for App Store compliance (689ba41)
+- chore(release): update changelog for universal app icon (f0f23f0)
 - chore(assets): add 1024x1024 universal app icon for CI validation (fb1ed4c)
 - chore(release): update changelog for semantic pull request template (93fc68e)
 - chore(tooling): add semantic pull request template for team workflow (96b0254)
