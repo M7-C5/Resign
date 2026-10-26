@@ -8,6 +8,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- feat(navigation): connect end-to-end user creation flow and decompose room scan components (c7baab3)
+- feat(dashboard): build LayoutCardView, build LayoutDetailsView, and add navigation from DashboardView to LayoutDetailsView (b47613a)
+- Merge pull request #3 from M7-C5/feature/lighting (373f223)
 - feat(navigation): add root home screen state switcher for scan launch and cancellation (0444327)
 - feat(room-scan): update scanner overlay to top Cancel/Done navigation and remove redundant instruction banner (8298dd8)
 - feat(room-scan): implement scan confirmation state machine, cancellation guard, and invalid scan validation (890e13b)
@@ -17,6 +20,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - feat(spatial): extract masonry-to-masonry clear-span dimensions from opposing walls (2c660c7)
 - feat(scanner): add room capture workflow with two-decimal metric display and realitykit preview (2e3e964)
 - feat(spatial): implement clear-span floor dimension extraction and domain payload mapping (06cd811)
+- feat(dashboard): build dashboard empty state (0fba429)
+- feature(Lighting): added "add lighting source" feature (7242c42)
 - feat(models): implement authentic room layout and lighting domain schema (3343fe0)
 - feat(spatial): bundle mock room USDZ asset for lighting simulation (7bba77d)
 - feat(assets): add procedural mock room generator with flat shading (979401d)
@@ -24,9 +29,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - feat(testing): add in-memory ModelContainer fixture and SwiftData unit tests (b4daaff)
 
 ### Changed
+- refactor(dashboard): integrate SwiftData models and decompose layout components (edbbe38)
+- refactor(services): restore shared service placement (3afe8d0)
+- refactor(studio3d): organize lighting code and remove dead views (173dd88)
 - refactor(arch): scaffold vertical feature-slice architecture with skeleton modules (3419a7d)
 
+### Fixed
+- fix(dashboard): erase light symbol (0f52ca0)
+- fix(changelog): include refactor commits in generated history (fcc84c3)
+- fix(lighting): correct solar ephemeris coefficients (9542e10)
+- fix(ci): use available iPhone simulator destination (afc82a5)
+- fix(app): restore dashboard launch and studio route (107a72e)
+- fix(preview): avoid Canvas initializer crash (c42ea43)
+- fix(lighting-simulation): shape natural light to the window (5fbb493)
+
 ### Documentation
+- docs(adr): document end-to-end view navigation architecture in ADR 0019 (7c02b33)
+- docs(adr): document dashboard persistence and navigation architecture in ADR 0018 (caba883)
+- docs(changelog): record PR review fixes (bbed95e)
+- docs(adr): renumber lighting decisions after staging records (1e35072)
+- docs(changelog): sync lighting branch entries (9de1e47)
+- docs(changelog): record lighting simulation changes (ade6284)
 - docs(adr): document L-shaped desk SAT wing synthesis and category-aware wall snapping in ADR 0010 (7efbe8a)
 - docs(adr): update hybrid parametric shell architecture with surface elevation and clear-span pipeline (fa0fc42)
 - docs(spatial): document room capture architecture, floor polygon contracts, and hybrid parametric shell adrs (50edd61)
@@ -40,9 +63,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - docs: add agentic playbook, architecture blueprint, and changelog (178cddb)
 
 ### Tooling & Maintenance
+- test(navigation): add unit tests for creation flow routes and layout queries (2b0b6a8)
+- chore(assets): bundle real-world room scan test fixtures (2714bb4)
+- chore(release): update changelog for dashboard persistence refactor (aa1e01e)
+- test(dashboard): add unit tests for SwiftData query and ViewModel mutations (9a96634)
+- chore(release): update changelog for App Store encryption compliance (039df6e)
+- chore(build): set ITSAppUsesNonExemptEncryption to false for App Store compliance (689ba41)
+- chore(release): update changelog for universal app icon (f0f23f0)
+- chore(assets): add 1024x1024 universal app icon for CI validation (fb1ed4c)
 - chore(merge): sync main and pull request template into feature branch (fcd075c)
 - chore(release): update changelog for semantic pull request template (93fc68e)
 - chore(tooling): add semantic pull request template for team workflow (96b0254)
+- test(lighting-simulation): add simulator launch probe (519f57c)
 - chore(release): update changelog for scan confirmation alert and lifecycle navigation (ebd395a)
 - test(room-scan): verify confirmation alert transitions, scan cancellation, and invalid scan rejection (21ab947)
 - chore(release): update changelog for L-shaped desk synthesis and category-aware wall snapping (de02b43)
@@ -61,5 +93,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - build: install native Conventional Commits git hook (7797521)
 - build: implement autonomous verification and changelog scripts (156c0bc)
 - build: establish modular engineering rules and superpower skills (929b639)
-- build: configure agent constitution and lifecycle hooks (1cbaa5a)
 
