@@ -60,9 +60,6 @@ struct LightingSimulationSheet: View {
 
     private var artificialLightRow: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("Natural light from east window")
-                .font(.caption)
-                .foregroundStyle(.secondary)
             HStack(spacing: 10) {
                 Text("Off")
                 Toggle("Artificial lights", isOn: $settings.artificialLightsOn)
@@ -86,44 +83,49 @@ private struct TimeOfDaySlider: View {
     }
 
     var body: some View {
-        HStack(alignment: .bottom, spacing: 10) {
-            Text("Day")
-                .padding(.bottom, 12)
+        VStack {
+            HStack(alignment: .bottom, spacing: 10) {
+                Text("Day")
+                    .padding(.bottom, 12)
 
-            VStack(spacing: 0) {
-                GeometryReader { geometry in
-                    let thumbInset: CGFloat = 16
-                    let fraction = CGFloat(minuteOfDay) / 1439
-                    let usableWidth = max(0, geometry.size.width - 2 * thumbInset)
-                    Text(label)
-                        .font(.caption)
-                        .monospacedDigit()
-                        .fixedSize()
-                        .position(
-                            x: max(24, min(geometry.size.width - 24, thumbInset + fraction * usableWidth)),
-                            y: 8
-                        )
+                VStack(spacing: 0) {
+                    GeometryReader { geometry in
+                        let thumbInset: CGFloat = 16
+                        let fraction = CGFloat(minuteOfDay) / 1439
+                        let usableWidth = max(0, geometry.size.width - 2 * thumbInset)
+                        Text(label)
+                            .font(.caption)
+                            .monospacedDigit()
+                            .fixedSize()
+                            .position(
+                                x: max(24, min(geometry.size.width - 24, thumbInset + fraction * usableWidth)),
+                                y: 8
+                            )
+                    }
+                    .frame(height: 18)
+
+                    Slider(
+                        value: Binding(
+                            get: { Double(minuteOfDay) },
+                            set: { minuteOfDay = Int($0.rounded()) }
+                        ),
+                        in: 0...1439,
+                        step: 1
+                    )
+                    .tint(.blue)
+                    .accessibilityLabel("Time of day")
+                    .accessibilityValue(label)
                 }
-                .frame(height: 18)
 
-                Slider(
-                    value: Binding(
-                        get: { Double(minuteOfDay) },
-                        set: { minuteOfDay = Int($0.rounded()) }
-                    ),
-                    in: 0...1439,
-                    step: 1
-                )
-                .tint(.blue)
-                .accessibilityLabel("Time of day")
-                .accessibilityValue(label)
+                Text("Night")
+                    .padding(.bottom, 12)
             }
-
-            Text("Night")
-                .padding(.bottom, 12)
+            .font(.caption)
+            .foregroundStyle(.secondary)
+            Text("Natural light from east window")
+                .font(.caption)
+                .foregroundStyle(.secondary)
         }
-        .font(.caption)
-        .foregroundStyle(.secondary)
     }
 }
 
