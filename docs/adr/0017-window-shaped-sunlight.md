@@ -1,8 +1,8 @@
-# ADR 0013: Window-Shaped Direct Sunlight
+# ADR 0017: Window-Shaped Direct Sunlight
 
 - Status: Accepted
 - Date: 2026-10-25
-- Amends: [ADR 0012](0012-simulator-daylight-fallback.md)
+- Amends: [ADR 0016](0016-simulator-daylight-fallback.md)
 
 ## Context
 
@@ -12,9 +12,9 @@ Disabling all spotlight shadows on the simulator restored visible light but left
 
 Require direct-sun shadow mapping on both simulator and physical device, independently of the optional diffuse-sky and fixture shadows. The retained east wall segments and window frame clip the source to the actual loaded opening. Glass remains transparent to shadow casting. The mullion divides the sunlight patch according to the model geometry.
 
-Use the full spotlight cone at uniform intensity by matching its inner and outer angles. Cover the window diagonal with a full cone angle of `2 * atan(radius / distance)`, including a 10% corner margin. This replaces the half-angle setting in ADR 0011: visual inspection showed that setting cropped the window projection into a curved footprint. The wall and frame determine the illuminated footprint. Geographic sun direction still controls the patch's position and perspective throughout the morning. Diffuse sky bounce remains soft and is not expected to form a sharp window silhouette.
+Use the full spotlight cone at uniform intensity by matching its inner and outer angles. Cover the window diagonal with a full cone angle of `2 * atan(radius / distance)`, including a 10% corner margin. This replaces the half-angle setting in ADR 0015: visual inspection showed that setting cropped the window projection into a curved footprint. The wall and frame determine the illuminated footprint. Geographic sun direction still controls the patch's position and perspective throughout the morning. Diffuse sky bounce remains soft and is not expected to form a sharp window silhouette.
 
-Keep the environment override, distance compensation, afternoon rejection, night shutdown, and independent lamp control from ADR 0012.
+Keep the environment override, distance compensation, afternoon rejection, night shutdown, and independent lamp control from ADR 0016.
 
 ## Consequences
 

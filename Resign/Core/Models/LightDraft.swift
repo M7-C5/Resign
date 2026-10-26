@@ -12,7 +12,7 @@ import Foundation
 /// `LightingSetupViewModel.saveToLayout(_:context:)` bulk-converts drafts into
 /// persisted `Light` SwiftData records.
 ///
-/// - SeeAlso: ADR 0007 — LightDraft Transient Value Type for Ceiling Grid Editing
+/// - SeeAlso: ADR 0011 — LightDraft Transient Value Type for Ceiling Grid Editing
 /// - SeeAlso: `LightingSetupViewModel.saveToLayout(_:context:)`
 public struct LightDraft: Identifiable, Sendable, Equatable {
 

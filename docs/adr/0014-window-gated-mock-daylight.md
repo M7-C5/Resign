@@ -1,4 +1,4 @@
-# ADR 0010: Window-Gated Mock Daylight
+# ADR 0014: Window-Gated Mock Daylight
 
 - Status: accepted
 - Date: 2026-10-22
@@ -15,7 +15,7 @@ Place the directional source east of the room, aimed down through the window. En
 
 ## Limitations
 
-This is a fixed-direction visual approximation, not geographic sun tracking, glass refraction, global illumination, or calibrated photometry. Ambient is a small display fill and not simulated daylight bounce. Exterior faces can still receive sunlight; direct illumination inside is restricted by the enclosure. This supersedes the unshadowed daylight and ambient curve in ADR 0009.
+This is a fixed-direction visual approximation, not geographic sun tracking, glass refraction, global illumination, or calibrated photometry. Ambient is a small display fill and not simulated daylight bounce. Exterior faces can still receive sunlight; direct illumination inside is restricted by the enclosure. This supersedes the unshadowed daylight and ambient curve in ADR 0013.
 
 ## Validation
 

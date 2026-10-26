@@ -1,4 +1,4 @@
-# ADR 0007: LightDraft Transient Value Type for Ceiling Grid Editing
+# ADR 0011: LightDraft Transient Value Type for Ceiling Grid Editing
 
 * Status: accepted
 * Date: 2026-10-20

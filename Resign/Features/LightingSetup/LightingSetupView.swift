@@ -21,7 +21,7 @@ import RealityKit
 /// only written to when the user confirms "Save & Continue".
 ///
 /// - SeeAlso: `LightingSetupViewModel`
-/// - SeeAlso: ADR 0007 — LightDraft Transient Value Type for Ceiling Grid Editing
+/// - SeeAlso: ADR 0011 — LightDraft Transient Value Type for Ceiling Grid Editing
 public struct LightingSetupView: View {
 
     @Environment(\.modelContext) private var modelContext

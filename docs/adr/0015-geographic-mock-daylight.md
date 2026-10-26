@@ -1,8 +1,8 @@
-# ADR 0011: Geographic Daylight in the New Room Renderer
+# ADR 0015: Geographic Daylight in the New Room Renderer
 
 - Status: Accepted
 - Date: 2026-10-24
-- Supersedes: the fixed daily sun path in ADR 0010
+- Supersedes: the fixed daily sun path in ADR 0014
 
 ## Context
 

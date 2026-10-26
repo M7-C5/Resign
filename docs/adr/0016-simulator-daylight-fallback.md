@@ -1,13 +1,13 @@
-# ADR 0012: Simulator Daylight Rendering Fallback
+# ADR 0016: Simulator Daylight Rendering Fallback
 
 - Status: Accepted
 - Date: 2026-10-25
-- Amends: [ADR 0011](0011-geographic-mock-daylight.md)
-- Shadow fallback amended by: [ADR 0013](0013-window-shaped-sunlight.md), which requires direct-sun shadows on the verified simulator runtime to preserve the window silhouette.
+- Amends: [ADR 0015](0015-geographic-mock-daylight.md)
+- Shadow fallback amended by: [ADR 0017](0017-window-shaped-sunlight.md), which requires direct-sun shadows on the verified simulator runtime to preserve the window silhouette.
 
 ## Context
 
-The simulator shadow pipeline failure recorded in ADR 0011 prevents shadowed daylight from appearing. Both natural sources use shadows, whereas artificial fixtures also have an unshadowed point fill. This makes lamps appear to work while natural light is absent.
+The simulator shadow pipeline failure recorded in ADR 0015 prevents shadowed daylight from appearing. Both natural sources use shadows, whereas artificial fixtures also have an unshadowed point fill. This makes lamps appear to work while natural light is absent.
 
 ## Decision
 

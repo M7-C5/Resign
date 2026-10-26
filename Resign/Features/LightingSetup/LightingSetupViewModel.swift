@@ -14,7 +14,7 @@ import SwiftData
 /// `saveToLayout(_:context:)`. All slider mutations operate on value-type
 /// drafts, producing zero SwiftData change notifications during interaction.
 ///
-/// - SeeAlso: ADR 0007 — LightDraft Transient Value Type for Ceiling Grid Editing
+/// - SeeAlso: ADR 0011 — LightDraft Transient Value Type for Ceiling Grid Editing
 @Observable
 @MainActor
 public final class LightingSetupViewModel {

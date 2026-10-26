@@ -1,4 +1,4 @@
-# ADR 0008: Lighting Simulation Modal Session
+# ADR 0012: Lighting Simulation Modal Session
 
 - Status: accepted
 - Date: 2026-10-22
