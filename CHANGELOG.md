@@ -8,13 +8,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- feat(dashboard): build dashboard empty state (0fba429)
+- feature(Lighting): added "add lighting source" feature (7242c42)
 - feat(models): implement authentic room layout and lighting domain schema (3343fe0)
 - feat(spatial): bundle mock room USDZ asset for lighting simulation (7bba77d)
 - feat(assets): add procedural mock room generator with flat shading (979401d)
 - feat(rules): establish feature delivery lifecycle and documentation invariants (ed764d8)
 - feat(testing): add in-memory ModelContainer fixture and SwiftData unit tests (b4daaff)
 
+### Fixed
+- fix(preview): avoid Canvas initializer crash (c42ea43)
+- fix(lighting-simulation): shape natural light to the window (5fbb493)
+
 ### Documentation
+- docs(changelog): record lighting simulation changes (ade6284)
 - docs(architecture): define whiteboard domain schema and local-first persistence roadmap (1b90094)
 - docs(adr): record architectural decision for mock USDZ reference environment (4da7ecf)
 - docs(spatial): document mock room specifications and scene hierarchy (be1d834)
@@ -25,7 +32,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - docs: add agentic playbook, architecture blueprint, and changelog (178cddb)
 
 ### Tooling & Maintenance
+- chore(release): update changelog for semantic pull request template (93fc68e)
 - chore(tooling): add semantic pull request template for team workflow (96b0254)
+- test(lighting-simulation): add simulator launch probe (519f57c)
 - chore(changelog): update release changelog for domain schema migration (ada76db)
 - test(persistence): add room hierarchy persistence and model default initialization tests (20a21f7)
 - chore(tooling): automate changelog generation from conventional commits (8d9466d)
