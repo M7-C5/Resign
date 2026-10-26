@@ -67,7 +67,7 @@ flowchart TD
     - **Furniture Archiving**: Temporarily hide or store furniture in an "Inventory Bin" to visualize decluttered or minimalist layouts.
     - **1:1 Immersive AR View**: Drops the user into the re-arranged 3D render at scale, letting them physically walk through the proposed room redesign in augmented reality using ARKit.
 
-The current `RoomScanView` is still a scanner placeholder, so the Dashboard's create-layout action opens north alignment directly. A completed RoomPlan scan should hand its saved room and layout to this same orientation route before light placement.
+The Dashboard starts the room scanner in its creation flow. After scan review, Set Room North calibrates the scanned room before Add Your Light Source. Saving lights returns to the Dashboard; opening that saved layout in Studio 3D uses its compass bearing and fixtures.
 
 ---
 
@@ -107,9 +107,9 @@ Track real-time engineering milestones, algorithm implementations, and feature p
 
 ## Current mock daylight simulation
 
-The new RealityKit studio calculates sun direction from date, location, time zone and room heading. The reference scene uses Jakarta on 24 October 2026 (WIB), with its window on the room's local +X wall. The saved compass heading determines that window's geographic direction and the matching source caption in Lighting Simulation: heading 0° gives an east-facing window, while 180° gives a west-facing window. Direct sun enters only when the sun is above the horizon and in front of that window; diffuse sky illumination remains during daylight and fades through twilight. Source lighting and shadows are controlled separately from artificial fixtures. The mock site and date remain demonstration values rather than user-controlled geographic settings. See [ADR 0015](docs/adr/0015-geographic-mock-daylight.md) and [ADR 0019](docs/adr/0019-room-north-alignment.md) for conventions and limitations.
+The new RealityKit studio calculates sun direction from date, location, time zone and room heading. The reference scene uses Jakarta on 24 October 2026 (WIB), with its window on the room's local +X wall. The saved compass heading determines that window's geographic direction and the matching source caption in Lighting Simulation: heading 0° gives an east-facing window, while 180° gives a west-facing window. Direct sun enters only when the sun is above the horizon and in front of that window; diffuse sky illumination remains during daylight and fades through twilight. Source lighting and shadows are controlled separately from artificial fixtures. The mock site and date remain demonstration values rather than user-controlled geographic settings. See [ADR 0015](docs/adr/0015-geographic-mock-daylight.md) and [ADR 0021](docs/adr/0021-room-north-alignment.md) for conventions and limitations.
 
-Lighting simulation uses the `Light` records saved on the selected `Layout`. The ceiling-grid coordinates map to the mock room's ceiling, while each saved fixture supplies its own brightness, color temperature, and on/off state. The simulation switch is a temporary master control; it does not rewrite saved fixtures. See [ADR 0018](docs/adr/0018-layout-lights-in-room-simulation.md).
+Lighting simulation uses the `Light` records saved on the selected `Layout`. The ceiling-grid coordinates map to the mock room's ceiling, while each saved fixture supplies its own brightness, color temperature, and on/off state. The simulation switch is a temporary master control; it does not rewrite saved fixtures. See [ADR 0020](docs/adr/0020-layout-lights-in-room-simulation.md).
 
 Direct sunlight uses shadows on both simulator and physical device so the loaded window opening and mullion shape the light patch. A gradual spotlight falloff softens the edge, while a wider cone leaves the aperture geometry to define the footprint. Optional diffuse-sky and fixture shadows remain disabled by default in the simulator. See [ADR 0017](docs/adr/0017-window-shaped-sunlight.md), which amends the fallback in [ADR 0016](docs/adr/0016-simulator-daylight-fallback.md).
 

@@ -1,8 +1,8 @@
-# ADR 0019: Calibrate Room North Before Light Placement
+# ADR 0021: Calibrate Room North Before Light Placement
 
 - Status: Accepted
 - Date: 2026-10-26
-- Amends: [ADR 0015](0015-geographic-mock-daylight.md), [ADR 0018](0018-layout-lights-in-room-simulation.md)
+- Amends: [ADR 0015](0015-geographic-mock-daylight.md), [ADR 0020](0020-layout-lights-in-room-simulation.md)
 
 ## Context
 
@@ -18,7 +18,7 @@ The reference room's window remains on its local +X wall. Its geographic bearing
 
 Request location authorization only in the orientation step and keep location updates active while the screen is visible, because Core Location needs current location updates to provide `trueHeading`. Stop both location and heading updates after lock or when leaving the screen. If the heading sensor is unavailable, expose a manual heading control; this also makes the flow previewable in Simulator. A denied location permission may fall back to magnetic north and is labeled as such.
 
-The current `RoomScanView` is a placeholder, so the Dashboard's new-layout flow enters orientation directly. When RoomPlan scanning is implemented, scan completion must navigate to this same route with its saved `Room` and `Layout`.
+The Dashboard retains the dedicated room scanner and review flow from ADR 0019. Scan review navigates to `RoomCreationRoute.orientation(layoutID:)`, which loads the scanned layout and its existing room. Saving north advances to light placement for the same layout; Back returns to scan review. Saving lights dismisses the creation flow, and the selected saved-layout action opens Studio 3D with the saved bearing and fixtures.
 
 ## Consequences
 
