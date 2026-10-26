@@ -37,6 +37,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - docs: add agentic playbook, architecture blueprint, and changelog (178cddb)
 
 ### Tooling & Maintenance
+- chore(release): update changelog for scan confirmation alert and lifecycle navigation (ebd395a)
 - test(room-scan): verify confirmation alert transitions, scan cancellation, and invalid scan rejection (21ab947)
 - chore(release): update changelog for L-shaped desk synthesis and category-aware wall snapping (de02b43)
 - test(spatial): verify L-shaped desk wing merging and free-floating living room furniture preservation (c21b366)
