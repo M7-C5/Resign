@@ -16,11 +16,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - feat(rules): establish feature delivery lifecycle and documentation invariants (ed764d8)
 - feat(testing): add in-memory ModelContainer fixture and SwiftData unit tests (b4daaff)
 
+### Changed
+- refactor(services): restore shared service placement (3afe8d0)
+- refactor(studio3d): organize lighting code and remove dead views (173dd88)
+- refactor(arch): scaffold vertical feature-slice architecture with skeleton modules (3419a7d)
+
 ### Fixed
+- fix(changelog): include refactor commits in generated history (fcc84c3)
+- fix(lighting): correct solar ephemeris coefficients (9542e10)
+- fix(ci): use available iPhone simulator destination (afc82a5)
+- fix(app): restore dashboard launch and studio route (107a72e)
 - fix(preview): avoid Canvas initializer crash (c42ea43)
 - fix(lighting-simulation): shape natural light to the window (5fbb493)
 
 ### Documentation
+- docs(adr): renumber lighting decisions after staging records (1e35072)
+- docs(changelog): sync lighting branch entries (9de1e47)
 - docs(changelog): record lighting simulation changes (ade6284)
 - docs(architecture): define whiteboard domain schema and local-first persistence roadmap (1b90094)
 - docs(adr): record architectural decision for mock USDZ reference environment (4da7ecf)
