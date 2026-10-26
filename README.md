@@ -111,4 +111,4 @@ Direct sunlight uses shadows on both simulator and physical device so the loaded
 
 The studio overrides automatic image-based environment illumination so it cannot wash out daylight changes. Direct sun exposure compensates for source distance, preserving brightness when the beam is moved farther away to reduce divergence.
 
-A soft, broad fill from the window approximates bounced sky light, keeping the room visible outside the direct sunlight patch without a bright circular pool on the facade. It follows daylight and twilight and turns off at night; this is an artistic approximation of indirect illumination.
+A soft, broad window fill and an interior sky-bounce source approximate indirect illumination. The diffuse fill remains active at noon even after the sun passes behind the east-facing facade, so the room stays daylit without a direct sun patch; the approximation turns off at night.

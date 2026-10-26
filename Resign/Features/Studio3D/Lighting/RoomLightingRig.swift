@@ -16,8 +16,8 @@ struct RoomLightingTuning {
     var sunBeamLumens: Float = 60_000
     /// Soft sky light spreading from the window into the room, in lumens at full skylight.
     var skyFillLumens: Float = 24_000
-    /// Approximate diffuse daylight bounce from the window; RealityKit has no real-time GI.
-    var skyBounceLumens: Float = 5_000
+    /// Broad interior fill keeps daytime readable when direct sun is behind the facade.
+    var skyBounceLumens: Float = 48_000
     /// How far outside the window the sun beam starts (meters).
     var beamDistance: Float = 12
     /// Adds a margin beyond the aperture so the window geometry, not the cone edge, shapes the beam.
@@ -237,8 +237,9 @@ final class RoomLightingRig {
 
         // Diffuse bounce keeps the unlit parts of the room readable without
         // restoring the automatic environment that masks time-of-day changes.
-        // Keep the unshadowed diffuse approximation inside the room, away from the facade.
-        skyBounce.position = opening.center + SIMD3<Float>(-0.8, 0, 0)
+        // Approximate diffuse sky bounce near the room center so noon remains bright even
+        // when the east-facing window rejects direct sunlight.
+        skyBounce.position = opening.center + SIMD3<Float>(-2.3, 0.9, 0)
         skyBounce.light.color = skyFill.light.color
         skyBounce.light.intensity = tuning.skyBounceLumens * state.skylight
         skyBounce.isEnabled = state.skylight > 0.001
