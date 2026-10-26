@@ -35,4 +35,10 @@ public final class Studio3DViewModel {
     func sheetDidDismiss() {
         lightingDraft = lightingSettings
     }
+
+    func updateRoomHeading(_ degrees: Double) {
+        let heading = NorthAlignmentCalibration.normalized(degrees)
+        lightingSettings.solarContext.roomHeadingDegrees = heading
+        lightingDraft.solarContext.roomHeadingDegrees = heading
+    }
 }

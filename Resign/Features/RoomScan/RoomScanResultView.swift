@@ -13,7 +13,7 @@ import simd
 public struct RoomScanResultView: View {
     public let roomId: UUID
     public let onScanAgain: () -> Void
-    public var onContinueToLighting: ((Layout) -> Void)?
+    public var onContinueToOrientation: ((Layout) -> Void)?
     public var onFinish: (() -> Void)?
 
     @Query private var rooms: [Room]
@@ -22,12 +22,12 @@ public struct RoomScanResultView: View {
     public init(
         roomId: UUID,
         onScanAgain: @escaping () -> Void,
-        onContinueToLighting: ((Layout) -> Void)? = nil,
+        onContinueToOrientation: ((Layout) -> Void)? = nil,
         onFinish: (() -> Void)? = nil
     ) {
         self.roomId = roomId
         self.onScanAgain = onScanAgain
-        self.onContinueToLighting = onContinueToLighting
+        self.onContinueToOrientation = onContinueToOrientation
         self.onFinish = onFinish
         let targetId = roomId
         _rooms = Query(filter: #Predicate<Room> { $0.id == targetId })
@@ -146,12 +146,12 @@ public struct RoomScanResultView: View {
                 .padding(.horizontal, 20)
             }
 
-            // Primary: Continue to Lighting Setup Action
-            if let onContinueToLighting {
+            // Primary: Calibrate north before placing lights
+            if let onContinueToOrientation {
                 Button {
-                    onContinueToLighting(layout)
+                    onContinueToOrientation(layout)
                 } label: {
-                    Label("Continue to Lighting Setup", systemImage: "lightbulb.fill")
+                    Label("Set Room North", systemImage: "location.north.fill")
                         .font(.headline)
                         .foregroundStyle(.white)
                         .frame(maxWidth: .infinity)

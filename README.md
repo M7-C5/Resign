@@ -41,9 +41,9 @@ flowchart TD
 3. **Model & USDZ Asset Generation**:
    - Translates detected bounding boxes and spatial dimensions into a unified USDZ 3D room hierarchy, automatically substituting generic wireframes with curated 3D model assets.
 4. **Geographic True North Orientation**:
-   - Prompts the user with a real-time compass interface powered by `CoreLocation` and device magnetometers (`CLLocationManager`).
+   - After scanning, prompts the user with a real-time compass powered by `CoreLocation`; compass accuracy and phone heading must both be within 8° of north for 2 seconds to lock.
 5. **Orientation Lock & Virtual Avatar Sync**:
-   - When pointed north for 2 seconds, the orientation locks. The user then rotates a virtual avatar/point-of-view marker to align the 3D room coordinate system with the exact physical direction they are looking.
+   - The room plan stays fixed while the user rotates a centered person marker to point north. Saving stores the room's clockwise north bearing and passes it to the daylight simulation before continuing to light placement.
 6. **Artificial Light Source Grid Mapping**:
    - User pinpoints existing ceiling and wall light sources on a spatial grid (e.g. 5×5 ceiling projection).
 7. **Photometric Calibration**:
@@ -66,6 +66,8 @@ flowchart TD
     - **View Angle Presets**: Instant camera snapping (Top-Down 2D floor plan, Left, Right, Front, Back).
     - **Furniture Archiving**: Temporarily hide or store furniture in an "Inventory Bin" to visualize decluttered or minimalist layouts.
     - **1:1 Immersive AR View**: Drops the user into the re-arranged 3D render at scale, letting them physically walk through the proposed room redesign in augmented reality using ARKit.
+
+The current `RoomScanView` is still a scanner placeholder, so the Dashboard's create-layout action opens north alignment directly. A completed RoomPlan scan should hand its saved room and layout to this same orientation route before light placement.
 
 ---
 
@@ -105,7 +107,7 @@ Track real-time engineering milestones, algorithm implementations, and feature p
 
 ## Current mock daylight simulation
 
-The new RealityKit studio calculates sun direction from date, location, time zone and room heading. The reference scene uses Jakarta on 24 October 2026 (WIB), with its window facing east. Direct sun enters only when the sun is above the horizon and in front of that window; diffuse sky illumination remains during daylight and fades through twilight. Source lighting and shadows are controlled separately from artificial fixtures. The mock context is explicit and is not yet connected to saved room coordinates or user-editable geographic controls. See [ADR 0015](docs/adr/0015-geographic-mock-daylight.md) for conventions and limitations.
+The new RealityKit studio calculates sun direction from date, location, time zone and room heading. The reference scene uses Jakarta on 24 October 2026 (WIB), with its window facing east. Direct sun enters only when the sun is above the horizon and in front of that window; diffuse sky illumination remains during daylight and fades through twilight. Source lighting and shadows are controlled separately from artificial fixtures. Saved room heading is used, while the mock site and date remain demonstration values rather than user-controlled geographic settings. See [ADR 0015](docs/adr/0015-geographic-mock-daylight.md) for conventions and limitations.
 
 Lighting simulation uses the `Light` records saved on the selected `Layout`. The ceiling-grid coordinates map to the mock room's ceiling, while each saved fixture supplies its own brightness, color temperature, and on/off state. The simulation switch is a temporary master control; it does not rewrite saved fixtures. See [ADR 0018](docs/adr/0018-layout-lights-in-room-simulation.md).
 

@@ -30,14 +30,27 @@ public struct RoomCreationFlowView: View {
                         onScanAgain: {
                             path.removeAll()
                         },
-                        onContinueToLighting: { layout in
-                            path.append(.lightingSetup(layoutID: layout.id))
+                        onContinueToOrientation: { layout in
+                            path.append(.orientation(layoutID: layout.id))
                         },
                         onFinish: {
                             dismiss()
                         }
                     )
                     .navigationBarBackButtonHidden(true)
+
+                case .orientation(let layoutID):
+                    OrientationContainerView(
+                        layoutID: layoutID,
+                        onSave: {
+                            path.append(.lightingSetup(layoutID: layoutID))
+                        },
+                        onBack: {
+                            if !path.isEmpty {
+                                path.removeLast()
+                            }
+                        }
+                    )
 
                 case .lightingSetup(let layoutID):
                     LightingSetupContainerView(
@@ -83,6 +96,28 @@ struct LightingSetupContainerView: View {
             ProgressView("Loading Layout...")
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .background(Color(.systemBackground))
+        }
+    }
+}
+
+/// Loads the scanned layout and its owning room before north alignment.
+struct OrientationContainerView: View {
+    let onSave: () -> Void
+    let onBack: () -> Void
+    @Query private var layouts: [Layout]
+
+    init(layoutID: UUID, onSave: @escaping () -> Void, onBack: @escaping () -> Void) {
+        self.onSave = onSave
+        self.onBack = onBack
+        let targetId = layoutID
+        _layouts = Query(filter: #Predicate<Layout> { $0.id == targetId })
+    }
+
+    var body: some View {
+        if let layout = layouts.first, let room = layout.room {
+            OrientationView(layout: layout, room: room, onSave: onSave, onBack: onBack)
+        } else {
+            ContentUnavailableView("Room Not Found", systemImage: "location.north.circle")
         }
     }
 }

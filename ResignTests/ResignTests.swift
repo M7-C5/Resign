@@ -377,6 +377,63 @@ struct LayoutLightingSimulationIntegrationTests {
     }
 }
 
+@Suite("Room north orientation")
+struct RoomNorthOrientationTests {
+    @Test func northLockRequiresTwoContinuousSecondsWithinTolerance() {
+        let start = Date(timeIntervalSince1970: 1_000)
+        var calibration = NorthAlignmentCalibration()
+
+        let firstUpdate = calibration.update(headingDegrees: 5, at: start)
+        #expect(!firstUpdate)
+        #expect(calibration.progress(at: start.addingTimeInterval(1)) == 0.5)
+        let earlySample = calibration.update(headingDegrees: 5, at: start.addingTimeInterval(1.9))
+        #expect(!earlySample)
+        let locked = calibration.update(headingDegrees: 5, at: start.addingTimeInterval(2))
+        #expect(locked)
+        #expect(calibration.isLocked)
+    }
+
+    @Test func leavingNorthWindowResetsTheHoldAndWrapsAtZeroDegrees() {
+        let start = Date(timeIntervalSince1970: 2_000)
+        var calibration = NorthAlignmentCalibration()
+
+        let northSample = calibration.update(headingDegrees: 359, at: start)
+        #expect(!northSample)
+        let offNorthSample = calibration.update(headingDegrees: 18, at: start.addingTimeInterval(1))
+        #expect(!offNorthSample)
+        #expect(calibration.progress(at: start.addingTimeInterval(1)) == 0)
+        let newNorthSample = calibration.update(headingDegrees: 1, at: start.addingTimeInterval(2))
+        #expect(!newNorthSample)
+        let relocked = calibration.update(headingDegrees: 1, at: start.addingTimeInterval(4))
+        #expect(relocked)
+    }
+
+    @Test func poorHeadingAccuracyCannotStartTheNorthHold() {
+        let start = Date(timeIntervalSince1970: 3_000)
+        var calibration = NorthAlignmentCalibration()
+
+        let unreliable = calibration.update(headingDegrees: 0, accuracyDegrees: 12, at: start)
+        #expect(!unreliable)
+        #expect(calibration.progress(at: start.addingTimeInterval(1)) == 0)
+
+        let reliable = calibration.update(headingDegrees: 0, accuracyDegrees: 4, at: start.addingTimeInterval(1))
+        #expect(!reliable)
+        let locksAfterReliableHold = calibration.update(
+            headingDegrees: 0,
+            accuracyDegrees: 4,
+            at: start.addingTimeInterval(3)
+        )
+        #expect(locksAfterReliableHold)
+    }
+
+    @Test func planArrowBearingMapsToClockwiseRoomHeading() {
+        #expect(NorthAlignmentCalibration.roomHeadingDegrees(northArrowPlanRotationDegrees: 0) == 0)
+        #expect(NorthAlignmentCalibration.roomHeadingDegrees(northArrowPlanRotationDegrees: 90) == 270)
+        #expect(NorthAlignmentCalibration.roomHeadingDegrees(northArrowPlanRotationDegrees: -90) == 90)
+        #expect(NorthAlignmentCalibration.roomHeadingDegrees(northArrowPlanRotationDegrees: 360) == 0)
+    }
+}
+
 @Suite("Lighting simulation modal")
 struct LightingSimulationModalTests {
     @Test @MainActor func editsRemainDraftUntilConfirmed() {
@@ -412,6 +469,14 @@ struct LightingSimulationModalTests {
         #expect(!model.lightingSettings.artificialLightsOn)
         #expect(model.lightingSettings.timeLabel == "12.00")
         #expect(!model.isLightingPresented)
+    }
+
+    @Test @MainActor func savedRoomHeadingUpdatesNaturalLightPreviewContext() {
+        let model = Studio3DViewModel()
+        model.updateRoomHeading(270)
+
+        #expect(model.lightingSettings.solarContext.roomHeadingDegrees == 270)
+        #expect(model.lightingDraft.solarContext.roomHeadingDegrees == 270)
     }
 
     @Test func timeLabelsCoverDayBoundaries() {

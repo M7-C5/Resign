@@ -11,16 +11,21 @@ public struct Studio3DView: View {
         self.layoutID = layoutID
     }
 
-    private var lightingFixtures: [RoomLightingFixture]? {
-        let layout: Layout?
+    private var selectedLayout: Layout? {
         if let layoutID {
-            layout = layouts.first { $0.id == layoutID }
-        } else {
-            layout = layouts.first
+            return layouts.first { $0.id == layoutID }
         }
-        return layout?.lights
+        return layouts.first
+    }
+
+    private var lightingFixtures: [RoomLightingFixture]? {
+        selectedLayout?.lights
             .sorted { $0.name < $1.name }
             .map { RoomLightingFixture(light: $0) }
+    }
+
+    private var roomHeading: Double {
+        selectedLayout?.room?.compass ?? 0
     }
 
     public var body: some View {
@@ -51,6 +56,12 @@ public struct Studio3DView: View {
                 onCancel: { viewModel.discardLightingEditing() },
                 onConfirm: { viewModel.confirmLightingEditing() }
             )
+        }
+        .onAppear {
+            viewModel.updateRoomHeading(roomHeading)
+        }
+        .onChange(of: roomHeading) { _, newHeading in
+            viewModel.updateRoomHeading(newHeading)
         }
     }
 }
