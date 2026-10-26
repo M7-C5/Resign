@@ -324,6 +324,59 @@ struct LightingSetupViewModelTests {
     }
 }
 
+@Suite("Layout lighting simulation integration")
+struct LayoutLightingSimulationIntegrationTests {
+    @Test func savedLightMapsGridAndLightingPropertiesToRoomFixture() {
+        let light = Light(
+            name: "Desk Light",
+            coordinateX: 4,
+            coordinateY: 0,
+            elevationZ: 2.4,
+            brightness: 1_600,
+            colorTemp: 4_100,
+            isOn: false
+        )
+
+        let fixture = RoomLightingFixture(light: light)
+
+        #expect(fixture.id == light.id)
+        #expect(fixture.name == "Desk Light")
+        #expect(fixture.position == SIMD3<Float>(1.3, 2.4, -1.3))
+        #expect(fixture.brightness == 1_600)
+        #expect(fixture.colorTemperatureKelvin == 4_100)
+        #expect(!fixture.isOn)
+    }
+
+    @Test @MainActor func simulatorUsesOnlyConfiguredLayoutFixtures() throws {
+        let active = RoomLightingFixture(
+            name: "Ceiling 1",
+            position: [0.65, 2.6, -0.65],
+            brightness: 1_200,
+            colorTemperatureKelvin: 3_500
+        )
+        let inactive = RoomLightingFixture(
+            name: "Ceiling 2",
+            position: [-0.65, 2.6, 0.65],
+            brightness: 900,
+            colorTemperatureKelvin: 5_000,
+            isOn: false
+        )
+        let rig = RoomLightingRig(fixtures: [active, inactive])
+
+        rig.apply(LightingSimulationSettings(artificialLightsOn: true))
+
+        let activeSpot = try #require(rig.root.findEntity(named: "FixtureSpot0") as? SpotLight)
+        let inactiveSpot = try #require(rig.root.findEntity(named: "FixtureSpot1") as? SpotLight)
+        #expect(activeSpot.position == active.position)
+        #expect(activeSpot.isEnabled && activeSpot.light.intensity == active.brightness)
+        #expect(!inactiveSpot.isEnabled && inactiveSpot.light.intensity == 0)
+
+        let emptyRig = RoomLightingRig(fixtures: [])
+        emptyRig.apply(LightingSimulationSettings(artificialLightsOn: true))
+        #expect(emptyRig.root.findEntity(named: "FixtureSpot0") == nil)
+    }
+}
+
 @Suite("Lighting simulation modal")
 struct LightingSimulationModalTests {
     @Test @MainActor func editsRemainDraftUntilConfirmed() {
@@ -510,7 +563,7 @@ struct GeographicDaylightTests {
     @Test @MainActor func sourceConeCoversTheFullWindowDiagonal() throws {
         let rig = RoomLightingRig()
         let opening = WindowOpening(center: [2.55, 1.45, 0], width: 1.56, height: 1.16)
-        rig.configure(opening: opening, fixturePositions: nil)
+        rig.configure(opening: opening)
         let beam = try #require(rig.root.findEntity(named: "SunBeam") as? SpotLight)
         let halfAngle = beam.light.outerAngleInDegrees * .pi / 360
         let coverage = tan(halfAngle) * rig.tuning.beamDistance

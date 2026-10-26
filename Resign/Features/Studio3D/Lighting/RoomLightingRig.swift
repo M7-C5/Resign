@@ -71,31 +71,37 @@ extension simd_quatf {
 /// - `skyFill`: a wide soft spot sitting in the window plane, facing into the room.
 /// - `skyBounce`: an unshadowed fill at the same opening, approximating diffuse bounce.
 ///
-/// Ceiling fixtures are a downward spot plus a small point-light fill, and only emit when switched on.
+/// Layout fixtures are mapped to ceiling positions and preserve their saved output and color temperature.
 @MainActor
 final class RoomLightingRig {
+    private struct FixtureEntities {
+        let definition: RoomLightingFixture
+        let spot: SpotLight
+        let fill: PointLight
+        let bulb: ModelEntity
+    }
+
     let root = Entity()
     let tuning: RoomLightingTuning
     private(set) var ambientExponent: Float
+    var fixtureCount: Int { fixtures.count }
 
     private let sunBeam = SpotLight()
     private let skyFill = SpotLight()
     private let skyBounce = PointLight()
-    private var fixtureSpots: [SpotLight] = []
-    private var fixtureFills: [PointLight] = []
-    private var bulbs: [ModelEntity] = []
+    private var fixtures: [FixtureEntities] = []
 
     private var opening = WindowOpening()
-    private var fixturePositions: [SIMD3<Float>]
+    private var configuredFixtures: [RoomLightingFixture]?
     private var lastSettings: LightingSimulationSettings?
     private var isBuilt = false
     private var bulbsAreLit: Bool?
 
-    init(tuning: RoomLightingTuning? = nil) {
+    init(tuning: RoomLightingTuning? = nil, fixtures: [RoomLightingFixture]? = nil) {
         let tuning = tuning ?? RoomLightingTuning()
         self.tuning = tuning
         self.ambientExponent = tuning.nightAmbientExponent
-        self.fixturePositions = tuning.fixturePositions
+        self.configuredFixtures = fixtures
         root.name = "LightingRig"
     }
 
@@ -127,21 +133,23 @@ final class RoomLightingRig {
         root.addChild(skyBounce)
 
         updateBeamCone()
-        buildFixtures(at: fixturePositions)
+        buildFixtures()
     }
 
-    /// Call after the model is loaded with whatever was found in it. Both parameters are optional;
-    /// anything not found keeps its default.
-    func configure(opening newOpening: WindowOpening?, fixturePositions newPositions: [SIMD3<Float>]?) {
+    /// Call after the room model is loaded. If the opening is not found, its default is retained.
+    func configure(opening newOpening: WindowOpening?) {
         buildIfNeeded()
         if let newOpening {
             opening = newOpening
             updateBeamCone()
         }
-        if let newPositions, !newPositions.isEmpty {
-            fixturePositions = newPositions
-            rebuildFixtures()
-        }
+        if let lastSettings { apply(lastSettings) }
+    }
+
+    func setFixtures(_ fixtures: [RoomLightingFixture]?) {
+        guard configuredFixtures != fixtures else { return }
+        configuredFixtures = fixtures
+        if isBuilt { rebuildFixtures() }
         if let lastSettings { apply(lastSettings) }
     }
 
@@ -157,51 +165,58 @@ final class RoomLightingRig {
     }
 
     private func rebuildFixtures() {
-        for entity in fixtureSpots { entity.removeFromParent() }
-        for entity in fixtureFills { entity.removeFromParent() }
-        for entity in bulbs { entity.removeFromParent() }
-        fixtureSpots = []
-        fixtureFills = []
-        bulbs = []
+        for fixture in fixtures {
+            fixture.spot.removeFromParent()
+            fixture.fill.removeFromParent()
+            fixture.bulb.removeFromParent()
+        }
+        fixtures = []
         bulbsAreLit = nil
-        buildFixtures(at: fixturePositions)
+        buildFixtures()
     }
 
-    private func buildFixtures(at positions: [SIMD3<Float>]) {
-        let warm = UIColor(red: 1, green: 0.82, blue: 0.62, alpha: 1)
+    private func buildFixtures() {
+        let definitions = configuredFixtures ?? tuning.fixturePositions.enumerated().map { index, position in
+            RoomLightingFixture(
+                name: "Preview Light \(index + 1)",
+                position: position,
+                brightness: tuning.fixtureSpotLumens,
+                colorTemperatureKelvin: 3_000
+            )
+        }
 
-        for (index, position) in positions.enumerated() {
+        for (index, definition) in definitions.enumerated() {
+            let color = UIColor(kelvin: definition.colorTemperatureKelvin)
             let spot = SpotLight()
             spot.name = "FixtureSpot\(index)"
-            spot.light.color = warm
+            spot.light.color = color
             spot.light.innerAngleInDegrees = 60
             spot.light.outerAngleInDegrees = 88      // keep below 90 degrees
             spot.light.attenuationRadius = 14
             spot.light.intensity = 0
             spot.components[SpotLightComponent.Shadow.self] = tuning.shadowsEnabled ? SpotLightComponent.Shadow() : nil
-            spot.position = position
+            spot.position = definition.position
             spot.orientation = .facing([0, -1, 0])
             root.addChild(spot)
-            fixtureSpots.append(spot)
 
             let fill = PointLight()
             fill.name = "FixtureFill\(index)"
-            fill.light.color = warm
+            fill.light.color = color
             fill.light.attenuationRadius = 9
             fill.light.intensity = 0
-            fill.position = position
+            fill.position = definition.position
             root.addChild(fill)
-            fixtureFills.append(fill)
 
             let bulb = ModelEntity(
                 mesh: .generateSphere(radius: 0.09),
                 materials: [UnlitMaterial(color: .darkGray)]
             )
             bulb.name = "FixtureBulb\(index)"
-            bulb.position = position
+            bulb.position = definition.position
             bulb.components.set(DynamicLightShadowComponent(castsShadow: false))
             root.addChild(bulb)
-            bulbs.append(bulb)
+
+            fixtures.append(FixtureEntities(definition: definition, spot: spot, fill: fill, bulb: bulb))
         }
     }
 
@@ -246,19 +261,24 @@ final class RoomLightingRig {
 
         // Ceiling fixtures
         let lightsOn = settings.artificialLightsOn
-        for spot in fixtureSpots {
-            spot.light.intensity = lightsOn ? tuning.fixtureSpotLumens : 0
-            spot.isEnabled = lightsOn
-        }
-        for fill in fixtureFills {
-            fill.light.intensity = lightsOn ? tuning.fixtureFillLumens : 0
-            fill.isEnabled = lightsOn
+        for fixture in fixtures {
+            let fixtureIsOn = lightsOn && fixture.definition.isOn
+            let output = fixtureIsOn ? fixture.definition.brightness : 0
+            fixture.spot.light.color = UIColor(kelvin: fixture.definition.colorTemperatureKelvin)
+            fixture.spot.light.intensity = output
+            fixture.spot.isEnabled = output > 0
+
+            let fillRatio = tuning.fixtureFillLumens / max(1, tuning.fixtureSpotLumens)
+            fixture.fill.light.color = fixture.spot.light.color
+            fixture.fill.light.intensity = output * fillRatio
+            fixture.fill.isEnabled = output > 0
         }
         if bulbsAreLit != lightsOn {
             bulbsAreLit = lightsOn
-            let color = lightsOn ? UIColor(red: 1, green: 0.88, blue: 0.7, alpha: 1) : UIColor.darkGray
-            for bulb in bulbs {
-                bulb.model?.materials = [UnlitMaterial(color: color)]
+            for fixture in fixtures {
+                let bulbIsOn = lightsOn && fixture.definition.isOn
+                let color = bulbIsOn ? UIColor(kelvin: fixture.definition.colorTemperatureKelvin) : UIColor.darkGray
+                fixture.bulb.model?.materials = [UnlitMaterial(color: color)]
             }
         }
 
