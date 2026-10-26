@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- feat(lighting-simulation): use saved layout light sources (cfc36d4)
 - Merge pull request #7 from M7-C5/feature/room-plan (82e42e3)
 - feat(navigation): connect end-to-end user creation flow and decompose room scan components (c7baab3)
 - feat(dashboard): build LayoutCardView, build LayoutDetailsView, and add navigation from DashboardView to LayoutDetailsView (b47613a)
@@ -47,6 +48,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - fix(lighting-simulation): shape natural light to the window (5fbb493)
 
 ### Documentation
+- docs(changelog): record noon daylight fill (76bbf1b)
 - docs(changelog): record softened daylight behavior (f5fde07)
 - docs(adr): document end-to-end view navigation architecture in ADR 0019 (7c02b33)
 - docs(adr): document dashboard persistence and navigation architecture in ADR 0018 (caba883)
