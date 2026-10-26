@@ -5,28 +5,58 @@
 
 import SwiftUI
 
-struct LayoutCardView: View {
-    
-    let layoutName: String
-    
-    @Binding var isSwiped: Bool
-    
-    let onTap: () -> Void
-    let onEdit: () -> Void
-    let onDelete: () -> Void
-    
-    var body: some View {
+public struct LayoutCardView: View {
+    public let layoutName: String
+    public var layoutCount: Int? = nil
+
+    @Binding public var isSwiped: Bool
+
+    public let onTap: () -> Void
+    public let onEdit: () -> Void
+    public let onDelete: () -> Void
+
+    public init(
+        layoutName: String,
+        layoutCount: Int? = nil,
+        isSwiped: Binding<Bool>,
+        onTap: @escaping () -> Void,
+        onEdit: @escaping () -> Void,
+        onDelete: @escaping () -> Void
+    ) {
+        self.layoutName = layoutName
+        self.layoutCount = layoutCount
+        self._isSwiped = isSwiped
+        self.onTap = onTap
+        self.onEdit = onEdit
+        self.onDelete = onDelete
+    }
+
+    public var body: some View {
         HStack(spacing: 0) {
-            
             // Layout Card
             ZStack(alignment: .bottomLeading) {
                 RoundedRectangle(cornerRadius: 16)
-                    .fill(Color.gray)
-                
-                Text(layoutName)
-                    .font(.headline)
-                    .foregroundStyle(.white)
-                    .padding(16)
+                    .fill(Color(uiColor: .secondarySystemFill))
+
+                LinearGradient(
+                    colors: [Color.black.opacity(0.0), Color.black.opacity(0.65)],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+                .clipShape(RoundedRectangle(cornerRadius: 16))
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(layoutName)
+                        .font(.headline)
+                        .foregroundStyle(.white)
+
+                    if let count = layoutCount {
+                        Text("\(count) \(count == 1 ? "layout" : "layouts")")
+                            .font(.caption)
+                            .foregroundStyle(.white.opacity(0.8))
+                    }
+                }
+                .padding(16)
             }
             .frame(maxWidth: .infinity)
             .frame(height: 160)
@@ -55,7 +85,7 @@ struct LayoutCardView: View {
                     onTap()
                 }
             }
-            
+
             // Edit & Delete Buttons
             if isSwiped {
                 HStack(spacing: 12) {
@@ -64,18 +94,18 @@ struct LayoutCardView: View {
                             .font(.system(size: 18))
                             .foregroundStyle(.white)
                             .frame(width: 44, height: 44)
-                            .background(.gray, in: Circle())
+                            .background(Color.secondary, in: Circle())
                     }
-                    .accessibilityLabel("Rename layout")
-                    
+                    .accessibilityLabel("Rename room")
+
                     Button(action: onDelete) {
                         Image(systemName: "trash")
                             .font(.system(size: 18))
                             .foregroundStyle(.white)
                             .frame(width: 44, height: 44)
-                            .background(.red, in: Circle())
+                            .background(Color.red, in: Circle())
                     }
-                    .accessibilityLabel("Delete layout")
+                    .accessibilityLabel("Delete room")
                 }
                 .padding(.leading, 12)
                 .transition(.opacity)
@@ -90,9 +120,10 @@ struct LayoutCardView: View {
     VStack {
         LayoutCardView(
             layoutName: "Bedroom 1",
+            layoutCount: 3,
             isSwiped: $isSwiped,
             onTap: {
-                print ("Card tapped")
+                print("Card tapped")
             },
             onEdit: {
                 print("Edit tapped")

@@ -4,184 +4,230 @@
 //
 
 import SwiftUI
+import SwiftData
 
 public struct DashboardView: View {
-    
-    // Temporary layout data (later will be replaced by actual saved layout data)
-    @State private var layouts: [String]
-    @State private var layoutToRename: String?
-    @State private var newLayoutName = ""
-    @State private var layoutToDelete: String?
-    @State private var swipedLayout: String?
-    @State private var selectedRoom: String?
-    
-    public init(layouts: [String] = []) {
-        _layouts = State(initialValue: layouts)
-    }
+    @Environment(\.modelContext) private var modelContext
+    @Query(sort: \Room.updatedAt, order: .reverse) private var rooms: [Room]
+    @State private var viewModel = DashboardViewModel()
+
+    @State private var roomToRename: Room?
+    @State private var newRoomName = ""
+    @State private var roomToDelete: Room?
+    @State private var swipedRoomID: UUID?
+    @State private var selectedRoom: Room?
+    @State private var isShowingRoomScan = false
+
+    public init() {}
 
     public var body: some View {
         NavigationStack {
             ZStack {
-                Color.white
+                Color(uiColor: .systemGroupedBackground)
                     .ignoresSafeArea()
-                
-                if layouts.isEmpty {
+                    .onTapGesture {
+                        if swipedRoomID != nil {
+                            withAnimation(.smooth) {
+                                swipedRoomID = nil
+                            }
+                        }
+                    }
+
+                if rooms.isEmpty {
                     // Empty State
                     VStack(spacing: 12) {
                         Image(systemName: "clock.arrow.circlepath")
                             .font(.system(size: 50))
-                            .foregroundStyle(.gray)
-                        
+                            .foregroundStyle(.secondary)
+
                         Text("No Layout Yet.")
                             .font(.headline)
-                            .foregroundStyle(.black)
-                        
+                            .foregroundStyle(.primary)
+
                         Text("Create a layout to start planning\nand arranging your room.\nTap the + button to get started.")
                             .font(.subheadline)
-                            .foregroundStyle(.gray)
+                            .foregroundStyle(.secondary)
                             .multilineTextAlignment(.center)
+
+                        Button {
+                            isShowingRoomScan = true
+                        } label: {
+                            Label("Scan a Room", systemImage: "plus")
+                                .font(.subheadline.weight(.semibold))
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .padding(.top, 8)
                     }
                     .offset(y: -35)
-                    
+
                 } else {
                     // Filled State
                     ScrollView {
                         VStack(spacing: 16) {
-                            ForEach(layouts, id: \.self) { layout in
+                            ForEach(rooms) { room in
                                 LayoutCardView(
-                                    layoutName: layout,
+                                    layoutName: room.name,
+                                    layoutCount: room.layouts.count,
                                     isSwiped: Binding(
-                                        get: {
-                                            swipedLayout == layout
-                                        },
+                                        get: { swipedRoomID == room.id },
                                         set: { isOpen in
                                             if isOpen {
-                                                swipedLayout = layout
-                                            } else if swipedLayout == layout {
-                                                swipedLayout = nil
+                                                swipedRoomID = room.id
+                                            } else if swipedRoomID == room.id {
+                                                swipedRoomID = nil
                                             }
                                         }
                                     ),
                                     onTap: {
-                                        swipedLayout = nil
-                                        selectedRoom = layout
+                                        swipedRoomID = nil
+                                        selectedRoom = room
                                     },
                                     onEdit: {
-                                        newLayoutName = layout
-                                        layoutToRename = layout
+                                        newRoomName = room.name
+                                        roomToRename = room
                                     },
                                     onDelete: {
-                                        layoutToDelete = layout
+                                        roomToDelete = room
                                     }
                                 )
                             }
                         }
                         .padding(.horizontal, 16)
                         .padding(.top, 8)
+                        .padding(.bottom, 80)
+                    }
+                    .onTapGesture {
+                        if swipedRoomID != nil {
+                            withAnimation(.smooth) {
+                                swipedRoomID = nil
+                            }
+                        }
                     }
                 }
             }
-            
+
             // Navigation to Layout Details
             .navigationDestination(item: $selectedRoom) { room in
-                LayoutDetailsView(roomName: room)
+                LayoutDetailsView(room: room)
             }
-            
+
             // Rename Alert
             .alert(
                 "Edit name",
                 isPresented: Binding(
-                    get: { layoutToRename != nil },
+                    get: { roomToRename != nil },
                     set: { isPresented in
                         if !isPresented {
-                            layoutToRename = nil
-                            swipedLayout = nil
+                            roomToRename = nil
+                            swipedRoomID = nil
                         }
                     }
                 )
             ) {
-                TextField("LayoutName", text: $newLayoutName)
-                
+                TextField("Room Name", text: $newRoomName)
+
                 Button("Cancel", role: .cancel) {
-                    layoutToRename = nil
-                    swipedLayout = nil
+                    roomToRename = nil
+                    swipedRoomID = nil
                 }
-                
+
                 Button("Save") {
-                    if let oldName = layoutToRename {
-                        let trimmedName = newLayoutName.trimmingCharacters(
-                            in: .whitespacesAndNewlines
-                        )
-                        
-                        if !trimmedName.isEmpty,
-                           let index = layouts.firstIndex(of: oldName) {
-                            layouts[index] = trimmedName
-                        }
+                    if let room = roomToRename {
+                        viewModel.renameRoom(room, to: newRoomName, context: modelContext)
                     }
-                    
-                    layoutToRename = nil
-                    swipedLayout = nil
+                    roomToRename = nil
+                    swipedRoomID = nil
                 }
             } message: {
-                Text("Enter a name for this layout.")
+                Text("Enter a name for this room.")
             }
-            
-            //Delete Alert
+
+            // Delete Alert
             .alert(
                 "Are you sure you want to delete?",
                 isPresented: Binding(
-                    get: { layoutToDelete != nil },
+                    get: { roomToDelete != nil },
                     set: { isPresented in
                         if !isPresented {
-                            layoutToRename = nil
-                            swipedLayout = nil
+                            roomToDelete = nil
+                            swipedRoomID = nil
                         }
                     }
                 )
             ) {
                 Button("Cancel", role: .cancel) {
-                    layoutToDelete = nil
-                    swipedLayout = nil
+                    roomToDelete = nil
+                    swipedRoomID = nil
                 }
 
                 Button("Delete", role: .destructive) {
-                    if let layout = layoutToDelete {
-                        layouts.removeAll { $0 == layout }
+                    if let room = roomToDelete {
+                        viewModel.deleteRoom(room, context: modelContext)
                     }
-
-                    layoutToDelete = nil
-                    swipedLayout = nil
+                    roomToDelete = nil
+                    swipedRoomID = nil
                 }
             } message: {
                 Text("You cannot restore your changes after deletion.")
             }
             .navigationTitle("My Layout")
             .navigationBarTitleDisplayMode(.large)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    NavigationLink {
+                        Studio3DView()
+                    } label: {
+                        Image(systemName: "sun.max")
+                    }
+                    .accessibilityLabel("Lighting Simulation")
+                }
+            }
             .overlay(alignment: .bottomTrailing) {
                 Button {
-                    // Later will be navigated to Scan New Room
+                    isShowingRoomScan = true
                 } label: {
                     Image(systemName: "plus")
                         .font(.system(size: 24, weight: .semibold))
                         .frame(width: 52, height: 52)
                 }
-                .buttonStyle(.glassProminent)
+                .buttonStyle(.borderedProminent)
                 .buttonBorderShape(.circle)
-                .tint(.black)
+                .tint(.primary)
                 .padding(.trailing, 24)
                 .padding(.bottom, 24)
+                .accessibilityLabel("Scan new room")
+            }
+            .sheet(isPresented: $isShowingRoomScan) {
+                NavigationStack {
+                    RoomScanView()
+                        .toolbar {
+                            ToolbarItem(placement: .cancellationAction) {
+                                Button("Close") {
+                                    isShowingRoomScan = false
+                                }
+                            }
+                        }
+                }
             }
         }
     }
 }
 
 #Preview("Empty State") {
-    DashboardView(layouts: [])
+    let container = try! ModelContainer.createInMemoryContainer()
+    DashboardView()
+        .modelContainer(container)
 }
 
 #Preview("Filled State") {
-    DashboardView(layouts: [
-        "Bedroom 1",
-        "Bedroom 2"
-    ])
+    let container = try! ModelContainer.createInMemoryContainer()
+    let room1 = Room(name: "Bedroom 1")
+    let room2 = Room(name: "Living Room")
+    let layout = Layout(name: "Original")
+    room1.layouts.append(layout)
+    container.mainContext.insert(room1)
+    container.mainContext.insert(room2)
+
+    return DashboardView()
+        .modelContainer(container)
 }
