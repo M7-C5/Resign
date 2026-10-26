@@ -13,15 +13,17 @@ struct WindowOpening {
 struct RoomLightingTuning {
     // Daylight
     /// Direct sun exposure calibrated at a 3-meter source distance, in lumens at full daylight.
-    var sunBeamLumens: Float = 100_000
+    var sunBeamLumens: Float = 60_000
     /// Soft sky light spreading from the window into the room, in lumens at full skylight.
-    var skyFillLumens: Float = 12_000
+    var skyFillLumens: Float = 24_000
     /// Approximate diffuse daylight bounce from the window; RealityKit has no real-time GI.
-    var skyBounceLumens: Float = 24_000
+    var skyBounceLumens: Float = 5_000
     /// How far outside the window the sun beam starts (meters).
     var beamDistance: Float = 12
-    /// 1.0 = beam cone exactly as wide as the window. Larger = softer, wider patch.
-    var beamSpread: Float = 1.0
+    /// Adds a margin beyond the aperture so the window geometry, not the cone edge, shapes the beam.
+    var beamSpread: Float = 1.2
+    /// Fraction of the outer cone used for a gradual intensity falloff at its edge.
+    var beamEdgeFeather: Float = 0.32
 
     // Ceiling fixtures
     var fixtureSpotLumens: Float = 60_000
@@ -112,8 +114,8 @@ final class RoomLightingRig {
 
         skyFill.name = "SkyFill"
         skyFill.light.intensity = 0
-        skyFill.light.innerAngleInDegrees = 50
-        skyFill.light.outerAngleInDegrees = 85
+        skyFill.light.innerAngleInDegrees = 35
+        skyFill.light.outerAngleInDegrees = 88
         skyFill.light.attenuationRadius = 14
         skyFill.components[SpotLightComponent.Shadow.self] =
             tuning.shadowsEnabled && tuning.skyFillShadows ? SpotLightComponent.Shadow() : nil
@@ -148,8 +150,10 @@ final class RoomLightingRig {
         let fullDegrees = 2 * atan(radius / tuning.beamDistance) * 180 / .pi * tuning.beamSpread
         let outer = min(60, max(1, fullDegrees))
         sunBeam.light.outerAngleInDegrees = outer
-        // The window and its mullion shape the patch, rather than a circular cone falloff.
-        sunBeam.light.innerAngleInDegrees = outer
+        // A wide, gradual falloff keeps the spotlight edge from reading as a circular pool.
+        // The window wall and mullion shape direct sun that reaches the room.
+        let feather = min(0.8, max(0, tuning.beamEdgeFeather))
+        sunBeam.light.innerAngleInDegrees = outer * (1 - feather)
     }
 
     private func rebuildFixtures() {
@@ -233,7 +237,8 @@ final class RoomLightingRig {
 
         // Diffuse bounce keeps the unlit parts of the room readable without
         // restoring the automatic environment that masks time-of-day changes.
-        skyBounce.position = skyFill.position
+        // Keep the unshadowed diffuse approximation inside the room, away from the facade.
+        skyBounce.position = opening.center + SIMD3<Float>(-0.8, 0, 0)
         skyBounce.light.color = skyFill.light.color
         skyBounce.light.intensity = tuning.skyBounceLumens * state.skylight
         skyBounce.isEnabled = state.skylight > 0.001
