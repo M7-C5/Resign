@@ -143,6 +143,21 @@ public struct RoomScanView: View {
 
             Spacer()
 
+            #if DEBUG
+            Button {
+                viewModel.loadMockRoom(modelContext: modelContext)
+            } label: {
+                Label("Load Sample Room (Simulator)", systemImage: "sparkles")
+                    .font(.headline)
+                    .foregroundStyle(.white)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 50)
+                    .background(Color.accentColor, in: RoundedRectangle(cornerRadius: 14))
+            }
+            .padding(.horizontal, 24)
+            .padding(.bottom, 8)
+            #endif
+
             Button("Cancel") {
                 onCancel?()
                 dismiss()

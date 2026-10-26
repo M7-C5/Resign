@@ -172,6 +172,52 @@ public final class RoomScanViewModel {
         }
     }
 
+    #if DEBUG
+    @discardableResult
+    public func loadMockRoom(modelContext: ModelContext, name: String = "Master Bedroom") -> UUID {
+        let room = Room(
+            name: name,
+            longitude: -122.4194,
+            latitude: 37.7749,
+            compass: 90.0,
+            length: 4.2,
+            width: 5.0,
+            height: 2.6
+        )
+
+        let window = RoomOpening(type: "window", posX: 2.5, posY: 1.45, posZ: 0.0, width: 1.6, height: 1.2)
+        let door = RoomOpening(type: "door", posX: -1.5, posY: 1.05, posZ: 2.1, width: 0.9, height: 2.1)
+        room.openings.append(window)
+        room.openings.append(door)
+
+        let layout = Layout(name: "Original Layout")
+        if let bundleURL = Bundle.main.url(forResource: "MockRoom", withExtension: "usdz") {
+            layout.usdzURL = bundleURL
+        }
+
+        let bed = Furniture(name: "Queen Bed", category: "bed", texture: "oak_fabric", positionX: -1.3, positionY: 0.5, positionZ: -1.0, rotationYaw: 0, length: 2.0, width: 1.6, height: 0.9)
+        let desk = Furniture(name: "Work Desk", category: "desk", texture: "walnut", positionX: 2.1, positionY: 0.75, positionZ: -1.2, rotationYaw: .pi / 2, length: 1.4, width: 0.7, height: 0.75)
+        let chair = Furniture(name: "Task Chair", category: "chair", texture: "black_mesh", positionX: 1.4, positionY: 0.5, positionZ: -1.2, rotationYaw: -.pi / 2, length: 0.6, width: 0.6, height: 0.9)
+        let sofa = Furniture(name: "3-Seater Sofa", category: "sofa", texture: "grey_fabric", positionX: 1.2, positionY: 0.45, positionZ: 1.1, rotationYaw: 0, length: 2.1, width: 0.85, height: 0.8)
+        let wardrobe = Furniture(name: "Wardrobe", category: "storage", texture: "white_lacquer", positionX: -2.18, positionY: 1.05, positionZ: 1.2, rotationYaw: 0, length: 1.5, width: 0.6, height: 2.1)
+        let tv = Furniture(name: "TV Console", category: "tv", texture: "wood_walnut", positionX: 1.2, positionY: 0.25, positionZ: -1.8, rotationYaw: 0, length: 1.4, width: 0.4, height: 0.5)
+
+        layout.furnitures.append(bed)
+        layout.furnitures.append(desk)
+        layout.furnitures.append(chair)
+        layout.furnitures.append(sofa)
+        layout.furnitures.append(wardrobe)
+        layout.furnitures.append(tv)
+
+        room.layouts.append(layout)
+        modelContext.insert(room)
+        try? modelContext.save()
+
+        state = .completed(roomId: room.id)
+        return room.id
+    }
+    #endif
+
     private func makePayload(from room: CapturedRoom) -> CapturedRoomPayload {
         var walls: [ScannedWallPayload] = []
         var wallHeights: [Float] = []

@@ -25,6 +25,7 @@ import RealityKit
 public struct LightingSetupView: View {
 
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.dismiss) private var dismiss
 
     /// The `Layout` record that will receive the saved `Light` objects.
     var layout: Layout
@@ -74,7 +75,10 @@ public struct LightingSetupView: View {
         }
         .alert("Are you sure you want to go back?", isPresented: $viewModel.showBackConfirm) {
             Button("Cancel", role: .cancel) {}
-            Button("Back", role: .destructive) { onBack() }
+            Button("Back", role: .destructive) {
+                onBack()
+                dismiss()
+            }
         } message: {
             Text("Your changes wouldn't be saved.")
         }
@@ -107,7 +111,7 @@ public struct LightingSetupView: View {
                 } label: {
                     Image(systemName: "chevron.left")
                         .font(.body.weight(.semibold))
-                        .foregroundStyle(.black)
+                        .foregroundStyle(.primary)
                         .frame(width: 44, height: 44)
                 }
                 .accessibilityLabel("Back")
@@ -229,6 +233,7 @@ public struct LightingSetupView: View {
         do {
             try viewModel.saveToLayout(layout, context: modelContext)
             onSave()
+            dismiss()
         } catch {
             viewModel.saveError = error.localizedDescription
         }
