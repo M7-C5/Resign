@@ -27,7 +27,7 @@ struct ResignApp: App {
 
     var body: some Scene {
         WindowGroup {
-            RoomSimulationView(settings: LightingSimulationSettings(artificialLightsOn: ProcessInfo.processInfo.environment["PROBE_LIGHTS"] == "1", minuteOfDay: Int(ProcessInfo.processInfo.environment["PROBE_MINUTE"] ?? "480") ?? 480))
+            DashboardView()
         }
         .modelContainer(sharedModelContainer)
     }

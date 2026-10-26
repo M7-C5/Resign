@@ -34,6 +34,16 @@ public struct DashboardView: View {
             }
             .navigationTitle("My Layout")
             .navigationBarTitleDisplayMode(.large)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    NavigationLink {
+                        Studio3DView()
+                    } label: {
+                        Image(systemName: "sun.max")
+                    }
+                    .accessibilityLabel("Lighting Simulation")
+                }
+            }
             .overlay(alignment: .bottomTrailing) {
                 Button {
                 // Later will be navigated to Scan New Room
