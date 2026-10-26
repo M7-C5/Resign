@@ -10,7 +10,7 @@ if [ -z "$DEVELOPER_DIR" ] && [ -d "/Applications/Xcode.app/Contents/Developer" 
 fi
 
 SCHEME="Resign"
-SIMULATOR_DEST="platform=iOS Simulator,OS=26.5,name=iPhone 17"
+SIMULATOR_DEST="platform=iOS Simulator,name=iPhone 17"
 GENERIC_DEST="generic/platform=iOS Simulator"
 
 TEST_PLAN="FastUnitTests"
