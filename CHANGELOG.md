@@ -16,6 +16,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - feat(rules): establish feature delivery lifecycle and documentation invariants (ed764d8)
 - feat(testing): add in-memory ModelContainer fixture and SwiftData unit tests (b4daaff)
 
+### Fixed
+- fix(preview): avoid Canvas initializer crash (c42ea43)
+- fix(lighting-simulation): shape natural light to the window (5fbb493)
+
 ### Documentation
 - docs(architecture): define whiteboard domain schema and local-first persistence roadmap (1b90094)
 - docs(adr): record architectural decision for mock USDZ reference environment (4da7ecf)
@@ -27,6 +31,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - docs: add agentic playbook, architecture blueprint, and changelog (178cddb)
 
 ### Tooling & Maintenance
+- test(lighting-simulation): add simulator launch probe (519f57c)
 - chore(changelog): update release changelog for domain schema migration (ada76db)
 - test(persistence): add room hierarchy persistence and model default initialization tests (20a21f7)
 - chore(tooling): automate changelog generation from conventional commits (8d9466d)
