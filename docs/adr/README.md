@@ -10,6 +10,13 @@ This directory documents key architectural decisions for **Resign** using the [M
 - [ADR 0004: Standardized Mock USDZ Reference Environment for Simulation Testing](0004-standardized-mock-usdz-reference-environment.md)
 - [ADR 0005: Authentic Whiteboard Domain Data Models and SwiftData Schema](0005-authentic-whiteboard-domain-data-models.md)
 - [ADR 0006: Local-First SwiftData Persistence and CloudKit Synchronization Roadmap](0006-local-first-persistence-and-cloudkit-roadmap.md)
+- [ADR 0011: LightDraft Transient Value Type for Ceiling Grid Editing](0011-lightdraft-transient-edit-pattern.md)
+- [ADR 0012: Lighting Simulation Modal Session](0012-lighting-simulation-modal-session.md)
+- [ADR 0013: Mock Room Lighting Preview](0013-mock-room-lighting-preview.md)
+- [ADR 0014: Window-Gated Mock Daylight](0014-window-gated-mock-daylight.md)
+- [ADR 0015: Geographic Daylight in the New Room Renderer](0015-geographic-mock-daylight.md)
+- [ADR 0016: Simulator Daylight Rendering Fallback](0016-simulator-daylight-fallback.md)
+- [ADR 0017: Window-Shaped Direct Sunlight](0017-window-shaped-sunlight.md)
 
 ## How to Create a New ADR
 1. Copy [template.md](template.md) to `docs/adr/NNNN-title-in-kebab-case.md`.
