@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Merge pull request #7 from M7-C5/feature/room-plan (82e42e3)
 - feat(navigation): connect end-to-end user creation flow and decompose room scan components (c7baab3)
 - feat(dashboard): build LayoutCardView, build LayoutDetailsView, and add navigation from DashboardView to LayoutDetailsView (b47613a)
 - Merge pull request #3 from M7-C5/feature/lighting (373f223)
@@ -35,6 +36,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - refactor(arch): scaffold vertical feature-slice architecture with skeleton modules (3419a7d)
 
 ### Fixed
+- fix(lighting-simulation): soften natural window light (37e055b)
 - fix(dashboard): erase light symbol (0f52ca0)
 - fix(changelog): include refactor commits in generated history (fcc84c3)
 - fix(lighting): correct solar ephemeris coefficients (9542e10)
@@ -63,6 +65,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - docs: add agentic playbook, architecture blueprint, and changelog (178cddb)
 
 ### Tooling & Maintenance
+- chore(release): update changelog for end-to-end navigation and room scan modularization (e712daf)
 - test(navigation): add unit tests for creation flow routes and layout queries (2b0b6a8)
 - chore(assets): bundle real-world room scan test fixtures (2714bb4)
 - chore(release): update changelog for dashboard persistence refactor (aa1e01e)
@@ -92,5 +95,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - build(xcode): configure FastUnitTests and FullSuite test plans with shared scheme (322f3af)
 - build: install native Conventional Commits git hook (7797521)
 - build: implement autonomous verification and changelog scripts (156c0bc)
-- build: establish modular engineering rules and superpower skills (929b639)
 
