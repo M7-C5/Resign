@@ -18,10 +18,10 @@ public struct SolarEphemerisEngine {
         let parts = calendar.dateComponents([.hour, .minute, .second], from: date)
         let minutes = Double((parts.hour ?? 0) * 60 + (parts.minute ?? 0)) + Double(parts.second ?? 0) / 60
         let gamma = 2 * Double.pi / Double(days) * (Double(day - 1) + (minutes / 60 - 12) / 24)
-        let equation = 229.18 * (0.000075 + 0.001868 * cos(gamma) - 0.032077 * sin(gamma)
+        let equation = 229.18 * (0.000115 + 0.001868 * cos(gamma) - 0.032077 * sin(gamma)
             - 0.014615 * cos(2 * gamma) - 0.040849 * sin(2 * gamma))
         let declination = 0.006918 - 0.399912 * cos(gamma) + 0.070257 * sin(gamma)
-            - 0.006758 * cos(2 * gamma) + 0.000907 * sin(2 * gamma)
+            - 0.006758 * cos(2 * gamma) + 0.001307 * sin(2 * gamma)
             - 0.002697 * cos(3 * gamma) + 0.00148 * sin(3 * gamma)
         let hourAngle = (minutes + equation + 4 * longitude) / 4 * .pi / 180 - .pi
         let lat = latitude * .pi / 180
