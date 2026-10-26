@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- feat(orientation): align room north before light placement (7e8a3e4)
 - feat(lighting-simulation): use saved layout light sources (cfc36d4)
 - Merge pull request #7 from M7-C5/feature/room-plan (82e42e3)
 - feat(navigation): connect end-to-end user creation flow and decompose room scan components (c7baab3)
@@ -49,6 +50,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - fix(lighting-simulation): shape natural light to the window (5fbb493)
 
 ### Documentation
+- docs(changelog): record daylight caption adjustment (c52fa3a)
 - docs(changelog): record layout light simulation integration (3b502c9)
 - docs(changelog): record noon daylight fill (76bbf1b)
 - docs(changelog): record softened daylight behavior (f5fde07)
