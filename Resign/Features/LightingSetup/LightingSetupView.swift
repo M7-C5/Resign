@@ -31,17 +31,19 @@ public struct LightingSetupView: View {
     var layout: Layout
 
     /// Called after all drafts have been successfully persisted.
-    var onSave: () -> Void
+    /// If nil, default `dismiss()` is performed.
+    var onSave: (() -> Void)?
 
     /// Called after the user confirms the "Go Back" discard dialog.
-    var onBack: () -> Void
+    /// If nil, default `dismiss()` is performed.
+    var onBack: (() -> Void)?
 
     @State private var viewModel = LightingSetupViewModel()
 
     public init(
         layout: Layout,
-        onSave: @escaping () -> Void = {},
-        onBack: @escaping () -> Void = {}
+        onSave: (() -> Void)? = nil,
+        onBack: (() -> Void)? = nil
     ) {
         self.layout = layout
         self.onSave = onSave
@@ -76,8 +78,11 @@ public struct LightingSetupView: View {
         .alert("Are you sure you want to go back?", isPresented: $viewModel.showBackConfirm) {
             Button("Cancel", role: .cancel) {}
             Button("Back", role: .destructive) {
-                onBack()
-                dismiss()
+                if let onBack {
+                    onBack()
+                } else {
+                    dismiss()
+                }
             }
         } message: {
             Text("Your changes wouldn't be saved.")
@@ -232,8 +237,11 @@ public struct LightingSetupView: View {
     private func performSave() {
         do {
             try viewModel.saveToLayout(layout, context: modelContext)
-            onSave()
-            dismiss()
+            if let onSave {
+                onSave()
+            } else {
+                dismiss()
+            }
         } catch {
             viewModel.saveError = error.localizedDescription
         }
