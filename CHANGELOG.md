@@ -32,16 +32,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - feat(testing): add in-memory ModelContainer fixture and SwiftData unit tests (b4daaff)
 
 ### Changed
+- refactor(agents): deduplicate design audit checklists and streamline feature lifecycle in project directives (cada6a7)
 - refactor(dashboard): integrate SwiftData models and decompose layout components (edbbe38)
 - refactor(services): restore shared service placement (3afe8d0)
 - refactor(studio3d): organize lighting code and remove dead views (173dd88)
 - refactor(arch): scaffold vertical feature-slice architecture with skeleton modules (3419a7d)
 
 ### Fixed
-- fix(navigation): resolve layouts and rooms deterministically in creation flow container destinations (c576e28)
-- fix(room-scan): provide persistent dismiss fallback for creation flow completion (642f258)
-- fix(lighting-setup): prevent modal presentation dismissal collisions during container pop and save (a07c82f)
-- fix(room-scan): prevent premature dismissal on completion and reset state machine on rescan (5e0c405)
+- fix(navigation): resolve layouts and rooms deterministically in creation flow container destinations (885deef)
+- fix(room-scan): provide persistent dismiss fallback for creation flow completion (bffa317)
+- fix(lighting-setup): prevent modal presentation dismissal collisions during container pop and save (041377a)
+- fix(room-scan): prevent premature dismissal on completion and reset state machine on rescan (346b7e0)
 - fix(lighting-simulation): align daylight source with saved compass (f4c93a1)
 - fix(lighting-simulation): move daylight caption below time slider (80ddb36)
 - fix(lighting-simulation): keep midday diffuse light bright (4926ae3)
@@ -55,6 +56,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - fix(lighting-simulation): shape natural light to the window (5fbb493)
 
 ### Documentation
+- docs(agents): record navigation query and spatial lidar glass reflection heuristics in learned patterns (00f2b0c)
 - docs(changelog): record compass daylight alignment (0ae54d8)
 - docs(changelog): record room north alignment (6f85b5f)
 - docs(changelog): record daylight caption adjustment (9c986f3)
@@ -80,7 +82,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - docs: add agentic playbook, architecture blueprint, and changelog (178cddb)
 
 ### Tooling & Maintenance
-- test(navigation): verify scanner view model state reset on reappearance (7be6af6)
+- chore(agents): prune redundant wrapper skills and dormant orchestration rules (a4218a8)
+- chore(release): update changelog for creation flow navigation fixes (2a83324)
+- test(navigation): verify scanner view model state reset on reappearance (0a0f048)
 - chore(release): update changelog for end-to-end navigation and room scan modularization (e712daf)
 - test(navigation): add unit tests for creation flow routes and layout queries (2b0b6a8)
 - chore(assets): bundle real-world room scan test fixtures (2714bb4)
@@ -108,6 +112,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - test(spatial): verify mock room hierarchy and required entities (3bab6e3)
 - test: update smoke tests for scaffolded architecture (61df380)
 - build: update verification script to strictly check exit codes (20ecbda)
-- build(xcode): configure FastUnitTests and FullSuite test plans with shared scheme (322f3af)
-- build: install native Conventional Commits git hook (7797521)
 
