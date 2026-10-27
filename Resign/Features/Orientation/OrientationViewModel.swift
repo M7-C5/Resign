@@ -73,8 +73,16 @@ public final class OrientationViewModel: NSObject, CLLocationManagerDelegate {
 
     func tick(at date: Date = Date()) {
         now = date
-        if usesManualHeading, let headingDegrees, !calibration.isLocked,
-           calibration.update(headingDegrees: headingDegrees, at: date) {
+        // Core Location may not emit another sample while the device is still.
+        // Keep evaluating the latest valid reading so the two-second hold can finish.
+        guard let headingDegrees, !calibration.isLocked else { return }
+
+        let accuracy = usesManualHeading ? nil : headingAccuracy
+        if calibration.update(
+            headingDegrees: headingDegrees,
+            accuracyDegrees: accuracy,
+            at: date
+        ) {
             stop()
         }
     }
