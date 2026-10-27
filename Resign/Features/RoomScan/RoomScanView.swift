@@ -53,15 +53,17 @@ public struct RoomScanView: View {
             }
         }
         .onAppear {
-            if viewModel.state == .ready {
+            switch viewModel.state {
+            case .ready, .completed(_):
                 viewModel.startScanning()
+            default:
+                break
             }
         }
         .onChange(of: viewModel.state) { _, newState in
             switch newState {
             case .completed(let roomId):
                 onScanComplete?(roomId)
-                dismiss()
             case .cancelled:
                 onCancel?()
                 dismiss()
