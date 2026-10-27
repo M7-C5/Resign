@@ -30,14 +30,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - feat(testing): add in-memory ModelContainer fixture and SwiftData unit tests (b4daaff)
 
 ### Changed
-- refactor(agents): renumber domain rule sequence and correct tool triage references (6f5e996)
-- refactor(agents): deduplicate design audit checklists and streamline feature lifecycle in project directives (cada6a7)
+- refactor(agents): renumber domain rule sequence and correct tool triage references (59f6549)
+- refactor(agents): deduplicate design audit checklists and streamline feature lifecycle in project directives (353fe53)
 - refactor(dashboard): integrate SwiftData models and decompose layout components (edbbe38)
 - refactor(services): restore shared service placement (3afe8d0)
 - refactor(studio3d): organize lighting code and remove dead views (173dd88)
 - refactor(arch): scaffold vertical feature-slice architecture with skeleton modules (3419a7d)
 
 ### Fixed
+- fix(spatial): prevent floor polygon from clamping structural wall clear spans (e2daab9)
 - fix(navigation): resolve layouts and rooms deterministically in creation flow container destinations (885deef)
 - fix(room-scan): provide persistent dismiss fallback for creation flow completion (bffa317)
 - fix(lighting-setup): prevent modal presentation dismissal collisions during container pop and save (041377a)
@@ -55,7 +56,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - fix(lighting-simulation): shape natural light to the window (5fbb493)
 
 ### Documentation
-- docs(agents): record navigation query and spatial lidar glass reflection heuristics in learned patterns (00f2b0c)
+- docs(agents): record navigation query and spatial lidar glass reflection heuristics in learned patterns (b664fce)
 - docs(changelog): record compass daylight alignment (0ae54d8)
 - docs(changelog): record room north alignment (6f85b5f)
 - docs(changelog): record daylight caption adjustment (9c986f3)
@@ -81,11 +82,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - docs: add agentic playbook, architecture blueprint, and changelog (178cddb)
 
 ### Tooling & Maintenance
-- build(tooling): ignore merge commits during automated changelog generation (71d6af5)
-- build(tooling): enforce commit path sanitization in hooks and add verification simulator fallback (261d397)
-- chore(agents): remove invalid lifecycle hook stubs and mock mcp configuration (d20176e)
-- chore(release): update changelog for agent workflow optimizations (016d53c)
-- chore(agents): prune redundant wrapper skills and dormant orchestration rules (a4218a8)
+- test(spatial): verify clear span preservation against truncated floor polygon (4da88aa)
+- chore(release): update changelog for agentic workflow hardening (0315060)
+- build(tooling): ignore merge commits during automated changelog generation (f7f88cb)
+- build(tooling): enforce commit path sanitization in hooks and add verification simulator fallback (7136f0b)
+- chore(agents): remove invalid lifecycle hook stubs and mock mcp configuration (3083115)
+- chore(release): update changelog for agent workflow optimizations (daa313e)
+- chore(agents): prune redundant wrapper skills and dormant orchestration rules (782c7cd)
 - chore(release): update changelog for creation flow navigation fixes (2a83324)
 - test(navigation): verify scanner view model state reset on reappearance (0a0f048)
 - chore(release): update changelog for end-to-end navigation and room scan modularization (e712daf)
