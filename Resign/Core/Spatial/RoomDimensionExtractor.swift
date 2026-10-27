@@ -39,15 +39,10 @@ public enum RoomDimensionExtractor {
         let polygonSpan = extractPolygonSpan(from: polygonCorners)
 
         // 1. Primary Source of Truth: Opposing Wall Masonry-to-Masonry Clear Span
+        // Trust dominant opposing structural wall spans directly. Never clamp against the floor
+        // polygon because LiDAR transmission / reflection near glass or shiny floors truncates
+        // floor meshes short, which would falsely shrink true room dimensions (LP-009).
         if let masonrySpan = extractOpposingWallMasonrySpan(from: walls) {
-            if let poly = polygonSpan {
-                // Clamp against floor polygon span so doorway/alcove recesses never inflate dimensions
-                return RoomDimensions(
-                    width: min(masonrySpan.width, poly.width),
-                    length: min(masonrySpan.length, poly.length),
-                    height: height
-                )
-            }
             return RoomDimensions(
                 width: masonrySpan.width,
                 length: masonrySpan.length,
