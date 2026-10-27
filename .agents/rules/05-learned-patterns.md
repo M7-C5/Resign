@@ -16,6 +16,8 @@
 | **LP-005** | Spatial USDZ | USD Catmull-Clark Subdivision Trap | OpenUSD meshes default to `subdivisionScheme = "catmullClark"`, rounding rectangular bounding boxes into marshmallows. Architectural meshes must declare `uniform token subdivisionScheme = "none"`. | 2026-10-20 |
 | **LP-006** | Workflow | ADR & Automated Changelog Mandate | New features, spatial assets, or architectural contracts require an ADR in `docs/adr/`. Changelogs must be generated via `scripts/changelog.sh`, with zero raw file paths in commit messages. | 2026-10-20 |
 | **LP-007** | Markdown | Relative Repository Paths Only | Never embed host machine absolute paths (`/Users/...` or `file:///Users/...`) in repository markdown files. Always use clean relative project paths (`docs/foo.md`, `ROADMAP.md`). | 2026-10-20 |
+| **LP-008** | SwiftData | Dynamic Query Navigation Destination Trap | Initializing `@Query` inside an inner struct inside `.navigationDestination(for:)` causes delayed or empty queries in iOS 17/18. Use synchronous `modelContext.fetch` on appear with hierarchy fallback instead. | 2026-10-27 |
+| **LP-009** | Spatial LiDAR | Glass Surface & Truncated Floor Polygon Clamping | Near-infrared (940nm) LiDAR transmits through glass, and floor meshes stop short. Never clamp wall clear spans with `min(wallSpan, floorPoly)`; trust structural boundaries and endpoint extrusion. | 2026-10-27 |
 
 ---
 
@@ -80,3 +82,53 @@
   1. Always author a corresponding ADR in `docs/adr/XXXX-title.md` for new architectural patterns, formats, or models.
   2. Always run `./scripts/changelog.sh` to update `CHANGELOG.md`—never hand-edit entries.
   3. Never mention raw file paths (e.g. `scripts/foo.py`) in commit messages or changelog lines. Describe domain capabilities instead.
+
+---
+
+### LP-008: Dynamic `@Query` in SwiftUI Navigation Destinations
+* **Context**: When pushing a view via `.navigationDestination(for:)`, initializing `@Query` dynamically inside an inner container view struct (`_layouts = Query(filter: #Predicate { $0.id == targetId })`) frequently fails to evaluate or binds to an empty dataset in iOS 17/18, stranding the user on infinite loading progress views.
+* **Bad Pattern**:
+  ```swift
+  // ❌ Fragile: dynamic @Query inside navigation destination struct init
+  struct ContainerView: View {
+      @Query private var items: [Item]
+      init(id: UUID) {
+          _items = Query(filter: #Predicate<Item> { $0.id == id })
+      }
+  }
+  ```
+* **Good Pattern**:
+  ```swift
+  // ✅ Deterministic: direct context query with model hierarchy fallback
+  struct ContainerView: View {
+      @Environment(\.modelContext) private var modelContext
+      @State private var item: Item?
+
+      var body: some View {
+          Group {
+              if let item { ActiveView(item: item) }
+              else { ProgressView() }
+          }
+          .onAppear {
+              let descriptor = FetchDescriptor<Item>(predicate: #Predicate { $0.id == id })
+              self.item = try? modelContext.fetch(descriptor).first
+          }
+      }
+  }
+  ```
+
+---
+
+### LP-009: Spatial LiDAR Glass Reflections & Truncated Floor Mesh Clamping
+* **Context**: iPhone LiDAR operates at ~940nm near-infrared, which passes through standard architectural glass without diffuse reflection. RoomPlan frequently classifies glass partition walls as windows or openings, or truncates the floor polygon 30–50 cm short due to ground reflection/refraction.
+* **Bad Pattern**:
+  ```swift
+  // ❌ Fragile: Clamping opposing wall clear spans against truncated floor polygon
+  let length = min(masonrySpan.length, floorPolygon.length) // Squeezes 4.1m down to 3.7m!
+  ```
+* **Good Pattern**:
+  ```swift
+  // ✅ Robust: Trust structural parallel wall spans and orthogonal endpoint extrusions
+  // Include windows and openings as valid perimeter surfaces; never let floor mesh shrink walls
+  let length = masonrySpan.length
+  ```
