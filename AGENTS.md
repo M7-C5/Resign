@@ -10,7 +10,7 @@
 
 3. **Documentation & ADR Invariants**:
    - All implemented features, architectures, and capabilities must be documented in non-artifact repository markdown files (`README.md` and/or `docs/*.md`) for permanent viewing.
-   - **Architectural Decision Records (ADRs)**: Any architectural contract, standardized reference environment, spatial schema, or significant design decision MUST be documented in a new ADR in `docs/adr/` and indexed in `docs/adr/README.md`.
+   - **Architectural Decision Records (ADRs)**: Any architectural contract, standardized reference environment, spatial schema, or significant design decision MUST be documented in a new ADR in `docs/adr/` and indexed in `docs/adr/README.md` (routine bug fixes and cosmetic adjustments bypass ADRs).
    - **Automated Changelog Tooling**: NEVER edit `CHANGELOG.md` manually. Always run `./scripts/changelog.sh` to compile conventional commits into the changelog.
 
 4. **Mandatory Feature Implementation Lifecycle**:
@@ -27,5 +27,5 @@
    - **Generalist Engineering Standards**: `.agents/rules/00-general-engineering.md` (type safety, nil-safety, Sendable, pure domain core vs declarative shell).
    - **Verification Loop Protocol**: `.agents/rules/01-verification-loop.md` (autonomous test runner contracts, failure triaging).
    - **Apple & Spatial Architecture**: `.agents/rules/02-swift-apple-architecture.md` (SwiftData persistence boundaries, Swift Testing contracts, decoupled view adapters).
-   - **Apple HIG & SwiftUI Ergonomics**: `.agents/rules/04-apple-hig-design-standards.md` (Dynamic Type, 44pt touch targets, WCAG contrast, haptics, dark/light symmetry).
-   - **Living Post-Mortem Ledger**: `.agents/rules/05-learned-patterns.md` (empirical heuristics: LP-005 USD Catmull-Clark marshmallow trap, LP-008 dynamic `@Query` trap, LP-009 LiDAR glass wall reflections). When non-trivial framework quirks or spatial traps are solved, record them here.
+   - **Apple HIG & SwiftUI Ergonomics**: `.agents/rules/03-apple-hig-design-standards.md` (Dynamic Type, 44pt touch targets, WCAG contrast, haptics, dark/light symmetry).
+   - **Living Post-Mortem Ledger**: `.agents/rules/04-learned-patterns.md` (empirical heuristics: LP-005 USD Catmull-Clark marshmallow trap, LP-008 dynamic `@Query` trap, LP-009 LiDAR glass wall reflections). When non-trivial framework quirks or spatial traps are solved, record them here.

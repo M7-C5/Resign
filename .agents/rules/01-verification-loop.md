@@ -19,7 +19,7 @@ This runs two sub-second / fast tiers:
 ## Autonomous Triage Procedure
 If `./scripts/verify.sh` fails:
 1. **Read the exact error stack trace**: Extract filename, line number, and Swift error code or test assertion message.
-2. **Do not guess or apply shotgun fixes**: Inspect the broken line in context using `view_file`.
+2. **Do not guess or apply shotgun fixes**: Inspect the broken line in context using `read_file`.
 3. **Fix the root cause**:
    - For compilation errors: check type mismatches, missing imports, or concurrency isolation warnings (`@MainActor`).
    - For test failures: verify if the test expectation or the domain implementation was incorrect.
