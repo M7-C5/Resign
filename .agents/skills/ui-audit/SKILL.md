@@ -5,7 +5,7 @@ description: Superpower skill for inspecting and enforcing SwiftUI layout ergono
 
 # Superpower: Apple HIG & SwiftUI Layout Audit
 
-Use this skill when auditing or refining UI components to ensure strict compliance with Apple Human Interface Guidelines and accessibility invariants established in `.agents/rules/04-apple-hig-design-standards.md`.
+Use this skill when auditing or refining UI components to ensure strict compliance with Apple Human Interface Guidelines and accessibility invariants established in `.agents/rules/03-apple-hig-design-standards.md`.
 
 ## Active Audit Protocol:
 
@@ -22,4 +22,4 @@ Use this skill when auditing or refining UI components to ensure strict complian
    - Verify views adapt symmetrically across Dark and Light appearances.
 
 4. **Reference Rulebook**:
-   - Consult `.agents/rules/04-apple-hig-design-standards.md` for complete spacing grids, continuous corner radius standards, and haptic feedback rules.
+   - Consult `.agents/rules/03-apple-hig-design-standards.md` for complete spacing grids, continuous corner radius standards, and haptic feedback rules.
