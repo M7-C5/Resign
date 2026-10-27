@@ -8,8 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- feat(orientation): align room north before light placement (7e8a3e4)
-- feat(lighting-simulation): use saved layout light sources (cfc36d4)
+- feat(orientation): align room north before light placement (58d1605)
+- feat(lighting-simulation): use saved layout light sources (0baa3c9)
 - Merge pull request #7 from M7-C5/feature/room-plan (82e42e3)
 - feat(navigation): connect end-to-end user creation flow and decompose room scan components (c7baab3)
 - feat(dashboard): build LayoutCardView, build LayoutDetailsView, and add navigation from DashboardView to LayoutDetailsView (b47613a)
@@ -38,10 +38,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - refactor(arch): scaffold vertical feature-slice architecture with skeleton modules (3419a7d)
 
 ### Fixed
-- fix(lighting-simulation): align daylight source with saved compass (a1fe01a)
-- fix(lighting-simulation): move daylight caption below time slider (33e8910)
-- fix(lighting-simulation): keep midday diffuse light bright (1bc7dcf)
-- fix(lighting-simulation): soften natural window light (37e055b)
+- fix(navigation): resolve layouts and rooms deterministically in creation flow container destinations (c576e28)
+- fix(room-scan): provide persistent dismiss fallback for creation flow completion (642f258)
+- fix(lighting-setup): prevent modal presentation dismissal collisions during container pop and save (a07c82f)
+- fix(room-scan): prevent premature dismissal on completion and reset state machine on rescan (5e0c405)
+- fix(lighting-simulation): align daylight source with saved compass (f4c93a1)
+- fix(lighting-simulation): move daylight caption below time slider (80ddb36)
+- fix(lighting-simulation): keep midday diffuse light bright (4926ae3)
+- fix(lighting-simulation): soften natural window light (702027c)
 - fix(dashboard): erase light symbol (0f52ca0)
 - fix(changelog): include refactor commits in generated history (fcc84c3)
 - fix(lighting): correct solar ephemeris coefficients (9542e10)
@@ -51,11 +55,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - fix(lighting-simulation): shape natural light to the window (5fbb493)
 
 ### Documentation
-- docs(changelog): record room north alignment (3e3092e)
-- docs(changelog): record daylight caption adjustment (c52fa3a)
-- docs(changelog): record layout light simulation integration (3b502c9)
-- docs(changelog): record noon daylight fill (76bbf1b)
-- docs(changelog): record softened daylight behavior (f5fde07)
+- docs(changelog): record compass daylight alignment (0ae54d8)
+- docs(changelog): record room north alignment (6f85b5f)
+- docs(changelog): record daylight caption adjustment (9c986f3)
+- docs(changelog): record layout light simulation integration (31505a1)
+- docs(changelog): record noon daylight fill (1c4fcb5)
+- docs(changelog): record softened daylight behavior (87d64f4)
 - docs(adr): document end-to-end view navigation architecture in ADR 0019 (7c02b33)
 - docs(adr): document dashboard persistence and navigation architecture in ADR 0018 (caba883)
 - docs(changelog): record PR review fixes (bbed95e)
@@ -75,6 +80,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - docs: add agentic playbook, architecture blueprint, and changelog (178cddb)
 
 ### Tooling & Maintenance
+- test(navigation): verify scanner view model state reset on reappearance (7be6af6)
 - chore(release): update changelog for end-to-end navigation and room scan modularization (e712daf)
 - test(navigation): add unit tests for creation flow routes and layout queries (2b0b6a8)
 - chore(assets): bundle real-world room scan test fixtures (2714bb4)
@@ -104,5 +110,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - build: update verification script to strictly check exit codes (20ecbda)
 - build(xcode): configure FastUnitTests and FullSuite test plans with shared scheme (322f3af)
 - build: install native Conventional Commits git hook (7797521)
-- build: implement autonomous verification and changelog scripts (156c0bc)
 
