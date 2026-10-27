@@ -48,6 +48,20 @@ if [[ ! "$FIRST_LINE" =~ $CONVENTIONAL_REGEX ]]; then
     exit 1
 fi
 
+# Invariant: No raw file paths or file extensions in commit summary
+if [[ "$FIRST_LINE" =~ \.(swift|sh|py|json|md|xcodeproj|xctestplan|plist) ]]; then
+    echo "================================================================="
+    echo "❌ RAW FILE PATH IN COMMIT MESSAGE"
+    echo "================================================================="
+    echo "Your commit message contains a raw file path or extension:"
+    echo "  \"$FIRST_LINE\""
+    echo ""
+    echo "Directives strictly forbid raw file names in commit summaries."
+    echo "Describe domain entities, architectural concepts, or components instead."
+    echo "================================================================="
+    exit 1
+fi
+
 exit 0
 EOF
 
