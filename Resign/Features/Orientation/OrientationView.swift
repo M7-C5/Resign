@@ -388,3 +388,60 @@ private struct NorthCompassDial: View {
             )
     }
 }
+
+#Preview("Compass States") {
+    HStack(spacing: 24) {
+        VStack(spacing: 8) {
+            NorthCompassDial(headingDegrees: 0, isLocked: true)
+                .frame(width: 116, height: 116)
+            Text("North locked")
+                .font(.caption)
+        }
+
+        VStack(spacing: 8) {
+            NorthCompassDial(headingDegrees: 135, isLocked: false)
+                .frame(width: 116, height: 116)
+            Text("Reading heading")
+                .font(.caption)
+        }
+    }
+    .padding(24)
+    .background(Color(.systemBackground))
+}
+
+#Preview("Orientation Setup — Full Screen") {
+    let container = try! ModelContainer.createInMemoryContainer()
+    let room = Room(name: "Sample Bedroom")
+    let layout = Layout(name: "Bedroom Layout")
+    room.layouts.append(layout)
+    layout.furnitures = [
+        Furniture(
+            name: "Bed",
+            category: "bed",
+            positionX: -0.7,
+            positionZ: -0.55,
+            length: 1.8,
+            width: 2.0
+        ),
+        Furniture(
+            name: "Desk",
+            category: "desk",
+            positionX: 0.9,
+            positionZ: -1.0,
+            length: 1.3,
+            width: 0.65
+        ),
+        Furniture(
+            name: "Sofa",
+            category: "sofa",
+            positionX: 0.8,
+            positionZ: 1.15,
+            length: 1.7,
+            width: 0.8
+        )
+    ]
+    container.mainContext.insert(room)
+
+    return OrientationView(layout: layout, room: room)
+        .modelContainer(container)
+}
