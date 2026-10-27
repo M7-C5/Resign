@@ -103,5 +103,23 @@ struct NavigationFlowTests {
         #expect(room.layouts.first?.furnitures.count == 6)
         #expect(room.openings.count == 2)
     }
+
+    @Test @MainActor func viewModelResetRestoresScanState() throws {
+        let container = try ModelContainer.createInMemoryContainer()
+        let context = container.mainContext
+        let viewModel = RoomScanViewModel()
+
+        let roomId = viewModel.loadMockRoom(modelContext: context)
+        #expect(viewModel.state == .completed(roomId: roomId))
+
+        viewModel.reset()
+        if viewModel.isSupported {
+            #expect(viewModel.state == .ready)
+        } else {
+            #expect(viewModel.state == .unsupported)
+        }
+        #expect(!viewModel.isCancelled)
+        #expect(!viewModel.isShowingConfirmationAlert)
+    }
     #endif
 }
