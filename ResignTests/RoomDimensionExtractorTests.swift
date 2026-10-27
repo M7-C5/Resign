@@ -189,4 +189,34 @@ struct RoomDimensionExtractorTests {
         #expect(abs(dims.width - 4.00) < 0.005)
         #expect(abs(dims.length - 3.80) < 0.005)
     }
+
+    @Test func doesNotShrinkTrueWallClearSpanWhenFloorPolygonIsTruncatedByGlassOrGlare() {
+        // True physical room: 4.10m length (along Z) x 3.60m width (along X)
+        // North/South walls at Z = ±2.10m (0.10m thickness -> 4.10m clear span)
+        // East/West walls at X = ±1.85m (0.10m thickness -> 3.60m clear span)
+        let walls: [ScannedWallPayload] = [
+            ScannedWallPayload(position: [0, 1.5, -2.10], dimensions: [4.30, 2.8, 0.10], rotationYaw: 0),
+            ScannedWallPayload(position: [0, 1.5, 2.10], dimensions: [4.30, 2.8, 0.10], rotationYaw: 0),
+            ScannedWallPayload(position: [1.85, 1.5, 0], dimensions: [3.80, 2.8, 0.10], rotationYaw: .pi / 2),
+            ScannedWallPayload(position: [-1.85, 1.5, 0], dimensions: [3.80, 2.8, 0.10], rotationYaw: .pi / 2)
+        ]
+
+        // LiDAR near-infrared transmission through glass truncates the floor polygon short to 3.70m along Z
+        let truncatedFloorCorners: [SIMD3<Float>] = [
+            SIMD3<Float>(-1.80, -2.05, 0),
+            SIMD3<Float>(-1.80, 1.65, 0),
+            SIMD3<Float>(1.80, 1.65, 0),
+            SIMD3<Float>(1.80, -2.05, 0)
+        ]
+
+        let dims = RoomDimensionExtractor.extractDimensions(
+            polygonCorners: truncatedFloorCorners,
+            walls: walls
+        )
+
+        // Must preserve the true 4.10m clear span between the detected structural walls,
+        // rather than clamping down to the 3.70m truncated floor polygon!
+        #expect(abs(dims.length - 4.10) < 0.005)
+        #expect(abs(dims.width - 3.60) < 0.005)
+    }
 }
