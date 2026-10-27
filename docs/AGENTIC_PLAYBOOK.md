@@ -8,11 +8,8 @@ This playbook outlines how autonomous AI agents collaborate on the **Resign** iO
 
 ```
                        +------------------------------------------+
-                       |  6. Multi-Agent Orchestrator & Subagents |
-                       |     (Lead, Researcher, Critic, Tester)   |
-                       +------------------------------------------+
                        |  5. Progressive Superpowers & Skills     |
-                       |     (.agents/skills/*, hooks.json)       |
+                       |     (.agents/skills/*)                   |
                        +------------------------------------------+
                        |  4. Living Swift Protocols & Schemas     |
                        |     (SwiftData @Model, Protocols)        |
@@ -54,4 +51,5 @@ This playbook outlines how autonomous AI agents collaborate on the **Resign** iO
 | **Fast Verification** | `./scripts/verify.sh` | Compiles scheme + runs Swift unit tests (~3s) |
 | **Full UI Verification** | `./scripts/verify.sh --ui` | Runs compilation + unit tests + full UI launch benchmarks |
 | **Changelog Generator**| `./scripts/changelog.sh`| Categorizes conventional commits for `CHANGELOG.md` |
+| **Install Git Hooks** | `./scripts/install-hooks.sh` | Configures git hooks for Conventional Commits & path sanitization |
 | **Build Only** | `xcodebuild build -scheme Resign -destination 'generic/platform=iOS Simulator'` | Immediate syntax / type checking |
