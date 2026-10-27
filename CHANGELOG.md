@@ -38,6 +38,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - refactor(arch): scaffold vertical feature-slice architecture with skeleton modules (3419a7d)
 
 ### Fixed
+- fix(room-scan): keep scan results open after capture (f645c19)
+- fix(orientation): complete north lock while device is still (9d65302)
 - fix(lighting-simulation): align daylight source with saved compass (a1fe01a)
 - fix(lighting-simulation): move daylight caption below time slider (33e8910)
 - fix(lighting-simulation): keep midday diffuse light bright (1bc7dcf)
@@ -51,6 +53,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - fix(lighting-simulation): shape natural light to the window (5fbb493)
 
 ### Documentation
+- docs(changelog): record compass daylight alignment (93d166e)
 - docs(changelog): record room north alignment (3e3092e)
 - docs(changelog): record daylight caption adjustment (c52fa3a)
 - docs(changelog): record layout light simulation integration (3b502c9)
@@ -75,6 +78,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - docs: add agentic playbook, architecture blueprint, and changelog (178cddb)
 
 ### Tooling & Maintenance
+- chore(orientation): add compass and setup previews (e1de057)
 - chore(release): update changelog for end-to-end navigation and room scan modularization (e712daf)
 - test(navigation): add unit tests for creation flow routes and layout queries (2b0b6a8)
 - chore(assets): bundle real-world room scan test fixtures (2714bb4)
@@ -104,5 +108,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - build: update verification script to strictly check exit codes (20ecbda)
 - build(xcode): configure FastUnitTests and FullSuite test plans with shared scheme (322f3af)
 - build: install native Conventional Commits git hook (7797521)
-- build: implement autonomous verification and changelog scripts (156c0bc)
 
