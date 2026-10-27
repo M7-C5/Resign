@@ -10,10 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - feat(orientation): align room north before light placement (58d1605)
 - feat(lighting-simulation): use saved layout light sources (0baa3c9)
-- Merge pull request #7 from M7-C5/feature/room-plan (82e42e3)
 - feat(navigation): connect end-to-end user creation flow and decompose room scan components (c7baab3)
 - feat(dashboard): build LayoutCardView, build LayoutDetailsView, and add navigation from DashboardView to LayoutDetailsView (b47613a)
-- Merge pull request #3 from M7-C5/feature/lighting (373f223)
 - feat(navigation): add root home screen state switcher for scan launch and cancellation (0444327)
 - feat(room-scan): update scanner overlay to top Cancel/Done navigation and remove redundant instruction banner (8298dd8)
 - feat(room-scan): implement scan confirmation state machine, cancellation guard, and invalid scan validation (890e13b)
@@ -32,6 +30,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - feat(testing): add in-memory ModelContainer fixture and SwiftData unit tests (b4daaff)
 
 ### Changed
+- refactor(agents): renumber domain rule sequence and correct tool triage references (6f5e996)
 - refactor(agents): deduplicate design audit checklists and streamline feature lifecycle in project directives (cada6a7)
 - refactor(dashboard): integrate SwiftData models and decompose layout components (edbbe38)
 - refactor(services): restore shared service placement (3afe8d0)
@@ -82,6 +81,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - docs: add agentic playbook, architecture blueprint, and changelog (178cddb)
 
 ### Tooling & Maintenance
+- build(tooling): ignore merge commits during automated changelog generation (71d6af5)
+- build(tooling): enforce commit path sanitization in hooks and add verification simulator fallback (261d397)
+- chore(agents): remove invalid lifecycle hook stubs and mock mcp configuration (d20176e)
+- chore(release): update changelog for agent workflow optimizations (016d53c)
 - chore(agents): prune redundant wrapper skills and dormant orchestration rules (a4218a8)
 - chore(release): update changelog for creation flow navigation fixes (2a83324)
 - test(navigation): verify scanner view model state reset on reappearance (0a0f048)
@@ -94,7 +97,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - chore(build): set ITSAppUsesNonExemptEncryption to false for App Store compliance (689ba41)
 - chore(release): update changelog for universal app icon (f0f23f0)
 - chore(assets): add 1024x1024 universal app icon for CI validation (fb1ed4c)
-- chore(merge): sync main and pull request template into feature branch (fcd075c)
 - chore(release): update changelog for semantic pull request template (93fc68e)
 - chore(tooling): add semantic pull request template for team workflow (96b0254)
 - test(lighting-simulation): add simulator launch probe (519f57c)
@@ -112,4 +114,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - test(spatial): verify mock room hierarchy and required entities (3bab6e3)
 - test: update smoke tests for scaffolded architecture (61df380)
 - build: update verification script to strictly check exit codes (20ecbda)
+- build(xcode): configure FastUnitTests and FullSuite test plans with shared scheme (322f3af)
+- build: install native Conventional Commits git hook (7797521)
+- build: implement autonomous verification and changelog scripts (156c0bc)
+- build: establish modular engineering rules and superpower skills (929b639)
+- build: configure agent constitution and lifecycle hooks (1cbaa5a)
 
