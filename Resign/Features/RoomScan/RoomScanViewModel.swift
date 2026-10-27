@@ -67,6 +67,13 @@ public final class RoomScanViewModel {
     }
 
     @MainActor
+    public func reset() {
+        isCancelled = false
+        isShowingConfirmationAlert = false
+        checkHardware()
+    }
+
+    @MainActor
     public func startScanning() {
         guard isSupported else {
             state = .unsupported
