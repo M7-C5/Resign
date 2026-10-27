@@ -16,6 +16,7 @@ public struct RoomScanResultView: View {
     public var onContinueToOrientation: ((Layout) -> Void)?
     public var onFinish: (() -> Void)?
 
+    @Environment(\.dismiss) private var dismiss
     @Query private var rooms: [Room]
     @State private var quickLookURL: URL? = nil
 
@@ -163,16 +164,20 @@ public struct RoomScanResultView: View {
 
             // Secondary Actions Row
             HStack(spacing: 12) {
-                if let onFinish {
-                    Button(action: onFinish) {
-                        Label("Save & Finish", systemImage: "checkmark")
-                            .font(.subheadline)
-                            .fontWeight(.semibold)
-                            .foregroundStyle(.white)
-                            .frame(maxWidth: .infinity)
-                            .frame(height: 44)
-                            .background(Color.white.opacity(0.15), in: RoundedRectangle(cornerRadius: 12))
+                Button {
+                    if let onFinish {
+                        onFinish()
+                    } else {
+                        dismiss()
                     }
+                } label: {
+                    Label("Save & Finish", systemImage: "checkmark")
+                        .font(.subheadline)
+                        .fontWeight(.semibold)
+                        .foregroundStyle(.white)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 44)
+                        .background(Color.white.opacity(0.15), in: RoundedRectangle(cornerRadius: 12))
                 }
 
                 Button(action: onScanAgain) {
