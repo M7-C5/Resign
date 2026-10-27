@@ -75,49 +75,123 @@ struct LightingSetupContainerView: View {
     let onSave: () -> Void
     let onBack: () -> Void
 
-    @Query private var layouts: [Layout]
-
-    init(layoutID: UUID, onSave: @escaping () -> Void, onBack: @escaping () -> Void) {
-        self.layoutID = layoutID
-        self.onSave = onSave
-        self.onBack = onBack
-        let targetId = layoutID
-        _layouts = Query(filter: #Predicate<Layout> { $0.id == targetId })
-    }
+    @Environment(\.modelContext) private var modelContext
+    @State private var layout: Layout?
+    @State private var hasLoaded = false
 
     var body: some View {
-        if let layout = layouts.first {
-            LightingSetupView(
-                layout: layout,
-                onSave: onSave,
-                onBack: onBack
-            )
-        } else {
-            ProgressView("Loading Layout...")
+        Group {
+            if let layout {
+                LightingSetupView(
+                    layout: layout,
+                    onSave: onSave,
+                    onBack: onBack
+                )
+            } else if hasLoaded {
+                VStack(spacing: 16) {
+                    Image(systemName: "exclamationmark.triangle")
+                        .font(.system(size: 40))
+                        .foregroundStyle(.secondary)
+
+                    Text("Could not find room layout")
+                        .font(.headline)
+
+                    Button("Go Back", action: onBack)
+                        .buttonStyle(.borderedProminent)
+                }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .background(Color(.systemBackground))
+            } else {
+                ProgressView("Loading Layout...")
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .background(Color(.systemBackground))
+            }
         }
+        .onAppear {
+            loadLayout()
+        }
+    }
+
+    private func loadLayout() {
+        let targetId = layoutID
+        // 1. Direct fetch by ID
+        let descriptor = FetchDescriptor<Layout>(predicate: #Predicate<Layout> { $0.id == targetId })
+        if let direct = try? modelContext.fetch(descriptor).first {
+            self.layout = direct
+            self.hasLoaded = true
+            return
+        }
+
+        // 2. Fallback: Search all rooms' layouts
+        let roomDescriptor = FetchDescriptor<Room>()
+        if let rooms = try? modelContext.fetch(roomDescriptor) {
+            for room in rooms {
+                if let match = room.layouts.first(where: { $0.id == targetId }) {
+                    self.layout = match
+                    self.hasLoaded = true
+                    return
+                }
+            }
+        }
+
+        self.hasLoaded = true
     }
 }
 
 /// Loads the scanned layout and its owning room before north alignment.
 struct OrientationContainerView: View {
+    let layoutID: UUID
     let onSave: () -> Void
     let onBack: () -> Void
-    @Query private var layouts: [Layout]
 
-    init(layoutID: UUID, onSave: @escaping () -> Void, onBack: @escaping () -> Void) {
-        self.onSave = onSave
-        self.onBack = onBack
-        let targetId = layoutID
-        _layouts = Query(filter: #Predicate<Layout> { $0.id == targetId })
-    }
+    @Environment(\.modelContext) private var modelContext
+    @State private var layout: Layout?
+    @State private var room: Room?
+    @State private var hasLoaded = false
 
     var body: some View {
-        if let layout = layouts.first, let room = layout.room {
-            OrientationView(layout: layout, room: room, onSave: onSave, onBack: onBack)
-        } else {
-            ContentUnavailableView("Room Not Found", systemImage: "location.north.circle")
+        Group {
+            if let layout, let room {
+                OrientationView(layout: layout, room: room, onSave: onSave, onBack: onBack)
+            } else if hasLoaded {
+                ContentUnavailableView("Room Not Found", systemImage: "location.north.circle")
+            } else {
+                ProgressView("Loading Orientation...")
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .background(Color(.systemBackground))
+            }
         }
+        .onAppear {
+            loadOrientation()
+        }
+    }
+
+    private func loadOrientation() {
+        let targetId = layoutID
+        // 1. Direct fetch by ID
+        let descriptor = FetchDescriptor<Layout>(predicate: #Predicate<Layout> { $0.id == targetId })
+        if let direct = try? modelContext.fetch(descriptor).first {
+            self.layout = direct
+            if let directRoom = direct.room {
+                self.room = directRoom
+                self.hasLoaded = true
+                return
+            }
+        }
+
+        // 2. Search all rooms to ensure we get both room and layout
+        let roomDescriptor = FetchDescriptor<Room>()
+        if let rooms = try? modelContext.fetch(roomDescriptor) {
+            for r in rooms {
+                if let match = r.layouts.first(where: { $0.id == targetId }) {
+                    self.layout = match
+                    self.room = r
+                    self.hasLoaded = true
+                    return
+                }
+            }
+        }
+
+        self.hasLoaded = true
     }
 }
