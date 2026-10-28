@@ -78,6 +78,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - fix(lighting-simulation): shape natural light to the window (5fbb493)
 
 ### Documentation
+- docs(changelog): record iPad and lighting refinements (01461c0)
 - docs(adr): document studio 3d inventory and drag archival in adr 0028 (8f7f08d)
 - docs(adr): record scanned room square orientation and centered origin normalization (e1161c9)
 - docs(adr): document viewport snapping and dynamic wall cutaways in adr 0026 (6a6449e)
