@@ -22,7 +22,7 @@ public struct Studio3DView: View {
         guard let layout = selectedLayout else { return nil }
         let source = RoomSimulationLayout(layout: layout)
         return layout.lights.sorted { $0.name < $1.name }.map {
-            RoomLightingFixture(light: $0, roomWidth: source.width, roomLength: source.length, roomHeight: source.height)
+            RoomLightingFixture(light: $0, layout: source)
         }
     }
 

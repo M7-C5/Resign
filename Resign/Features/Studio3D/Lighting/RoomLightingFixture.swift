@@ -60,6 +60,14 @@ struct RoomLightingFixture: Identifiable, Hashable, Sendable {
         )
     }
 
+    /// Use exactly the wall bounds displayed by Configure Ceiling Lights.
+    init(light: Light, layout: RoomSimulationLayout) {
+        let center = layout.planBounds.cellCenter(column: light.coordinateX, row: light.coordinateY)
+        self.init(id: light.id, name: light.name,
+                  position: [center.x, min(max(0.05, light.elevationZ), max(0.05, layout.height - 0.08)), center.y],
+                  brightness: light.brightness, colorTemperatureKelvin: Double(light.colorTemp), isOn: light.isOn)
+    }
+
     init(
         id: UUID = UUID(),
         name: String,
@@ -129,6 +137,10 @@ struct RoomSimulationLayout: Hashable, Sendable {
             Aperture(kind: $0.type.lowercased(), position: [$0.posX, $0.posY, $0.posZ],
                      width: max(0.05, $0.width), height: max(0.05, $0.height))
         }
+    }
+
+    var planBounds: RoomPlanBounds {
+        RoomPlanBounds(snapshot: scanPlan, fallbackWidth: width, fallbackLength: length)
     }
 
     var yaw: Float { scanPlan?.yawRadians ?? 0 }

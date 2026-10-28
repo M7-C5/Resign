@@ -198,3 +198,39 @@ struct RoomPlanSnapshot: Codable, Sendable, Hashable {
         )
     }
 }
+
+/// Bounds in the normalized scan frame, shared by the plan and ceiling fixtures.
+/// Summary room dimensions can be smaller than the scanned wall footprint.
+struct RoomPlanBounds: Hashable, Sendable {
+    let minX: Float
+    let minZ: Float
+    let width: Float
+    let length: Float
+
+    init(snapshot: RoomPlanSnapshot?, fallbackWidth: Float, fallbackLength: Float) {
+        let walls = snapshot?.wallSegments ?? []
+        let xs = walls.flatMap { [$0.startX, $0.endX] }.filter(\.isFinite)
+        let zs = walls.flatMap { [$0.startZ, $0.endZ] }.filter(\.isFinite)
+        if let x0 = xs.min(), let x1 = xs.max(), let z0 = zs.min(), let z1 = zs.max(),
+           x1 - x0 > 0.5, z1 - z0 > 0.5 {
+            minX = x0
+            minZ = z0
+            width = x1 - x0
+            length = z1 - z0
+        } else {
+            width = max(0.5, fallbackWidth)
+            length = max(0.5, fallbackLength)
+            minX = -width / 2
+            minZ = -length / 2
+        }
+    }
+
+    func unitCoordinates(x: Float, z: Float) -> SIMD2<Float> {
+        [(x - minX) / width, (z - minZ) / length]
+    }
+
+    func cellCenter(column: Float, row: Float) -> SIMD2<Float> {
+        [minX + (min(4, max(0, column)) + 0.5) / 5 * width,
+         minZ + (min(4, max(0, row)) + 0.5) / 5 * length]
+    }
+}

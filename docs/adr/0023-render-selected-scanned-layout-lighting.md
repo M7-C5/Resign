@@ -27,7 +27,7 @@ When scan wall metadata is available, replace native wall meshes with aperture p
 
 Each detected window supplies a position, size, and outward normal inferred from the nearest captured wall. Direct sunlight uses the dot product between the sun direction and that normal. Each window receives its own direct beam and diffuse fill; the room shares an interior sky-bounce source. A room with no detected windows receives no window daylight. The caption lists the detected facade directions combined with the saved compass bearing.
 
-The Add Light Source screen uses the scanned plan. Its five rows and columns divide the room footprint into equal cells; each fixture maps to its cell center using the room width and length. Clamp saved fixture height below the room ceiling. Preserve brightness, color temperature, and individual on/off state.
+The Add Light Source screen uses the scanned plan. Its five rows and columns divide the normalized captured wall bounds into equal cells; the plan projection and simulated fixtures use those same bounds and cell centers. This prevents truncated summary dimensions from cropping the scan or compressing fixtures toward the center. When wall metadata is absent, both use the saved rectangular room dimensions. Clamp saved fixture height below the room ceiling. Preserve brightness, color temperature, and individual on/off state.
 
 ## Consequences
 
@@ -38,4 +38,4 @@ The Add Light Source screen uses the scanned plan. Its five rows and columns div
 
 ## Validation
 
-Regression tests cover rotated and offset scan coordinates, floor alignment, room-scaled grid positions, the bundled native Room and Room-2 fixtures, missing-asset reconstruction without sample furniture, aperture cutouts, opposite window exposure at morning and afternoon, zero-window daylight shutdown, window captions across draft edits, and older snapshot decoding. Run the fast verification suite for build and unit tests.
+Regression tests cover rotated and offset scan coordinates, floor alignment, room-scaled grid positions, the bundled native Room and Room-2 fixtures, missing-asset reconstruction without sample furniture, aperture cutouts, opposite window exposure at morning and afternoon, zero-window daylight shutdown, window captions across draft edits, older snapshot decoding, reopening and editing saved fixtures without duplication, deletion of all fixtures without affecting other layouts, and matching plan/fixture positions when wall bounds exceed summary dimensions. Run the fast verification suite for build and unit tests.

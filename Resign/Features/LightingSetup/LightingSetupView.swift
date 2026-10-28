@@ -5,7 +5,6 @@
 
 import SwiftUI
 import SwiftData
-import RealityKit
 
 /// The "Add Your Light Source" screen — Phase 4 of the Resign onboarding flow.
 ///
@@ -40,8 +39,14 @@ public struct LightingSetupView: View {
 
     @State private var viewModel = LightingSetupViewModel()
 
+    private var scanPlan: RoomPlanSnapshot? {
+        layout.room?.planSnapshotData.flatMap { try? JSONDecoder().decode(RoomPlanSnapshot.self, from: $0) }
+    }
+
     private var roomAspectRatio: CGFloat {
-        CGFloat(max(0.5, layout.room?.width ?? 5) / max(0.5, layout.room?.length ?? 4.2))
+        let bounds = RoomPlanBounds(snapshot: scanPlan, fallbackWidth: layout.room?.width ?? 5,
+                                    fallbackLength: layout.room?.length ?? 4.2)
+        return CGFloat(bounds.width / bounds.length)
     }
 
     public init(
@@ -73,6 +78,7 @@ public struct LightingSetupView: View {
         }
         .background(Color(.systemBackground))
         .navigationBarHidden(true)
+        .onAppear { viewModel.loadFromLayout(layout) }
         .alert("Are you sure you want to save & continue?", isPresented: $viewModel.showSaveConfirm) {
             Button("No", role: .cancel) {}
             Button("Yes") { performSave() }
@@ -144,7 +150,7 @@ public struct LightingSetupView: View {
                 if let room = layout.room {
                     ScannedRoomPlanView(
                         room: room, furniture: layout.furnitures.filter { !$0.isArchived }, openings: room.openings,
-                        scanPlan: room.planSnapshotData.flatMap { try? JSONDecoder().decode(RoomPlanSnapshot.self, from: $0) },
+                        scanPlan: scanPlan,
                         northArrowPlanRotation: .constant(0), isNorthLocked: false,
                         didRotatePersonToMarkNorth: .constant(false), showsNorthMarker: false, showsAnnotations: false
                     )
@@ -158,16 +164,16 @@ public struct LightingSetupView: View {
                     .allowsHitTesting(false)
                     .accessibilityHidden(true)
 
-                VStack(spacing: 0) {
-                    ForEach(0..<5, id: \.self) { row in
-                        HStack(spacing: 0) {
-                            ForEach(0..<5, id: \.self) { col in
-                                gridCell(col: col, row: row)
-                            }
-                        }
-                    }
+                ForEach(0..<25, id: \.self) { index in
+                    let column = index % 5
+                    let row = index / 5
+                    let cellWidth = max(1, geometry.size.width - 34) / 5
+                    let cellHeight = max(1, geometry.size.height - 34) / 5
+                    gridCell(col: column, row: row)
+                        .frame(width: cellWidth, height: cellHeight)
+                        .position(x: 17 + (CGFloat(column) + 0.5) * cellWidth,
+                                  y: 17 + (CGFloat(row) + 0.5) * cellHeight)
                 }
-                .padding(17)
             }
         }
         .aspectRatio(roomAspectRatio, contentMode: .fit)
@@ -232,10 +238,10 @@ public struct LightingSetupView: View {
                     .foregroundStyle(.white)
                     .frame(maxWidth: .infinity)
                     .frame(height: 52)
-                    .background(viewModel.drafts.isEmpty ? Color.gray.opacity(0.5) : Color.accentColor)
+                    .background(viewModel.canSave ? Color.accentColor : Color.gray.opacity(0.5))
                     .cornerRadius(14)
             }
-            .disabled(viewModel.drafts.isEmpty)
+            .disabled(!viewModel.canSave)
             .padding(.horizontal, 24)
             .padding(.top, 12)
             .padding(.bottom, 24)
@@ -408,32 +414,6 @@ private struct LightingSettingsCard: View {
         .overlay {
             RoundedRectangle(cornerRadius: 20)
                 .stroke(Color(.separator).opacity(0.4), lineWidth: 1)
-        }
-    }
-}
-
-// MARK: - Mock Room Background
-
-/// A fixed ceiling projection of the bundled reference room, matching the grid bounds.
-private struct MockRoomLightingBackground: View {
-    @State private var scene = MockRoomRealityScene(topDown: true)
-
-    var body: some View {
-        RealityView { content in
-            content.camera = .virtual
-            do {
-                try await scene.load()
-                content.add(scene.root)
-            } catch {
-                scene.loadFailed = true
-            }
-        }
-        .overlay {
-            if scene.loadFailed {
-                Text("Room preview unavailable")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
         }
     }
 }
