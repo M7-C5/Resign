@@ -3,6 +3,7 @@
 - Status: Accepted
 - Date: 2026-10-26
 - Amends: [ADR 0011](0011-lightdraft-transient-edit-pattern.md), [ADR 0017](0017-window-shaped-sunlight.md)
+- Amended by: [ADR 0023](0023-render-selected-scanned-layout-lighting.md), which replaces the fixed mock-room grid spacing with the selected room's cell centers.
 
 ## Context
 

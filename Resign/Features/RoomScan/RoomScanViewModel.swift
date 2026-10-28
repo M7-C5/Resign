@@ -192,6 +192,14 @@ public final class RoomScanViewModel {
             height: 2.6
         )
 
+        let mockWalls = [
+            ScannedWallPayload(position: [0, 1.3, -2.1], dimensions: [5.0, 2.6, 0.1], rotationYaw: 0),
+            ScannedWallPayload(position: [0, 1.3, 2.1], dimensions: [5.0, 2.6, 0.1], rotationYaw: .pi),
+            ScannedWallPayload(position: [2.5, 1.3, 0], dimensions: [4.2, 2.6, 0.1], rotationYaw: .pi / 2),
+            ScannedWallPayload(position: [-2.5, 1.3, 0], dimensions: [4.2, 2.6, 0.1], rotationYaw: -.pi / 2)
+        ]
+        room.planSnapshotData = try? JSONEncoder().encode(RoomPlanSnapshot(walls: mockWalls, floorLevel: 0))
+
         let window = RoomOpening(type: "window", posX: 2.5, posY: 1.45, posZ: 0.0, width: 1.6, height: 1.2)
         let door = RoomOpening(type: "door", posX: -1.5, posY: 1.05, posZ: 2.1, width: 0.9, height: 2.1)
         room.openings.append(window)

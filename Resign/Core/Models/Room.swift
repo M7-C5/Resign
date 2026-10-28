@@ -16,6 +16,8 @@ public final class Room {
     public var length: Float = 4.2
     public var width: Float = 5.0
     public var height: Float = 2.6
+    /// Optional scan-local wall frame for accurately projecting the captured room in 2D.
+    public var planSnapshotData: Data? = nil
     public var createdAt: Date = Date()
     public var updatedAt: Date = Date()
 

@@ -26,15 +26,31 @@ struct SolarSimulationContext: Equatable, Sendable {
     var timeZoneIdentifier = "Asia/Jakarta"
     /// Clockwise true-north bearing of the room's -Z axis.
     var roomHeadingDegrees: Double = 0
+    /// Local outward facade bearings for the selected room's detected windows.
+    var windowLocalAzimuths: [Double] = [90]
 
     /// The reference room's window faces local +X, 90° clockwise from its -Z axis.
     var windowBearingDegrees: Double {
-        NorthAlignmentCalibration.normalized(roomHeadingDegrees + 90)
+        NorthAlignmentCalibration.normalized(roomHeadingDegrees + (windowLocalAzimuths.first ?? 90))
     }
 
     var windowCompassDirection: String {
+        compassDirection(bearing: windowBearingDegrees)
+    }
+
+    var naturalLightDescription: String {
+        var directions: [String] = []
+        for azimuth in windowLocalAzimuths {
+            let direction = compassDirection(bearing: NorthAlignmentCalibration.normalized(roomHeadingDegrees + azimuth))
+            if !directions.contains(direction) { directions.append(direction) }
+        }
+        guard !directions.isEmpty else { return "No windows detected in this room" }
+        return "Natural light from \(directions.joined(separator: ", ")) \(windowLocalAzimuths.count == 1 ? "window" : "windows")"
+    }
+
+    private func compassDirection(bearing: Double) -> String {
         let directions = ["north", "northeast", "east", "southeast", "south", "southwest", "west", "northwest"]
-        return directions[Int((windowBearingDegrees + 22.5) / 45) % directions.count]
+        return directions[Int((bearing + 22.5) / 45) % directions.count]
     }
 
     func date(minuteOfDay: Int) -> Date {

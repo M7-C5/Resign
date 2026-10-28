@@ -16,7 +16,7 @@ struct LightingSimulationSheet: View {
                 artificialLightRow
                 TimeOfDaySlider(
                     minuteOfDay: $settings.minuteOfDay,
-                    windowDirection: settings.solarContext.windowCompassDirection
+                    sourceDescription: settings.solarContext.naturalLightDescription
                 )
             }
             .padding(.horizontal, 20)
@@ -80,7 +80,7 @@ struct LightingSimulationSheet: View {
 
 private struct TimeOfDaySlider: View {
     @Binding var minuteOfDay: Int
-    let windowDirection: String
+    let sourceDescription: String
 
     private var label: String {
         LightingSimulationSettings(minuteOfDay: minuteOfDay).timeLabel
@@ -126,7 +126,7 @@ private struct TimeOfDaySlider: View {
             }
             .font(.caption)
             .foregroundStyle(.secondary)
-            Text("Natural light from \(windowDirection) window")
+            Text(sourceDescription)
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }

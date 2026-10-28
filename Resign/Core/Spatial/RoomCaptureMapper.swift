@@ -24,6 +24,9 @@ public final class RoomCaptureMapper: Sendable {
             width: payload.roomWidth,
             height: payload.roomHeight
         )
+        if !payload.walls.isEmpty {
+            room.planSnapshotData = try? JSONEncoder().encode(RoomPlanSnapshot(walls: payload.walls, floorLevel: payload.floorLevel))
+        }
 
         // Map window and door apertures
         for opening in payload.openings {

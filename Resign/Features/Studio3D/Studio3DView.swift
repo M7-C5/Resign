@@ -19,9 +19,15 @@ public struct Studio3DView: View {
     }
 
     private var lightingFixtures: [RoomLightingFixture]? {
-        selectedLayout?.lights
-            .sorted { $0.name < $1.name }
-            .map { RoomLightingFixture(light: $0) }
+        guard let layout = selectedLayout else { return nil }
+        let source = RoomSimulationLayout(layout: layout)
+        return layout.lights.sorted { $0.name < $1.name }.map {
+            RoomLightingFixture(light: $0, roomWidth: source.width, roomLength: source.length, roomHeight: source.height)
+        }
+    }
+
+    private var sceneLayout: RoomSimulationLayout? {
+        selectedLayout.map { RoomSimulationLayout(layout: $0) }
     }
 
     private var roomHeading: Double {
@@ -33,8 +39,14 @@ public struct Studio3DView: View {
 
         ZStack(alignment: .topTrailing) {
             // Shrink the room while the sheet is open so it stays visible above it.
-            RoomSimulationView(settings: viewModel.previewLighting, fixtures: lightingFixtures)
-                .padding(.bottom, viewModel.isLightingPresented ? LightingSimulationSheet.collapsedHeight + 20 : 0)
+            if layoutID != nil, selectedLayout == nil {
+                ContentUnavailableView("Layout Not Found", systemImage: "cube")
+            } else {
+                RoomSimulationView(settings: viewModel.previewLighting, fixtures: lightingFixtures, layout: sceneLayout,
+                                   onWindowDirectionsResolved: { viewModel.updateWindowDirections($0) })
+                    .id(sceneLayout)
+                    .padding(.bottom, viewModel.isLightingPresented ? LightingSimulationSheet.collapsedHeight + 20 : 0)
+            }
 
             Button {
                 viewModel.beginLightingEditing()
@@ -59,6 +71,9 @@ public struct Studio3DView: View {
         }
         .onChange(of: roomHeading, initial: true) { _, newHeading in
             viewModel.updateRoomHeading(newHeading)
+        }
+        .onChange(of: sceneLayout?.windowAzimuths ?? [90], initial: true) { _, directions in
+            viewModel.updateWindowDirections(directions)
         }
     }
 }
