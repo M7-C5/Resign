@@ -8,12 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- feat(orientation): align room north before light placement (58d1605)
+- feat(lighting-simulation): use saved layout light sources (0baa3c9)
 - feat(orientation): align room north before light placement (7e8a3e4)
 - feat(lighting-simulation): use saved layout light sources (cfc36d4)
-- Merge pull request #7 from M7-C5/feature/room-plan (82e42e3)
 - feat(navigation): connect end-to-end user creation flow and decompose room scan components (c7baab3)
 - feat(dashboard): build LayoutCardView, build LayoutDetailsView, and add navigation from DashboardView to LayoutDetailsView (b47613a)
-- Merge pull request #3 from M7-C5/feature/lighting (373f223)
 - feat(navigation): add root home screen state switcher for scan launch and cancellation (0444327)
 - feat(room-scan): update scanner overlay to top Cancel/Done navigation and remove redundant instruction banner (8298dd8)
 - feat(room-scan): implement scan confirmation state machine, cancellation guard, and invalid scan validation (890e13b)
@@ -32,6 +32,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - feat(testing): add in-memory ModelContainer fixture and SwiftData unit tests (b4daaff)
 
 ### Changed
+- refactor(agents): renumber domain rule sequence and correct tool triage references (59f6549)
+- refactor(agents): deduplicate design audit checklists and streamline feature lifecycle in project directives (353fe53)
 - refactor(dashboard): integrate SwiftData models and decompose layout components (edbbe38)
 - refactor(services): restore shared service placement (3afe8d0)
 - refactor(studio3d): organize lighting code and remove dead views (173dd88)
@@ -40,6 +42,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - fix(room-scan): keep scan results open after capture (f645c19)
 - fix(orientation): complete north lock while device is still (9d65302)
+- fix(navigation): resolve layouts and rooms deterministically in creation flow container destinations (885deef)
+- fix(room-scan): provide persistent dismiss fallback for creation flow completion (bffa317)
+- fix(lighting-setup): prevent modal presentation dismissal collisions during container pop and save (041377a)
+- fix(room-scan): prevent premature dismissal on completion and reset state machine on rescan (346b7e0)
+- fix(lighting-simulation): align daylight source with saved compass (f4c93a1)
+- fix(lighting-simulation): move daylight caption below time slider (80ddb36)
+- fix(lighting-simulation): keep midday diffuse light bright (4926ae3)
+- fix(lighting-simulation): soften natural window light (702027c)
 - fix(lighting-simulation): align daylight source with saved compass (a1fe01a)
 - fix(lighting-simulation): move daylight caption below time slider (33e8910)
 - fix(lighting-simulation): keep midday diffuse light bright (1bc7dcf)
@@ -53,6 +63,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - fix(lighting-simulation): shape natural light to the window (5fbb493)
 
 ### Documentation
+- docs(agents): record navigation query and spatial lidar glass reflection heuristics in learned patterns (b664fce)
+- docs(changelog): record orientation and scan flow fixes (466c8d1)
+- docs(changelog): record compass daylight alignment (0ae54d8)
+- docs(changelog): record room north alignment (6f85b5f)
+- docs(changelog): record daylight caption adjustment (9c986f3)
+- docs(changelog): record layout light simulation integration (31505a1)
+- docs(changelog): record noon daylight fill (1c4fcb5)
+- docs(changelog): record softened daylight behavior (87d64f4)
 - docs(changelog): record compass daylight alignment (93d166e)
 - docs(changelog): record room north alignment (3e3092e)
 - docs(changelog): record daylight caption adjustment (c52fa3a)
@@ -78,7 +96,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - docs: add agentic playbook, architecture blueprint, and changelog (178cddb)
 
 ### Tooling & Maintenance
+- chore(release): update changelog for agentic workflow hardening (0315060)
+- build(tooling): ignore merge commits during automated changelog generation (f7f88cb)
+- build(tooling): enforce commit path sanitization in hooks and add verification simulator fallback (7136f0b)
+- chore(agents): remove invalid lifecycle hook stubs and mock mcp configuration (3083115)
+- chore(release): update changelog for agent workflow optimizations (daa313e)
+- chore(agents): prune redundant wrapper skills and dormant orchestration rules (782c7cd)
 - chore(orientation): add compass and setup previews (e1de057)
+- chore(release): update changelog for creation flow navigation fixes (2a83324)
+- test(navigation): verify scanner view model state reset on reappearance (0a0f048)
 - chore(release): update changelog for end-to-end navigation and room scan modularization (e712daf)
 - test(navigation): add unit tests for creation flow routes and layout queries (2b0b6a8)
 - chore(assets): bundle real-world room scan test fixtures (2714bb4)
@@ -88,7 +114,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - chore(build): set ITSAppUsesNonExemptEncryption to false for App Store compliance (689ba41)
 - chore(release): update changelog for universal app icon (f0f23f0)
 - chore(assets): add 1024x1024 universal app icon for CI validation (fb1ed4c)
-- chore(merge): sync main and pull request template into feature branch (fcd075c)
 - chore(release): update changelog for semantic pull request template (93fc68e)
 - chore(tooling): add semantic pull request template for team workflow (96b0254)
 - test(lighting-simulation): add simulator launch probe (519f57c)
@@ -108,4 +133,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - build: update verification script to strictly check exit codes (20ecbda)
 - build(xcode): configure FastUnitTests and FullSuite test plans with shared scheme (322f3af)
 - build: install native Conventional Commits git hook (7797521)
+- build: implement autonomous verification and changelog scripts (156c0bc)
+- build: establish modular engineering rules and superpower skills (929b639)
+- build: configure agent constitution and lifecycle hooks (1cbaa5a)
 

@@ -5,34 +5,21 @@ description: Superpower skill for inspecting and enforcing SwiftUI layout ergono
 
 # Superpower: Apple HIG & SwiftUI Layout Audit
 
-Use this skill when auditing or refining UI components to ensure conformance with Apple design guidelines and accessibility standards.
+Use this skill when auditing or refining UI components to ensure strict compliance with Apple Human Interface Guidelines and accessibility invariants established in `.agents/rules/03-apple-hig-design-standards.md`.
 
-## Audit Checklist:
+## Active Audit Protocol:
 
-### 1. Touch Target Geometry
-- Ensure every tappable element meets the minimum **44 × 44 pt** touch target:
-  ```swift
-  .frame(minWidth: 44, minHeight: 44)
-  .contentShape(Rectangle())
-  ```
+1. **Touch Target Inspection**:
+   - Check every button, toggle, and cell against the 44 × 44 pt minimum hit target.
+   - Flag any touch element relying on raw text frame without `.contentShape(Rectangle())`.
 
-### 2. Spacing Rhythm & Padding
-- Outer content gutters should use standard 16 pt or 20 pt margins:
-  ```swift
-  .padding(.horizontal, 20)
-  .padding(.vertical, 16)
-  ```
-- Avoid cramped `padding(4)` or crowded list rows.
+2. **Typography & Dynamic Type**:
+   - Grep for forbidden hardcoded sizes (e.g. `.system(size:)`). Replace with semantic styles (`.headline`, `.subheadline`, `.caption`).
+   - Verify `minimumScaleFactor` or multiline limits on critical badges and labels.
 
-### 3. Dynamic Type Scalability
-- Replace hardcoded font sizes (`.font(.system(size: 16))`) with semantic text styles:
-  ```swift
-  .font(.headline)
-  .font(.body)
-  .font(.caption)
-  ```
-- Verify text wrapping or `.minimumScaleFactor(...)` for localized strings.
+3. **Color Symmetry & Contrast**:
+   - Ensure zero hardcoded `.white` or `.black` text/backgrounds in standard views.
+   - Verify views adapt symmetrically across Dark and Light appearances.
 
-### 4. Semantic Color & Dark Mode Contrast
-- Use system semantic colors (`Color(uiColor: .systemBackground)`, `Color.secondary`, `Color.accentColor`) so views automatically adapt between Light Mode and Dark Mode.
-- Verify contrast ratios in both appearances.
+4. **Reference Rulebook**:
+   - Consult `.agents/rules/03-apple-hig-design-standards.md` for complete spacing grids, continuous corner radius standards, and haptic feedback rules.

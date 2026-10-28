@@ -53,11 +53,11 @@ public struct RoomScanView: View {
             }
         }
         .onAppear {
-            switch viewModel.state {
-            case .ready, .completed(_):
+            if case .completed = viewModel.state {
+                viewModel.reset()
+            }
+            if viewModel.state == .ready {
                 viewModel.startScanning()
-            default:
-                break
             }
         }
         .onChange(of: viewModel.state) { _, newState in
