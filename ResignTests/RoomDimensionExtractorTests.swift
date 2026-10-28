@@ -155,11 +155,10 @@ struct RoomDimensionExtractorTests {
             walls: walls
         )
 
-        // Raw opposing wall span is 4.233m x 4.062m; after 3.0cm (2 x 1.5cm) LiDAR masonry skin inset:
-        // Width = 4.203m (~4.20m), Length = 4.032m (~4.03m), never overmeasuring!
-        #expect(abs(dims.width - 4.203) < 0.005)
-        #expect(abs(dims.length - 4.032) < 0.005)
-        #expect(dims.width <= 4.21)
+        // Raw opposing wall span is 4.233m x 4.062m without arbitrary skin inset subtraction
+        #expect(abs(dims.width - 4.233) < 0.005)
+        #expect(abs(dims.length - 4.062) < 0.005)
+        #expect(abs(dims.height - 3.21) < 0.005)
     }
 
     @Test func ignoresDoorwayAlcoveFlareOutWhenOpposingMainWallsArePresent() {
@@ -218,5 +217,43 @@ struct RoomDimensionExtractorTests {
         // rather than clamping down to the 3.70m truncated floor polygon!
         #expect(abs(dims.length - 4.10) < 0.005)
         #expect(abs(dims.width - 3.60) < 0.005)
+    }
+
+    @Test func projectsOpposingWallsAlongTheirOwnNormalWhenPrimaryWallHasAngularDrift() {
+        // Large room (8.67m x 6.13m like Kahuripan):
+        // Primary wall (8.67m along X) has 2.5 degrees of VIO angular drift,
+        // while opposing East/West walls at X = ±4.335m (true span = 8.67m) have laterally
+        // offset segment centers (Z = -1.5m vs Z = +1.5m, deltaZ = 3.0m) due to doors/windows.
+        let driftedYaw: Float = 2.5 * (.pi / 180.0)
+        let walls: [ScannedWallPayload] = [
+            // Primary longest wall (8.67m) with 2.5° VIO yaw drift
+            ScannedWallPayload(position: [0, 1.35, -3.065], dimensions: [8.67, 2.70, 0], rotationYaw: driftedYaw),
+            // Opposing wall at Z = +3.065m
+            ScannedWallPayload(position: [0, 1.35, 3.065], dimensions: [5.50, 2.70, 0], rotationYaw: 0),
+            // East/West walls at X = ±4.335m (true span = 8.67m) aligned at yaw = pi/2 with 3.0m lateral offset
+            ScannedWallPayload(position: [-4.335, 1.35, -1.5], dimensions: [6.13, 2.70, 0], rotationYaw: .pi / 2),
+            ScannedWallPayload(position: [4.335, 1.35, 1.5], dimensions: [6.13, 2.70, 0], rotationYaw: .pi / 2)
+        ]
+
+        let dims = RoomDimensionExtractor.extractDimensions(walls: walls)
+
+        // Projecting East/West walls along their own normal (X-axis) must yield 8.67m (not skewed by 3.0m * sin(2.5°) = 13cm)
+        #expect(abs(dims.width - 8.67) < 0.01)
+        #expect(abs(dims.length - 6.13) < 0.01)
+    }
+
+    @Test func usesDominantStructuralWallHeightInsteadOfNoisySegmentMaxOutlier() {
+        // Main structural walls are 2.70m tall, but a short noisy partition/doorway segment spikes to 2.77m
+        let walls: [ScannedWallPayload] = [
+            ScannedWallPayload(position: [0, 1.35, -3.065], dimensions: [8.67, 2.70, 0], rotationYaw: 0),
+            ScannedWallPayload(position: [0, 1.35, 3.065], dimensions: [8.67, 2.70, 0], rotationYaw: 0),
+            ScannedWallPayload(position: [4.335, 1.35, 0], dimensions: [6.13, 2.70, 0], rotationYaw: .pi / 2),
+            ScannedWallPayload(position: [-4.335, 1.35, 0], dimensions: [6.13, 2.70, 0], rotationYaw: .pi / 2),
+            ScannedWallPayload(position: [-4.335, 1.385, 2.5], dimensions: [0.65, 2.77, 0], rotationYaw: .pi / 2)
+        ]
+
+        let dims = RoomDimensionExtractor.extractDimensions(walls: walls)
+
+        #expect(abs(dims.height - 2.70) < 0.005)
     }
 }
