@@ -120,18 +120,23 @@
 
 ---
 
-### LP-009: Spatial LiDAR Glass Reflections & Truncated Floor Mesh Clamping
-* **Context**: iPhone LiDAR operates at ~940nm near-infrared, which passes through standard architectural glass without diffuse reflection. RoomPlan frequently classifies glass partition walls as windows or openings, or truncates the floor polygon 30–50 cm short due to ground reflection/refraction.
+### LP-009: Spatial RoomPlan Clear-Span Accuracy (Floor Cross-Clamping, VIO Drift & Zero-Thickness Surfaces)
+* **Context**:
+  1. `CapturedRoom.Surface` wall planes report `dimensions.z == 0` because RoomPlan fits 2D inner-face boundary planes directly to the LiDAR point cloud. Applying an arbitrary `-3.0 cm` skin inset artificially under-measures rooms.
+  2. Clamping `masonrySpan` against `floor.polygonCorners` via `min(masonrySpan, poly)` corrupts dimensions when the floor's local X/Y bounding box includes a doorway alcove (*jorokan*) and is rotated 90° relative to `primaryWall` (cross-clamping a `9.65m` length down to an `8.73m` alcove width).
+  3. Because iPhone dToF LiDAR has a 5.0m range limit, rooms > 5m accumulate $1^\circ\text{–}2.5^\circ$ of Visual-Inertial Odometry (VIO) angular drift. Projecting laterally offset opposing wall segments onto `primaryWall`'s axis instead of their own normal introduces $\Delta X \sin\theta$ errors (10–25 cm).
 * **Bad Pattern**:
   ```swift
-  // ❌ Fragile: Clamping opposing wall clear spans against truncated floor polygon
-  let length = min(masonrySpan.length, floorPolygon.length) // Squeezes 4.1m down to 3.7m!
+  // ❌ Fragile: Arbitrary skin inset, primaryWall axis projection, and floor polygon clamping
+  let inset = wall.dimensions.z > 0.001 ? wall.dimensions.z * 0.5 : 0.015
+  let length = min(masonrySpan.length, floorPolygon.length)
   ```
 * **Good Pattern**:
   ```swift
-  // ✅ Robust: Trust structural parallel wall spans and orthogonal endpoint extrusions
-  // Include windows and openings as valid perimeter surfaces; never let floor mesh shrink walls
-  let length = masonrySpan.length
+  // ✅ Robust: Project opposing dominant walls along their own length-weighted normal,
+  // apply zero artificial inset when dimensions.z == 0, and use dominant wall height.
+  let pairAxis = alignedNormal(negWall: dominantNeg.wall, posWall: dominantPos.wall, referenceAxis: axis)
+  let clearSpan = dot(posPos2D - posNeg2D, pairAxis) - (insetNeg + insetPos)
   ```
 
 ---
