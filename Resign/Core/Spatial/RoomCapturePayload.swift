@@ -230,7 +230,7 @@ struct RoomPlanBounds: Hashable, Sendable {
     }
 
     func cellCenter(column: Float, row: Float) -> SIMD2<Float> {
-        [minX + (min(4, max(0, column)) + 0.5) / 5 * width,
-         minZ + (min(4, max(0, row)) + 0.5) / 5 * length]
+        [minX + (min(4.5, max(-0.5, column)) + 0.5) / 5 * width,
+         minZ + (min(4.5, max(-0.5, row)) + 0.5) / 5 * length]
     }
 }

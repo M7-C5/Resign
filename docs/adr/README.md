@@ -28,6 +28,8 @@ This directory documents key architectural decisions for **Resign** using the [M
 - [ADR 0022: Persist the Scanned Room Plan Frame](0022-persist-scanned-room-plan-frame.md)
 - [ADR 0023: Render Lighting in the Selected Scanned Layout](0023-render-selected-scanned-layout-lighting.md)
 
+- [ADR 0024: Adaptive Ceiling Light Placement](0024-adaptive-ceiling-light-placement.md)
+
 ## How to Create a New ADR
 1. Copy [template.md](template.md) to `docs/adr/NNNN-title-in-kebab-case.md`.
 2. Follow MADR conventions: Context, Decision Drivers, Considered Options, Decision Outcome, and Consequences.

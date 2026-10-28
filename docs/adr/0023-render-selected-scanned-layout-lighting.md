@@ -29,6 +29,8 @@ Each detected window supplies a position, size, and outward normal inferred from
 
 The Add Light Source screen uses the scanned plan. Its five rows and columns divide the normalized captured wall bounds into equal cells; the plan projection and simulated fixtures use those same bounds and cell centers. This prevents truncated summary dimensions from cropping the scan or compressing fixtures toward the center. When wall metadata is absent, both use the saved rectangular room dimensions. Clamp saved fixture height below the room ceiling. Preserve brightness, color temperature, and individual on/off state.
 
+Adaptive candidate counts and position persistence are defined in [ADR 0024](0024-adaptive-ceiling-light-placement.md), which supersedes the fixed five-row/five-column placement lattice while preserving existing saved positions.
+
 ## Consequences
 
 - Selected scans use their own geometry, arrangement, windows, and room dimensions in the lighting preview.

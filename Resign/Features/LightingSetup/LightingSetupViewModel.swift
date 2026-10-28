@@ -7,7 +7,7 @@ import Foundation
 import Observation
 import SwiftData
 
-/// ViewModel for the 5×5 ceiling-grid lighting placement screen.
+/// ViewModel for adaptive ceiling-light placement.
 ///
 /// Holds a transient `[LightDraft]` buffer during the editing session.
 /// SwiftData is only touched when the user confirms "Save & Continue" via
@@ -21,7 +21,7 @@ public final class LightingSetupViewModel {
 
     // MARK: - Grid State
 
-    /// All light fixtures placed on the 5×5 ceiling grid (unsaved).
+    /// All light fixtures placed in the room plan (unsaved).
     var drafts: [LightDraft] = []
 
     /// The `id` of the currently tapped / selected draft. `nil` = no selection.
@@ -64,7 +64,8 @@ public final class LightingSetupViewModel {
                        gridColumn: Int(min(4, max(0, light.coordinateX)).rounded()),
                        gridRow: Int(min(4, max(0, light.coordinateY)).rounded()),
                        name: light.name, brightness: light.brightness,
-                       colorTemp: light.colorTemp, isOn: light.isOn)
+                       colorTemp: light.colorTemp, isOn: light.isOn,
+                       planPosition: SIMD2<Float>((light.coordinateX + 0.5) / 5, (light.coordinateY + 0.5) / 5))
         }
     }
 
@@ -86,6 +87,23 @@ public final class LightingSetupViewModel {
             drafts.append(newDraft)
             selectedDraftID = newDraft.id
         }
+    }
+
+    /// Candidate points carry exact plan coordinates rather than a variable-grid index.
+    func tapPosition(_ point: SIMD2<Float>) {
+        if let existing = drafts.first(where: {
+            abs($0.unitPosition.x - point.x) < 0.0001 && abs($0.unitPosition.y - point.y) < 0.0001
+        }) {
+            selectedDraftID = existing.id
+            return
+        }
+        let draft = LightDraft(
+            gridColumn: Int(min(4, max(0, point.x * 5 - 0.5)).rounded()),
+            gridRow: Int(min(4, max(0, point.y * 5 - 0.5)).rounded()),
+            name: nextLightName(), planPosition: point
+        )
+        drafts.append(draft)
+        selectedDraftID = draft.id
     }
 
     /// Clears the current selection without removing the draft.
@@ -130,8 +148,8 @@ public final class LightingSetupViewModel {
                 context.insert(light)
             }
             light.name = draft.name
-            light.coordinateX = Float(draft.gridColumn)
-            light.coordinateY = Float(draft.gridRow)
+            light.coordinateX = draft.unitPosition.x * 5 - 0.5
+            light.coordinateY = draft.unitPosition.y * 5 - 0.5
             light.brightness = draft.brightness
             light.colorTemp = draft.colorTemp
             light.isOn = draft.isOn

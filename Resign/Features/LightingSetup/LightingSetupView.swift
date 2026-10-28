@@ -8,7 +8,7 @@ import SwiftData
 
 /// The "Add Your Light Source" screen — Phase 4 of the Resign onboarding flow.
 ///
-/// Presents an interactive 5×5 ceiling projection grid where the user:
+/// Presents adaptive ceiling placement points over the scanned plan where the user:
 /// 1. Taps cells to place light fixtures (auto-named "Lighting N").
 /// 2. Selects a placed light to adjust Color Temperature (2200–6500 K)
 ///    and Brightness (500–3000 lm) via sliders in a bottom panel.
@@ -43,11 +43,12 @@ public struct LightingSetupView: View {
         layout.room?.planSnapshotData.flatMap { try? JSONDecoder().decode(RoomPlanSnapshot.self, from: $0) }
     }
 
-    private var roomAspectRatio: CGFloat {
-        let bounds = RoomPlanBounds(snapshot: scanPlan, fallbackWidth: layout.room?.width ?? 5,
-                                    fallbackLength: layout.room?.length ?? 4.2)
-        return CGFloat(bounds.width / bounds.length)
+    private var planBounds: RoomPlanBounds {
+        RoomPlanBounds(snapshot: scanPlan, fallbackWidth: layout.room?.width ?? 5,
+                       fallbackLength: layout.room?.length ?? 4.2)
     }
+
+    private var roomAspectRatio: CGFloat { CGFloat(planBounds.width / planBounds.length) }
 
     public init(
         layout: Layout,
@@ -68,7 +69,7 @@ public struct LightingSetupView: View {
                 ScrollView {
                     VStack(spacing: 16) {
                         gridView
-                            .frame(maxWidth: geometry.size.height * 0.42 * roomAspectRatio)
+                            .frame(maxWidth: geometry.size.height * 0.50 * roomAspectRatio)
                             .frame(maxWidth: .infinity)
                         bottomPanel
                     }
@@ -135,13 +136,13 @@ public struct LightingSetupView: View {
         }
         .padding(.horizontal, 12)
 
-        Text("Click the coordinates to add a light source.")
+        Text("Tap a point inside your room to add a light source.")
             .font(.caption)
             .foregroundStyle(.secondary)
             .padding(.bottom, 4)
     }
 
-    // MARK: - 5×5 Grid
+    // MARK: - Adaptive Placement
 
     @ViewBuilder
     private var gridView: some View {
@@ -164,57 +165,67 @@ public struct LightingSetupView: View {
                     .allowsHitTesting(false)
                     .accessibilityHidden(true)
 
-                ForEach(0..<25, id: \.self) { index in
-                    let column = index % 5
-                    let row = index / 5
-                    let cellWidth = max(1, geometry.size.width - 34) / 5
-                    let cellHeight = max(1, geometry.size.height - 34) / 5
-                    gridCell(col: column, row: row)
-                        .frame(width: cellWidth, height: cellHeight)
-                        .position(x: 17 + (CGFloat(column) + 0.5) * cellWidth,
-                                  y: 17 + (CGFloat(row) + 0.5) * cellHeight)
+                ForEach(emptyPlacementPoints(in: geometry.size), id: \.self) { point in
+                    placementButton(at: point)
+                        .frame(width: 44, height: 44)
+                        .position(screenPoint(point, in: geometry.size))
+                }
+                ForEach(viewModel.drafts) { draft in
+                    placementButton(at: draft.unitPosition, draft: draft)
+                        .frame(width: 44, height: 44)
+                        .position(screenPoint(draft.unitPosition, in: geometry.size))
                 }
             }
         }
         .aspectRatio(roomAspectRatio, contentMode: .fit)
         .clipped()
-        .padding(.horizontal, 24)
+        .padding(.horizontal, 12)
     }
 
-    @ViewBuilder
-    private func gridCell(col: Int, row: Int) -> some View {
-        let draft = viewModel.drafts.first(where: { $0.gridColumn == col && $0.gridRow == row })
-        let isSelected = draft != nil && draft?.id == viewModel.selectedDraftID
+    private func screenPoint(_ point: SIMD2<Float>, in size: CGSize) -> CGPoint {
+        CGPoint(x: 17 + CGFloat(point.x) * max(1, size.width - 34),
+                y: 17 + CGFloat(point.y) * max(1, size.height - 34))
+    }
 
-        Button {
-            viewModel.tapCell(col: col, row: row)
+    private func emptyPlacementPoints(in size: CGSize) -> [SIMD2<Float>] {
+        let grid = CeilingLightPlacementGrid(
+            bounds: planBounds, walls: scanPlan?.wallSegments ?? [],
+            maxColumns: max(1, Int(max(1, size.width - 34) / 44)),
+            maxRows: max(1, Int(max(1, size.height - 34) / 44))
+        )
+        return grid.points.filter { candidate in
+            let point = screenPoint(candidate, in: size)
+            return !viewModel.drafts.contains { draft in
+                let saved = screenPoint(draft.unitPosition, in: size)
+                // Hide only points covered by the bulb marker, not a whole neighboring cell.
+                let dx = saved.x - point.x
+                let dy = saved.y - point.y
+                return dx * dx + dy * dy < 20 * 20
+            }
+        }
+    }
+
+    private func placementButton(at point: SIMD2<Float>, draft: LightDraft? = nil) -> some View {
+        let isSelected = draft != nil && draft?.id == viewModel.selectedDraftID
+        return Button {
+            viewModel.tapPosition(point)
         } label: {
             ZStack {
-                // Keep the full cell tappable without drawing grid lines.
                 Color.clear
-
                 if let draft {
-                    LightSourceMarker(
-                        colorTemp: draft.colorTemp,
-                        brightness: draft.brightness,
-                        isSelected: isSelected
-                    )
+                    LightSourceMarker(colorTemp: draft.colorTemp, brightness: draft.brightness, isSelected: isSelected)
                 } else {
-                    // Empty cell indicator
                     Circle()
                         .fill(Color(white: 0.42))
-                        .overlay {
-                            Circle().stroke(.white.opacity(0.6), lineWidth: 1)
-                        }
+                        .overlay { Circle().stroke(.white.opacity(0.6), lineWidth: 1) }
                         .frame(width: 8, height: 8)
                 }
             }
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .accessibilityLabel(draft.map { "Edit \($0.name)" } ?? "Add light source")
         .animation(.easeInOut(duration: 0.15), value: isSelected)
-        .animation(.spring(duration: 0.2), value: draft?.id)
     }
 
     // MARK: - Bottom Panel

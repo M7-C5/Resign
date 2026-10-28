@@ -431,6 +431,7 @@ struct LayoutLightingSimulationIntegrationTests {
         emptyRig.apply(LightingSimulationSettings(artificialLightsOn: true))
         #expect(emptyRig.root.findEntity(named: "FixtureSpot0") == nil)
     }
+
 }
 
 @Suite("Room north orientation")
@@ -953,5 +954,75 @@ struct CeilingGridScanBoundsTests {
         let corner = RoomLightingFixture(light: Light(coordinateX: 4, coordinateY: 4), layout: source)
         #expect(abs(corner.position.x - 3.2) < 0.001)
         #expect(abs(corner.position.z - 1.6) < 0.001)
+    }
+}
+
+@Suite("Adaptive ceiling placement")
+struct AdaptiveCeilingPlacementTests {
+    @Test func elongatedRoomsHaveBalancedSpacingAndDifferentCounts() {
+        let bounds = RoomPlanBounds(snapshot: nil, fallbackWidth: 8, fallbackLength: 2)
+        let grid = CeilingLightPlacementGrid(bounds: bounds, walls: [])
+        #expect(grid.columns == 9 && grid.rows == 2)
+        #expect(grid.points.count == 18)
+        #expect(abs(bounds.width / Float(grid.columns) - bounds.length / Float(grid.rows)) < 0.15)
+        let limited = CeilingLightPlacementGrid(bounds: bounds, walls: [], maxColumns: 6, maxRows: 2)
+        #expect(limited.columns <= 6 && limited.rows <= 2)
+        let portrait = CeilingLightPlacementGrid(
+            bounds: RoomPlanBounds(snapshot: nil, fallbackWidth: 2, fallbackLength: 8), walls: [])
+        #expect(portrait.rows == grid.columns && portrait.columns == grid.rows)
+    }
+
+    @Test func concaveBoundaryExcludesEmptyPartOfLayout() {
+        let vertices: [SIMD2<Float>] = [[-3,-3], [3,-3], [3,-1], [-1,-1], [-1,3], [-3,3]]
+        let walls = vertices.indices.map { index in
+            let a = vertices[index]
+            let b = vertices[(index + 1) % vertices.count]
+            return RoomPlanSnapshot.WallSegment(startX: a.x, startZ: a.y, endX: b.x, endZ: b.y)
+        }
+        let bounds = RoomPlanBounds(snapshot: nil, fallbackWidth: 6, fallbackLength: 6)
+        let grid = CeilingLightPlacementGrid(bounds: bounds, walls: walls)
+        #expect(grid.points.count == 24)
+        #expect(!grid.points.contains { $0.x > 1.0 / 3 && $0.y > 1.0 / 3 })
+        let incomplete = CeilingLightPlacementGrid(bounds: bounds, walls: Array(walls.dropLast()))
+        #expect(incomplete.points.count == 49) // Open scans use explicit rectangular fallback.
+    }
+
+    @Test @MainActor func fractionalPlacementSurvivesSaveAndSimulation() throws {
+        let container = try ModelContainer.createInMemoryContainer()
+        let room = Room(length: 2, width: 8)
+        let layout = Layout(name: "Long room")
+        room.layouts.append(layout)
+        container.mainContext.insert(room)
+        let editor = LightingSetupViewModel()
+        editor.loadFromLayout(layout)
+        let point = SIMD2<Float>(0.0625, 0.25)
+        editor.tapPosition(point)
+        editor.tapPosition(point)
+        #expect(editor.drafts.count == 1)
+        try editor.saveToLayout(layout, context: container.mainContext)
+        let saved = try #require(layout.lights.first)
+        #expect(abs(saved.coordinateX + 0.1875) < 0.0001)
+        let fixture = RoomLightingFixture(light: saved, layout: RoomSimulationLayout(layout: layout))
+        #expect(abs(fixture.position.x + 3.5) < 0.0001)
+        #expect(abs(fixture.position.z + 0.5) < 0.0001)
+        let reopened = LightingSetupViewModel()
+        reopened.loadFromLayout(layout)
+        #expect(reopened.drafts.first?.unitPosition == point)
+        try reopened.saveToLayout(layout, context: container.mainContext)
+        #expect(saved.id == layout.lights.first?.id)
+        #expect(abs(saved.coordinateX + 0.1875) < 0.0001)
+    }
+
+    @Test @MainActor func legacyPositionsStayFixedAcrossAdaptiveGridChanges() throws {
+        let container = try ModelContainer.createInMemoryContainer()
+        let layout = Layout(name: "Legacy")
+        container.mainContext.insert(layout)
+        layout.lights.append(Light(coordinateX: 4, coordinateY: 0))
+        let editor = LightingSetupViewModel()
+        editor.loadFromLayout(layout)
+        #expect(editor.drafts.first?.unitPosition == SIMD2<Float>(0.9, 0.1))
+        try editor.saveToLayout(layout, context: container.mainContext)
+        #expect(layout.lights.first?.coordinateX == 4)
+        #expect(layout.lights.first?.coordinateY == 0)
     }
 }
