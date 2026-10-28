@@ -727,3 +727,142 @@ struct GeographicDaylightTests {
         #expect(scene.room?.findEntity(named: "Ceiling")?.isEnabled == false)
     }
 }
+
+@Suite("Scanned layout lighting integration")
+struct ScannedLayoutLightingTests {
+    @MainActor
+    private func scannedLayout() throws -> Layout {
+        let room = Room(name: "Offset scan", length: 4, width: 6, height: 3)
+        let walls = [
+            ScannedWallPayload(position: [1, 0.3, -2], dimensions: [6, 3, 0.1], rotationYaw: .pi / 2),
+            ScannedWallPayload(position: [5, 0.3, -2], dimensions: [6, 3, 0.1], rotationYaw: .pi / 2),
+            ScannedWallPayload(position: [3, 0.3, 1], dimensions: [4, 3, 0.1], rotationYaw: 0),
+            ScannedWallPayload(position: [3, 0.3, -5], dimensions: [4, 3, 0.1], rotationYaw: 0)
+        ]
+        room.planSnapshotData = try JSONEncoder().encode(RoomPlanSnapshot(walls: walls, floorLevel: -1.2))
+        room.openings = [RoomOpening(type: "window", posX: 5, posY: 0, posZ: -2, width: 1.4, height: 1.2)]
+        let layout = Layout(name: "Selected scan", usdzURL: URL(fileURLWithPath: "/nonexistent/scan.usdz"))
+        room.layouts.append(layout)
+        layout.furnitures = [Furniture(name: "Unique Scanner Desk", category: "desk", positionX: 3,
+                                       positionY: -1.2, positionZ: -3, rotationYaw: .pi / 2,
+                                       length: 0.6, width: 1.2, height: 0.75)]
+        return layout
+    }
+
+    @Test @MainActor func scanFrameAlignsFurnitureWindowsAndFloor() throws {
+        let source = RoomSimulationLayout(layout: try scannedLayout())
+        let position = source.localPosition(source.furnishings[0].position)
+        #expect(abs(position.x - 1) < 0.001)
+        #expect(abs(position.y) < 0.001 && abs(position.z) < 0.001)
+        let window = try #require(source.windows.first)
+        #expect(abs(window.center.x) < 0.001 && abs(window.center.y - 1.2) < 0.001)
+        #expect(abs(window.center.z - 2) < 0.001)
+        #expect(abs(window.outwardNormal.z - 1) < 0.001)
+        #expect(abs(source.windowAzimuths[0] - 180) < 0.001)
+    }
+
+    @Test @MainActor func selectedScanNeverFallsBackToSampleFurniture() async throws {
+        let source = RoomSimulationLayout(layout: try scannedLayout())
+        let controller = RoomSceneController(fixtures: [], layout: source)
+        await controller.load()
+        #expect(controller.loadState == .loaded)
+        #expect(controller.root.name == "ScannedRoomRoot")
+        #expect(controller.root.findEntity(named: "Furniture_Unique Scanner Desk") != nil)
+        #expect(controller.root.findEntity(named: "ReconstructedScanShell") != nil)
+        let floor = try #require(controller.root.findEntity(named: "ScannedFloor"))
+        let bounds = floor.visualBounds(relativeTo: controller.root)
+        #expect(abs(bounds.extents.x - 6) < 0.001 && abs(bounds.extents.z - 4) < 0.001)
+        func panels(in entity: Entity) -> [Entity] {
+            (entity.name.hasPrefix("ScannedWall") ? [entity] : []) + entity.children.flatMap { panels(in: $0) }
+        }
+        func contains(_ bounds: BoundingBox, _ point: SIMD3<Float>) -> Bool {
+            point.x >= bounds.min.x && point.x <= bounds.max.x && point.y >= bounds.min.y
+                && point.y <= bounds.max.y && point.z >= bounds.min.z && point.z <= bounds.max.z
+        }
+        let opening = try #require(source.windows.first)
+        let wallBounds = panels(in: controller.root).map { $0.visualBounds(relativeTo: controller.root) }
+        #expect(!wallBounds.contains { contains($0, opening.center) })
+        #expect(wallBounds.contains { contains($0, opening.center + SIMD3<Float>(0, 1.4, 0)) })
+    }
+
+    @Test(arguments: ["Room", "Room-2"])
+    @MainActor func selectedNativeScanAssetLoadsItsOwnShell(asset: String) async throws {
+        let url = try #require(Bundle.main.url(forResource: asset, withExtension: "usdz"))
+        let room = Room(name: asset, length: 4, width: 4.2, height: 3.2)
+        let layout = Layout(name: "Native scanned layout", usdzURL: url)
+        room.layouts.append(layout)
+        layout.furnitures = [Furniture(name: "SelectedOnlyDesk", category: "desk")]
+        let controller = RoomSceneController(fixtures: [], layout: RoomSimulationLayout(layout: layout))
+        await controller.load()
+        #expect(controller.loadState == .loaded)
+        #expect(controller.root.findEntity(named: "ReconstructedScanShell") == nil)
+        #expect(controller.root.findEntity(named: "ScannedApertureWalls") != nil)
+        #expect(controller.root.findEntity(named: "Furniture_SelectedOnlyDesk") != nil)
+        let nativeObjects = try #require(controller.root.findEntity(named: "Object_grp"))
+        #expect(!nativeObjects.isEnabled)
+        let floor = try #require(controller.root.findEntity(named: "Floor_grp"))
+        #expect(abs(floor.visualBounds(relativeTo: controller.root).center.y) < 0.01)
+    }
+
+    @Test @MainActor func ceilingGridUsesActualRoomDimensions() {
+        let light = Light(coordinateX: 4, coordinateY: 0, elevationZ: 5)
+        let fixture = RoomLightingFixture(light: light, roomWidth: 6, roomLength: 4, roomHeight: 3)
+        #expect(abs(fixture.position.x - 2.4) < 0.001)
+        #expect(abs(fixture.position.z + 1.6) < 0.001)
+        #expect(abs(fixture.position.y - 2.92) < 0.001)
+    }
+
+    @Test @MainActor func savedCeilingLightsUseScannedHeight() throws {
+        let container = try ModelContainer.createInMemoryContainer()
+        let room = Room(height: 3.4)
+        let layout = Layout(name: "Tall scanned room")
+        room.layouts.append(layout)
+        container.mainContext.insert(room)
+        let model = LightingSetupViewModel()
+        model.tapCell(col: 2, row: 2)
+        try model.saveToLayout(layout, context: container.mainContext)
+        let light = try #require(layout.lights.first)
+        #expect(abs(light.elevationZ - 3.4) < 0.001)
+    }
+
+    @Test @MainActor func oppositeWindowsReceiveSunAtOppositeTimes() throws {
+        let rig = RoomLightingRig(fixtures: [])
+        rig.configure(openings: [WindowOpening(outwardNormal: [1, 0, 0]),
+                                 WindowOpening(center: [-2.5, 1.4, 0], outwardNormal: [-1, 0, 0])],
+                      roomCenter: [0, 2, 0])
+        let east = try #require(rig.root.findEntity(named: "SunBeam") as? SpotLight)
+        let west = try #require(rig.root.findEntity(named: "SunBeam1") as? SpotLight)
+        rig.apply(LightingSimulationSettings(minuteOfDay: 8 * 60))
+        #expect(east.isEnabled && !west.isEnabled)
+        rig.apply(LightingSimulationSettings(minuteOfDay: 16 * 60))
+        #expect(!east.isEnabled && west.isEnabled)
+        rig.configure(openings: [], roomCenter: [0, 2, 0])
+        rig.apply(LightingSimulationSettings(minuteOfDay: 12 * 60))
+        #expect(!east.isEnabled && east.light.intensity == 0)
+        #expect(rig.root.findEntity(named: "SunBeam1") == nil)
+        let bounce = try #require(rig.root.findEntity(named: "SkyBounce") as? PointLight)
+        #expect(!bounce.isEnabled && bounce.light.intensity == 0)
+    }
+
+    @Test @MainActor func captionsFollowDetectedFacadesAcrossDraftEdits() {
+        let model = Studio3DViewModel()
+        model.updateRoomHeading(90)
+        model.updateWindowDirections([0, 180])
+        #expect(model.previewLighting.solarContext.naturalLightDescription == "Natural light from east, west windows")
+        model.beginLightingEditing()
+        model.lightingDraft.minuteOfDay = 480
+        model.discardLightingEditing()
+        #expect(model.previewLighting.solarContext.windowLocalAzimuths == [0, 180])
+        model.updateWindowDirections([])
+        #expect(model.previewLighting.solarContext.naturalLightDescription == "No windows detected in this room")
+    }
+
+    @Test func olderPlanSnapshotsDecodeWithoutFloorMetadata() throws {
+        let original = RoomPlanSnapshot(walls: [])
+        var json = try #require(JSONSerialization.jsonObject(with: JSONEncoder().encode(original)) as? [String: Any])
+        json.removeValue(forKey: "floorLevel")
+        let decoded = try JSONDecoder().decode(RoomPlanSnapshot.self, from: JSONSerialization.data(withJSONObject: json))
+        #expect(decoded.floorLevel == nil)
+        #expect(decoded.wallSegments.isEmpty)
+    }
+}

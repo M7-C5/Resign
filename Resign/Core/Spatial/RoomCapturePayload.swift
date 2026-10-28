@@ -107,3 +107,94 @@ public struct CapturedRoomPayload: Sendable {
         self.objects = objects
     }
 }
+
+/// Scan-local projection data used to draw the captured room in a stable 2D plan.
+struct RoomPlanSnapshot: Codable, Sendable, Hashable {
+    struct WallSegment: Codable, Sendable, Hashable {
+        let startX: Float
+        let startZ: Float
+        let endX: Float
+        let endZ: Float
+    }
+
+    let centerX: Float
+    let centerZ: Float
+    let yawRadians: Float
+    let floorLevel: Float?
+    let wallSegments: [WallSegment]
+
+    init(walls: [ScannedWallPayload], floorLevel: Float? = nil) {
+        self.floorLevel = floorLevel
+        guard let primaryWall = walls.max(by: { $0.dimensions.x < $1.dimensions.x }) else {
+            centerX = 0
+            centerZ = 0
+            yawRadians = 0
+            wallSegments = []
+            return
+        }
+
+        let yaw = primaryWall.rotationYaw
+        let cosine = cos(yaw)
+        let sine = sin(yaw)
+        let axisX = SIMD2<Float>(cosine, -sine)
+        let axisZ = SIMD2<Float>(sine, cosine)
+        let wallCenters = walls.map { SIMD2<Float>($0.position.x, $0.position.z) }
+        let xProjections = wallCenters.map { $0.x * axisX.x + $0.y * axisX.y }
+        let zProjections = wallCenters.map { $0.x * axisZ.x + $0.y * axisZ.y }
+
+        let centerAlongX = ((xProjections.min() ?? 0) + (xProjections.max() ?? 0)) / 2
+        let centerAlongZ = ((zProjections.min() ?? 0) + (zProjections.max() ?? 0)) / 2
+        let worldCenterX = axisX.x * centerAlongX + axisZ.x * centerAlongZ
+        let worldCenterZ = axisX.y * centerAlongX + axisZ.y * centerAlongZ
+
+        centerX = worldCenterX
+        centerZ = worldCenterZ
+        yawRadians = yaw
+        wallSegments = walls.map { wall in
+            let start = Self.localPoint(
+                wall.startPoint,
+                centerX: worldCenterX,
+                centerZ: worldCenterZ,
+                cosine: cosine,
+                sine: sine
+            )
+            let end = Self.localPoint(
+                wall.endPoint,
+                centerX: worldCenterX,
+                centerZ: worldCenterZ,
+                cosine: cosine,
+                sine: sine
+            )
+            return WallSegment(startX: start.x, startZ: start.y, endX: end.x, endZ: end.y)
+        }
+    }
+
+    func localCoordinates(worldX: Float, worldZ: Float) -> SIMD2<Float> {
+        Self.localPoint(
+            SIMD2<Float>(worldX, worldZ),
+            centerX: centerX,
+            centerZ: centerZ,
+            cosine: cos(yawRadians),
+            sine: sin(yawRadians)
+        )
+    }
+
+    func localYaw(_ worldYaw: Float) -> Float {
+        worldYaw - yawRadians
+    }
+
+    private static func localPoint(
+        _ point: SIMD2<Float>,
+        centerX: Float,
+        centerZ: Float,
+        cosine: Float,
+        sine: Float
+    ) -> SIMD2<Float> {
+        let deltaX = point.x - centerX
+        let deltaZ = point.y - centerZ
+        return SIMD2<Float>(
+            deltaX * cosine - deltaZ * sine,
+            deltaX * sine + deltaZ * cosine
+        )
+    }
+}

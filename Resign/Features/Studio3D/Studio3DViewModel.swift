@@ -41,4 +41,9 @@ public final class Studio3DViewModel {
         lightingSettings.solarContext.roomHeadingDegrees = heading
         lightingDraft.solarContext.roomHeadingDegrees = heading
     }
+
+    func updateWindowDirections(_ degrees: [Double]) {
+        lightingSettings.solarContext.windowLocalAzimuths = degrees
+        lightingDraft.solarContext.windowLocalAzimuths = degrees
+    }
 }
