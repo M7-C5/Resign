@@ -40,6 +40,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - refactor(arch): scaffold vertical feature-slice architecture with skeleton modules (3419a7d)
 
 ### Fixed
+- fix(spatial): align orientation and lighting with scanned rooms (11ae47e)
 - fix(room-scan): keep scan results open after capture (f645c19)
 - fix(orientation): complete north lock while device is still (9d65302)
 - fix(navigation): resolve layouts and rooms deterministically in creation flow container destinations (885deef)
