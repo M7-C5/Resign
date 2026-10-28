@@ -272,6 +272,62 @@ struct LightingSetupViewModelTests {
         #expect(lights.isEmpty, "No lights should be inserted if drafts was empty")
     }
 
+    @Test @MainActor func reopenEditsSavedLightsWithoutDuplicates() throws {
+        let container = try ModelContainer.createInMemoryContainer()
+        let context = container.mainContext
+        let layout = Layout(name: "Editable ceiling")
+        context.insert(layout)
+        let first = LightingSetupViewModel()
+        first.tapCell(col: 0, row: 4)
+        first.updateBrightness(1700)
+        first.updateColorTemp(2700)
+        try first.saveToLayout(layout, context: context)
+        let savedID = try #require(layout.lights.first?.id)
+
+        let editor = LightingSetupViewModel()
+        editor.loadFromLayout(layout)
+        let draft = try #require(editor.drafts.first)
+        #expect(draft.id == savedID && draft.gridColumn == 0 && draft.gridRow == 4)
+        #expect(draft.brightness == 1700 && draft.colorTemp == 2700)
+        editor.tapCell(col: 0, row: 4)
+        editor.updateBrightness(2400)
+        editor.loadFromLayout(layout) // Reappearing must not erase an unsaved edit.
+        #expect(editor.selectedDraft?.brightness == 2400)
+        #expect(layout.lights.first?.brightness == 1700)
+        try editor.saveToLayout(layout, context: context)
+        try editor.saveToLayout(layout, context: context)
+        #expect(layout.lights.count == 1)
+        #expect(layout.lights.first?.id == savedID)
+        #expect(layout.lights.first?.brightness == 2400)
+        let reopened = LightingSetupViewModel()
+        reopened.loadFromLayout(layout)
+        #expect(reopened.drafts.first?.brightness == 2400)
+    }
+
+    @Test @MainActor func deleteAllSavedLightsDoesNotAffectAnotherLayout() throws {
+        let container = try ModelContainer.createInMemoryContainer()
+        let context = container.mainContext
+        let layout = Layout(name: "Editing")
+        let other = Layout(name: "Untouched")
+        context.insert(layout)
+        context.insert(other)
+        let saved = Light(name: "Saved", coordinateX: 4, coordinateY: 1, isOn: false)
+        layout.lights.append(saved)
+        other.lights.append(Light(name: "Other"))
+        try context.save()
+        let editor = LightingSetupViewModel()
+        editor.loadFromLayout(layout)
+        #expect(editor.drafts.first?.isOn == false)
+        editor.tapCell(col: 4, row: 1)
+        editor.deleteSelectedDraft()
+        #expect(editor.canSave)
+        #expect(layout.lights.count == 1) // Deletion stays transient until Save.
+        try editor.saveToLayout(layout, context: context)
+        #expect(layout.lights.isEmpty)
+        #expect(other.lights.count == 1)
+        #expect(try context.fetch(FetchDescriptor<Light>()).count == 1)
+    }
+
     // MARK: Edge cases
 
     @Test @MainActor func lightDraft_defaultInitialization_hasSensibleDefaults() {
@@ -864,5 +920,38 @@ struct ScannedLayoutLightingTests {
         let decoded = try JSONDecoder().decode(RoomPlanSnapshot.self, from: JSONSerialization.data(withJSONObject: json))
         #expect(decoded.floorLevel == nil)
         #expect(decoded.wallSegments.isEmpty)
+    }
+}
+
+@Suite("Ceiling grid scan bounds")
+struct CeilingGridScanBoundsTests {
+    @Test @MainActor func planAndSimulationUseWallExtentsInsteadOfSummaryDimensions() throws {
+        let room = Room(length: 2, width: 2, height: 3)
+        // Captured walls enclose 8 × 4 m even if the summary/floor polygon is smaller.
+        let walls = [
+            ScannedWallPayload(position: [3, 1.5, -4], dimensions: [8, 3, 0.1], rotationYaw: 0),
+            ScannedWallPayload(position: [3, 1.5, 0], dimensions: [8, 3, 0.1], rotationYaw: 0),
+            ScannedWallPayload(position: [-1, 1.5, -2], dimensions: [4, 3, 0.1], rotationYaw: .pi / 2),
+            ScannedWallPayload(position: [7, 1.5, -2], dimensions: [4, 3, 0.1], rotationYaw: .pi / 2)
+        ]
+        room.planSnapshotData = try JSONEncoder().encode(RoomPlanSnapshot(walls: walls, floorLevel: 0))
+        let layout = Layout(name: "Wide scan")
+        room.layouts.append(layout)
+        let source = RoomSimulationLayout(layout: layout)
+        #expect(abs(source.planBounds.width - 8) < 0.001)
+        #expect(abs(source.planBounds.length - 4) < 0.001)
+        let rig = RoomLightingRig(fixtures: (0..<5).map { column in
+            RoomLightingFixture(light: Light(coordinateX: Float(column), coordinateY: 0), layout: source)
+        })
+        rig.buildIfNeeded()
+        for column in 0..<5 {
+            let bulb = try #require(rig.root.findEntity(named: "FixtureBulb\(column)"))
+            let point = source.planBounds.unitCoordinates(x: bulb.position.x, z: bulb.position.z)
+            #expect(abs(point.x - (Float(column) + 0.5) / 5) < 0.001)
+            #expect(abs(point.y - 0.1) < 0.001)
+        }
+        let corner = RoomLightingFixture(light: Light(coordinateX: 4, coordinateY: 4), layout: source)
+        #expect(abs(corner.position.x - 3.2) < 0.001)
+        #expect(abs(corner.position.z - 1.6) < 0.001)
     }
 }

@@ -44,7 +44,7 @@ public struct LightDraft: Identifiable, Sendable, Equatable {
 }
 ```
 
-The `LightingSetupViewModel` owns `var drafts: [LightDraft]` and bulk-converts them to `Light` SwiftData records only in `saveToLayout(_:context:)` when the user confirms "Save & Continue".
+The `LightingSetupViewModel` owns `var drafts: [LightDraft]`. Reopening an existing setup copies its saved lights into drafts once per editing session, retaining each light UUID and properties. Only `saveToLayout(_:context:)` mutates persistence: it updates matching UUIDs, inserts new drafts, and deletes saved fixtures absent from the draft list. Repeated saves are idempotent; removing every draft can be saved as an empty setup. Reappearance during editing does not overwrite unsaved draft changes.
 
 ### Coordinate Mapping
 
@@ -52,7 +52,7 @@ The `LightingSetupViewModel` owns `var drafts: [LightDraft]` and bulk-converts t
 |:---|:---|:---|
 | `gridColumn` (Int 0–4) | `coordinateX` (Float) | Cast: `Float(gridColumn)` |
 | `gridRow` (Int 0–4) | `coordinateY` (Float) | Cast: `Float(gridRow)` |
-| — | `elevationZ` | Fixed ceiling height `2.6` m |
+| — | `elevationZ` | Room ceiling height for new fixtures (`2.6` m fallback); retained for existing fixtures |
 
 ### Consequences
 

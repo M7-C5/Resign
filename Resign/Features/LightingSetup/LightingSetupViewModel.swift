@@ -45,7 +45,28 @@ public final class LightingSetupViewModel {
         drafts.first { $0.id == selectedDraftID }
     }
 
+    @ObservationIgnored private var loadedLayoutID: UUID?
+    private var hadSavedLights = false
+
+    /// An existing setup may be saved empty to remove its final fixture.
+    var canSave: Bool { !drafts.isEmpty || hadSavedLights }
+
     public init() {}
+
+    /// Copy persisted fixtures once per editing session, preserving unsaved edits on reappearance.
+    func loadFromLayout(_ layout: Layout) {
+        guard loadedLayoutID != layout.id else { return }
+        loadedLayoutID = layout.id
+        hadSavedLights = !layout.lights.isEmpty
+        selectedDraftID = nil
+        drafts = layout.lights.sorted { $0.name < $1.name }.map { light in
+            LightDraft(id: light.id,
+                       gridColumn: Int(min(4, max(0, light.coordinateX)).rounded()),
+                       gridRow: Int(min(4, max(0, light.coordinateY)).rounded()),
+                       name: light.name, brightness: light.brightness,
+                       colorTemp: light.colorTemp, isOn: light.isOn)
+        }
+    }
 
     // MARK: - Grid Interaction
 
@@ -94,38 +115,44 @@ public final class LightingSetupViewModel {
 
     // MARK: - Persistence
 
-    /// Bulk-converts all `LightDraft` values into `Light` SwiftData records and
-    /// appends them to the provided `Layout`, then saves the context.
-    ///
-    /// This is the **only** function that touches `ModelContext` — all prior
-    /// interactions operate on in-memory `LightDraft` values.
-    ///
-    /// - Parameters:
-    ///   - layout: The `Layout` record that will own the new `Light` instances.
-    ///   - context: The `ModelContext` to insert into and save.
-    /// - Throws: Re-throws any `ModelContext.save()` error.
+    /// Reconcile only this layout's fixtures when the user confirms Save.
+    /// Existing identities and elevations survive edits; removed drafts delete saved fixtures.
     func saveToLayout(_ layout: Layout, context: ModelContext) throws {
+        let saved = layout.lights
+        let draftIDs = Set(drafts.map(\.id))
+        var updated: [Light] = []
         for draft in drafts {
-            let light = Light(
-                name: draft.name,
-                coordinateX: Float(draft.gridColumn),
-                coordinateY: Float(draft.gridRow),
-                elevationZ: max(0.05, layout.room?.height ?? 2.6),
-                brightness: draft.brightness,
-                colorTemp: draft.colorTemp,
-                isOn: draft.isOn
-            )
-            layout.lights.append(light)
-            context.insert(light)
+            let light: Light
+            if let existing = saved.first(where: { $0.id == draft.id }) {
+                light = existing
+            } else {
+                light = Light(id: draft.id, elevationZ: max(0.05, layout.room?.height ?? 2.6))
+                context.insert(light)
+            }
+            light.name = draft.name
+            light.coordinateX = Float(draft.gridColumn)
+            light.coordinateY = Float(draft.gridRow)
+            light.brightness = draft.brightness
+            light.colorTemp = draft.colorTemp
+            light.isOn = draft.isOn
+            updated.append(light)
+        }
+        layout.lights = updated
+        for removed in saved where !draftIDs.contains(removed.id) {
+            context.delete(removed)
         }
         layout.updatedAt = Date()
         try context.save()
+        hadSavedLights = !drafts.isEmpty
     }
 
     // MARK: - Private Helpers
 
     /// Returns the next sequential light name, e.g. "Lighting 1", "Lighting 2".
     private func nextLightName() -> String {
-        "Lighting \(drafts.count + 1)"
+        let names = Set(drafts.map(\.name))
+        var number = 1
+        while names.contains("Lighting \(number)") { number += 1 }
+        return "Lighting \(number)"
     }
 }

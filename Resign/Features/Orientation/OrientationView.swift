@@ -278,8 +278,12 @@ struct ScannedRoomPlanView: View {
     @State private var dragStartPointerAngle: Double?
     @State private var dragStartArrowAngle = 0.0
 
+    private var planBounds: RoomPlanBounds {
+        RoomPlanBounds(snapshot: scanPlan, fallbackWidth: room.width, fallbackLength: room.length)
+    }
+
     private var planAspectRatio: CGFloat {
-        CGFloat(max(0.5, room.width) / max(0.5, room.length))
+        CGFloat(planBounds.width / planBounds.length)
     }
 
     var body: some View {
@@ -333,7 +337,7 @@ struct ScannedRoomPlanView: View {
         .aspectRatio(planAspectRatio, contentMode: .fit)
         .clipShape(RoundedRectangle(cornerRadius: 18))
         .overlay(alignment: .topLeading) {
-            Text(String(format: "Scan · %.2f × %.2f m", room.width, room.length))
+            Text(String(format: "Scan · %.2f × %.2f m", planBounds.width, planBounds.length))
                 .opacity(showsAnnotations ? 1 : 0)
                 .font(.caption2.monospacedDigit().weight(.medium))
                 .foregroundStyle(.primary)
@@ -396,15 +400,14 @@ struct ScannedRoomPlanView: View {
     }
 
     private func openingFootprint(_ opening: RoomOpening, in size: CGSize) -> some View {
-        let roomWidth = CGFloat(max(0.5, room.width))
-        let roomLength = CGFloat(max(0.5, room.length))
+        let roomWidth = CGFloat(planBounds.width)
+        let roomLength = CGFloat(planBounds.length)
         let localPosition = scanPlan?.localCoordinates(worldX: opening.posX, worldZ: opening.posZ)
             ?? SIMD2<Float>(opening.posX, opening.posZ)
         let distanceToXWall = abs(abs(CGFloat(localPosition.x)) - roomWidth / 2)
         let distanceToZWall = abs(abs(CGFloat(localPosition.y)) - roomLength / 2)
         let onVerticalWall = distanceToXWall <= distanceToZWall
-        let x = size.width / 2 + CGFloat(localPosition.x) / roomWidth * (size.width - 34)
-        let y = size.height / 2 + CGFloat(localPosition.y) / roomLength * (size.height - 34)
+        let point = planPoint(localX: localPosition.x, localZ: localPosition.y, in: size)
         let wallLength = CGFloat(opening.width) / (onVerticalWall ? roomLength : roomWidth)
             * (onVerticalWall ? size.height - 34 : size.width - 34)
         let color: Color
@@ -427,7 +430,7 @@ struct ScannedRoomPlanView: View {
                 width: onVerticalWall ? 9 : max(12, wallLength),
                 height: onVerticalWall ? max(12, wallLength) : 9
             )
-            .position(x: x, y: y)
+            .position(point)
             .allowsHitTesting(false)
             .accessibilityHidden(true)
     }
@@ -445,12 +448,11 @@ struct ScannedRoomPlanView: View {
 
     @ViewBuilder
     private func furnitureFootprint(_ item: Furniture, in size: CGSize) -> some View {
-        let roomWidth = CGFloat(max(0.5, room.width))
-        let roomLength = CGFloat(max(0.5, room.length))
+        let roomWidth = CGFloat(planBounds.width)
+        let roomLength = CGFloat(planBounds.length)
         let localPosition = scanPlan?.localCoordinates(worldX: item.positionX, worldZ: item.positionZ)
             ?? SIMD2<Float>(item.positionX, item.positionZ)
-        let x = size.width / 2 + CGFloat(localPosition.x) / roomWidth * (size.width - 34)
-        let y = size.height / 2 + CGFloat(localPosition.y) / roomLength * (size.height - 34)
+        let point = planPoint(localX: localPosition.x, localZ: localPosition.y, in: size)
         let width = min(size.width - 34, max(8, CGFloat(item.width) / roomWidth * (size.width - 34)))
         let height = min(size.height - 34, max(8, CGFloat(item.length) / roomLength * (size.height - 34)))
 
@@ -472,7 +474,7 @@ struct ScannedRoomPlanView: View {
             }
             .frame(width: width, height: height)
             .rotationEffect(.radians(-Double(scanPlan?.localYaw(item.rotationYaw) ?? item.rotationYaw)))
-            .position(x: x, y: y)
+            .position(point)
             .allowsHitTesting(false)
             .accessibilityHidden(true)
     }
@@ -509,10 +511,9 @@ struct ScannedRoomPlanView: View {
     }
 
     private func planPoint(localX: Float, localZ: Float, in size: CGSize) -> CGPoint {
-        CGPoint(
-            x: size.width / 2 + CGFloat(localX / max(0.5, room.width)) * (size.width - 34),
-            y: size.height / 2 + CGFloat(localZ / max(0.5, room.length)) * (size.height - 34)
-        )
+        let unit = planBounds.unitCoordinates(x: localX, z: localZ)
+        return CGPoint(x: 17 + CGFloat(unit.x) * (size.width - 34),
+                       y: 17 + CGFloat(unit.y) * (size.height - 34))
     }
 }
 
