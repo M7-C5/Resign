@@ -41,9 +41,9 @@ flowchart TD
 3. **Model & USDZ Asset Generation**:
    - Translates detected bounding boxes and spatial dimensions into a unified USDZ 3D room hierarchy, automatically substituting generic wireframes with curated 3D model assets.
 4. **Geographic True North Orientation**:
-   - After scanning, prompts the user with a real-time compass powered by `CoreLocation`; compass accuracy and phone heading must both be within 8° of north for 2 seconds to lock.
+   - After scanning, prompts the user with a real-time compass powered by `CoreLocation`; a smoothed heading must stay within 2° of 000° for 2 seconds to auto-lock. Sensor accuracy remains visible as guidance.
 5. **Orientation Lock & Virtual Avatar Sync**:
-   - The room plan stays fixed while the user rotates a centered person marker to point north. Saving stores the room's clockwise north bearing and passes it to the daylight simulation before continuing to light placement.
+   - The plan shows the scanned walls, furniture, windows, and doors in the scan's local frame. After lock, the user rotates a highlighted centered person marker to show where north lies in the room; saving stores the room's clockwise north bearing before continuing to light placement.
 6. **Artificial Light Source Grid Mapping**:
    - User pinpoints existing ceiling and wall light sources on a spatial grid (e.g. 5×5 ceiling projection).
 7. **Photometric Calibration**:
@@ -105,14 +105,12 @@ Track real-time engineering milestones, algorithm implementations, and feature p
 - [Agent Flight Simulator & Prompt Recipes](docs/RECIPES.md)
 - [Living Changelog](CHANGELOG.md)
 
-## Current mock daylight simulation
+## Scanned-layout lighting simulation
 
-The new RealityKit studio calculates sun direction from date, location, time zone and room heading. The reference scene uses Jakarta on 24 October 2026 (WIB), with its window on the room's local +X wall. The saved compass heading determines that window's geographic direction and the matching source caption in Lighting Simulation: heading 0° gives an east-facing window, while 180° gives a west-facing window. Direct sun enters only when the sun is above the horizon and in front of that window; diffuse sky illumination remains during daylight and fades through twilight. Source lighting and shadows are controlled separately from artificial fixtures. The mock site and date remain demonstration values rather than user-controlled geographic settings. See [ADR 0015](docs/adr/0015-geographic-mock-daylight.md) and [ADR 0021](docs/adr/0021-room-north-alignment.md) for conventions and limitations.
+Studio 3D loads the selected layout's exported USDZ room and saved active furniture. The room, windows, and furniture use the same scan center, wall orientation, and floor level as the orientation plan. Camera framing follows the loaded room bounds. If its exported asset is missing, the renderer reconstructs the saved walls and opening apertures; rooms without wall metadata use their rectangular dimensions. The bundled bedroom remains the reference for previews without a selected layout. See [ADR 0023](docs/adr/0023-render-selected-scanned-layout-lighting.md).
 
-Lighting simulation uses the `Light` records saved on the selected `Layout`. The ceiling-grid coordinates map to the mock room's ceiling, while each saved fixture supplies its own brightness, color temperature, and on/off state. The simulation switch is a temporary master control; it does not rewrite saved fixtures. See [ADR 0020](docs/adr/0020-layout-lights-in-room-simulation.md).
+Add Light Source shows the selected scan's plan. Its five rows and columns divide that room into cells, and each saved fixture maps to its cell center using the actual width and length. Fixture height stays below the room ceiling; brightness, color temperature, and individual on/off state are preserved. The simulation switch acts as a temporary master control and does not rewrite saved fixture records.
 
-Direct sunlight uses shadows on both simulator and physical device so the loaded window opening and mullion shape the light patch. A gradual spotlight falloff softens the edge, while a wider cone leaves the aperture geometry to define the footprint. Optional diffuse-sky and fixture shadows remain disabled by default in the simulator. See [ADR 0017](docs/adr/0017-window-shaped-sunlight.md), which amends the fallback in [ADR 0016](docs/adr/0016-simulator-daylight-fallback.md).
+Natural light follows each detected window's position, aperture size, and facade direction combined with the saved north bearing. Opposite facades admit direct sun at different times; diffuse window fill and one shared interior bounce remain active during daylight. A scan without detected windows receives no window daylight. The source caption lists the corresponding window directions. Saved wall segments provide aperture panels when a native parametric USDZ contains solid walls behind its window meshes.
 
-The studio overrides automatic image-based environment illumination so it cannot wash out daylight changes. Direct sun exposure compensates for source distance, preserving brightness when the beam is moved farther away to reduce divergence.
-
-A soft, broad window fill and an interior sky-bounce source approximate indirect illumination. The diffuse fill remains active at noon even after the sun passes behind the east-facing facade, so the room stays daylit without a direct sun patch; the approximation turns off at night.
+The solar calculation still uses the explicit Jakarta reference site on 24 October 2026 (WIB). Geographic site/date controls and measured illuminance calibration are outside the current flow. Soft cone edges, distance compensation, and indirect bounce remain visual approximations. Optional secondary shadows remain disabled by default in the simulator; direct beam shadows shape the patch through the saved window aperture. See [ADR 0017](docs/adr/0017-window-shaped-sunlight.md), [ADR 0021](docs/adr/0021-room-north-alignment.md), and [ADR 0022](docs/adr/0022-persist-scanned-room-plan-frame.md).

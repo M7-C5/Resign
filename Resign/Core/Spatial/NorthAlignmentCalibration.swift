@@ -4,6 +4,7 @@ import Foundation
 struct NorthAlignmentCalibration: Equatable {
     static let lockDuration: TimeInterval = 2
     static let northToleranceDegrees = 8.0
+    static let automaticLockToleranceDegrees = 2.0
 
     private(set) var alignedSince: Date?
     private(set) var isLocked = false
@@ -12,6 +13,7 @@ struct NorthAlignmentCalibration: Equatable {
     mutating func update(
         headingDegrees: Double,
         accuracyDegrees: Double? = nil,
+        toleranceDegrees: Double = Self.northToleranceDegrees,
         at date: Date
     ) -> Bool {
         guard !isLocked else { return true }
@@ -21,7 +23,7 @@ struct NorthAlignmentCalibration: Equatable {
             return false
         }
 
-        guard angularDistance(from: Self.normalized(headingDegrees), to: 0) <= Self.northToleranceDegrees else {
+        guard angularDistance(from: Self.normalized(headingDegrees), to: 0) <= toleranceDegrees else {
             alignedSince = nil
             return false
         }

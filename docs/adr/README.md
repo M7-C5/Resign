@@ -25,6 +25,8 @@ This directory documents key architectural decisions for **Resign** using the [M
 - [ADR 0019: End-to-End View Navigation Architecture](0019-end-to-end-view-navigation-architecture.md)
 - [ADR 0020: Simulate Layout-Saved Light Fixtures](0020-layout-lights-in-room-simulation.md)
 - [ADR 0021: Calibrate Room North Before Light Placement](0021-room-north-alignment.md)
+- [ADR 0022: Persist the Scanned Room Plan Frame](0022-persist-scanned-room-plan-frame.md)
+- [ADR 0023: Render Lighting in the Selected Scanned Layout](0023-render-selected-scanned-layout-lighting.md)
 
 ## How to Create a New ADR
 1. Copy [template.md](template.md) to `docs/adr/NNNN-title-in-kebab-case.md`.

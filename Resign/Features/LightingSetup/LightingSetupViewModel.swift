@@ -110,7 +110,7 @@ public final class LightingSetupViewModel {
                 name: draft.name,
                 coordinateX: Float(draft.gridColumn),
                 coordinateY: Float(draft.gridRow),
-                elevationZ: 2.6,
+                elevationZ: max(0.05, layout.room?.height ?? 2.6),
                 brightness: draft.brightness,
                 colorTemp: draft.colorTemp,
                 isOn: draft.isOn

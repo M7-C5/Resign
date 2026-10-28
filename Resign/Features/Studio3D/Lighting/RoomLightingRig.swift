@@ -2,11 +2,12 @@ import RealityKit
 import UIKit
 import simd
 
-/// The reference room's opening is on its local +X wall. Its compass bearing follows the saved room heading.
-struct WindowOpening {
+/// An aperture and its outward facade direction in the normalized room frame.
+struct WindowOpening: Hashable, Sendable {
     var center: SIMD3<Float> = [2.55, 1.45, 0]
     var width: Float = 1.4
     var height: Float = 1.2
+    var outwardNormal: SIMD3<Float> = [1, 0, 0]
 }
 
 /// All the numbers worth tweaking live here.
@@ -92,6 +93,9 @@ final class RoomLightingRig {
     private var fixtures: [FixtureEntities] = []
 
     private var opening = WindowOpening()
+    private var openings = [WindowOpening()]
+    private var additionalDaylight: [(opening: WindowOpening, beam: SpotLight, sky: SpotLight)] = []
+    private var bounceCenter: SIMD3<Float>?
     private var configuredFixtures: [RoomLightingFixture]?
     private var lastSettings: LightingSimulationSettings?
     private var isBuilt = false
@@ -138,10 +142,43 @@ final class RoomLightingRig {
 
     /// Call after the room model is loaded. If the opening is not found, its default is retained.
     func configure(opening newOpening: WindowOpening?) {
-        buildIfNeeded()
         if let newOpening {
-            opening = newOpening
+            configure(openings: [newOpening], roomCenter: newOpening.center - newOpening.outwardNormal * 2.3 + SIMD3<Float>(0, 0.9, 0))
+        } else {
+            buildIfNeeded()
+            if let lastSettings { apply(lastSettings) }
+        }
+    }
+
+    /// An empty array deliberately disables daylight for scans with no windows.
+    func configure(openings: [WindowOpening], roomCenter: SIMD3<Float>) {
+        buildIfNeeded()
+        self.openings = openings
+        bounceCenter = roomCenter
+        for lights in additionalDaylight {
+            lights.beam.removeFromParent()
+            lights.sky.removeFromParent()
+        }
+        additionalDaylight = []
+        if let first = openings.first {
+            opening = first
             updateBeamCone()
+        }
+        for (index, aperture) in openings.dropFirst().enumerated() {
+            let beam = SpotLight()
+            beam.name = "SunBeam\(index + 1)"
+            beam.light.attenuationRadius = tuning.beamDistance + 20
+            beam.components[SpotLightComponent.Shadow.self] = tuning.sunBeamShadows ? SpotLightComponent.Shadow() : nil
+            let sky = SpotLight()
+            sky.name = "SkyFill\(index + 1)"
+            sky.light.innerAngleInDegrees = 35
+            sky.light.outerAngleInDegrees = 88
+            sky.light.attenuationRadius = 14
+            sky.components[SpotLightComponent.Shadow.self] = tuning.shadowsEnabled && tuning.skyFillShadows ? SpotLightComponent.Shadow() : nil
+            updateBeamCone(beam, opening: aperture)
+            root.addChild(beam)
+            root.addChild(sky)
+            additionalDaylight.append((aperture, beam, sky))
         }
         if let lastSettings { apply(lastSettings) }
     }
@@ -154,6 +191,10 @@ final class RoomLightingRig {
     }
 
     private func updateBeamCone() {
+        updateBeamCone(sunBeam, opening: opening)
+    }
+
+    private func updateBeamCone(_ sunBeam: SpotLight, opening: WindowOpening) {
         let radius = 0.55 * (opening.width * opening.width + opening.height * opening.height).squareRoot()
         let fullDegrees = 2 * atan(radius / tuning.beamDistance) * 180 / .pi * tuning.beamSpread
         let outer = min(60, max(1, fullDegrees))
@@ -227,38 +268,23 @@ final class RoomLightingRig {
         lastSettings = settings
         let state = settings.sun
 
-        // Direct sun: starts outside the window and travels through its center.
-        let towardSun = -state.rayDirection
-        sunBeam.position = opening.center + towardSun * tuning.beamDistance
-        sunBeam.orientation = .facing(state.rayDirection)
-        sunBeam.light.color = UIColor(kelvin: state.kelvin)
-        // The window's outward normal stays +X in room coordinates. The sun ray has
-        // already been rotated by the saved compass heading, so +X need not face east.
-        let incidence = max(0, towardSun.x)
-        let grazing = min(1, incidence / 0.15)
-        let transmission = grazing * grazing * (3 - 2 * grazing)
-        let direct = state.daylight * incidence * transmission
-        // Moving the source farther away reduces beam divergence but also dims it.
-        // Preserve the exposure calibrated at 3 m with inverse-square compensation.
-        let distanceScale = tuning.beamDistance / 3
-        sunBeam.light.intensity = tuning.sunBeamLumens * distanceScale * distanceScale * direct
-        sunBeam.isEnabled = direct > 0.001
+        if openings.isEmpty {
+            sunBeam.isEnabled = false
+            sunBeam.light.intensity = 0
+            skyFill.isEnabled = false
+            skyFill.light.intensity = 0
+        } else {
+            applyDaylight(state, opening: opening, beam: sunBeam, sky: skyFill)
+        }
+        for lights in additionalDaylight {
+            applyDaylight(state, opening: lights.opening, beam: lights.beam, sky: lights.sky)
+        }
 
-        // Sky light: from the window plane, into the room (-X).
-        skyFill.position = opening.center + SIMD3<Float>(-0.16, 0, 0)
-        skyFill.orientation = .facing([-1, 0, 0])
-        skyFill.light.color = UIColor(kelvin: 6500 + 1000 * Double(1 - state.skylight))
-        skyFill.light.intensity = tuning.skyFillLumens * state.skylight
-        skyFill.isEnabled = state.skylight > 0.001
-
-        // Diffuse bounce keeps the unlit parts of the room readable without
-        // restoring the automatic environment that masks time-of-day changes.
-        // Approximate diffuse sky bounce near the room center so noon remains bright even
-        // when the window faces away from direct sunlight.
-        skyBounce.position = opening.center + SIMD3<Float>(-2.3, 0.9, 0)
-        skyBounce.light.color = skyFill.light.color
-        skyBounce.light.intensity = tuning.skyBounceLumens * state.skylight
-        skyBounce.isEnabled = state.skylight > 0.001
+        let skyAmount: Float = openings.isEmpty ? 0 : state.skylight
+        skyBounce.position = bounceCenter ?? (opening.center - opening.outwardNormal * 2.3 + SIMD3<Float>(0, 0.9, 0))
+        skyBounce.light.color = UIColor(kelvin: 6500 + 1000 * Double(1 - state.skylight))
+        skyBounce.light.intensity = tuning.skyBounceLumens * skyAmount
+        skyBounce.isEnabled = skyAmount > 0.001
 
         // Ceiling fixtures
         let lightsOn = settings.artificialLightsOn
@@ -287,4 +313,26 @@ final class RoomLightingRig {
         let range = tuning.dayAmbientExponent - tuning.nightAmbientExponent
         ambientExponent = tuning.nightAmbientExponent + range * state.skylight
     }
+
+    private func applyDaylight(_ state: SunState, opening: WindowOpening, beam: SpotLight, sky: SpotLight) {
+        let normal = simd_normalize(opening.outwardNormal)
+        let towardSun = -state.rayDirection
+        beam.position = opening.center + towardSun * tuning.beamDistance
+        beam.orientation = .facing(state.rayDirection)
+        beam.light.color = UIColor(kelvin: state.kelvin)
+        let incidence = max(0, simd_dot(towardSun, normal))
+        let grazing = min(1, incidence / 0.15)
+        let transmission = grazing * grazing * (3 - 2 * grazing)
+        let direct = state.daylight * incidence * transmission
+        let distanceScale = tuning.beamDistance / 3
+        beam.light.intensity = tuning.sunBeamLumens * distanceScale * distanceScale * direct
+        beam.isEnabled = direct > 0.001
+
+        sky.position = opening.center - normal * 0.16
+        sky.orientation = .facing(-normal)
+        sky.light.color = UIColor(kelvin: 6500 + 1000 * Double(1 - state.skylight))
+        sky.light.intensity = tuning.skyFillLumens * state.skylight
+        sky.isEnabled = state.skylight > 0.001
+    }
+
 }

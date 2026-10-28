@@ -40,6 +40,10 @@ public struct LightingSetupView: View {
 
     @State private var viewModel = LightingSetupViewModel()
 
+    private var roomAspectRatio: CGFloat {
+        CGFloat(max(0.5, layout.room?.width ?? 5) / max(0.5, layout.room?.length ?? 4.2))
+    }
+
     public init(
         layout: Layout,
         onSave: (() -> Void)? = nil,
@@ -59,7 +63,7 @@ public struct LightingSetupView: View {
                 ScrollView {
                     VStack(spacing: 16) {
                         gridView
-                            .frame(maxWidth: geometry.size.height * 0.42 * 5.0 / 4.2)
+                            .frame(maxWidth: geometry.size.height * 0.42 * roomAspectRatio)
                             .frame(maxWidth: .infinity)
                         bottomPanel
                     }
@@ -137,10 +141,17 @@ public struct LightingSetupView: View {
     private var gridView: some View {
         GeometryReader { geometry in
             ZStack {
-                MockRoomLightingBackground()
+                if let room = layout.room {
+                    ScannedRoomPlanView(
+                        room: room, furniture: layout.furnitures.filter { !$0.isArchived }, openings: room.openings,
+                        scanPlan: room.planSnapshotData.flatMap { try? JSONDecoder().decode(RoomPlanSnapshot.self, from: $0) },
+                        northArrowPlanRotation: .constant(0), isNorthLocked: false,
+                        didRotatePersonToMarkNorth: .constant(false), showsNorthMarker: false, showsAnnotations: false
+                    )
                     .frame(width: geometry.size.width, height: geometry.size.height)
                     .allowsHitTesting(false)
                     .accessibilityHidden(true)
+                }
 
                 // Dim only the room so the light markers and their glow stay vivid.
                 Color.black.opacity(0.15)
@@ -156,9 +167,10 @@ public struct LightingSetupView: View {
                         }
                     }
                 }
+                .padding(17)
             }
         }
-        .aspectRatio(5.0 / 4.2, contentMode: .fit)
+        .aspectRatio(roomAspectRatio, contentMode: .fit)
         .clipped()
         .padding(.horizontal, 24)
     }
@@ -195,7 +207,6 @@ public struct LightingSetupView: View {
         }
         .buttonStyle(.plain)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .aspectRatio(5.0 / 4.2, contentMode: .fit)
         .animation(.easeInOut(duration: 0.15), value: isSelected)
         .animation(.spring(duration: 0.2), value: draft?.id)
     }
@@ -514,7 +525,12 @@ private struct LightingGradientSlider: View {
     let configuration = ModelConfiguration(isStoredInMemoryOnly: true)
     let container = try! ModelContainer(for: schema, configurations: [configuration])
     let layout = Layout(name: "Sample Office Layout")
-    container.mainContext.insert(layout)
+    let room = Room(name: "Sample Office", length: 4, width: 6)
+    room.layouts.append(layout)
+    room.openings = [RoomOpening(posX: 3, posY: 1.4, posZ: 0)]
+    layout.furnitures = [Furniture(name: "Desk", category: "desk", positionX: -1.5, positionZ: -1,
+                                  length: 0.7, width: 1.4, height: 0.75)]
+    container.mainContext.insert(room)
 
     return NavigationStack {
         LightingSetupView(

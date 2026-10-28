@@ -13,6 +13,7 @@ public final class OrientationViewModel: NSObject, CLLocationManagerDelegate {
     @ObservationIgnored private let locationManager = CLLocationManager()
     @ObservationIgnored private var calibration = NorthAlignmentCalibration()
     @ObservationIgnored private var isActive = false
+    @ObservationIgnored private var filteredHeadingDegrees: Double?
 
     private(set) var headingDegrees: Double?
     private(set) var headingReference = ""
@@ -30,13 +31,14 @@ public final class OrientationViewModel: NSObject, CLLocationManagerDelegate {
     public override init() {
         super.init()
         locationManager.delegate = self
-        locationManager.headingFilter = 1
+        locationManager.headingFilter = kCLHeadingFilterNone
         locationManager.headingOrientation = .portrait
     }
 
     func start() {
         guard !calibration.isLocked else { return }
         isActive = true
+        filteredHeadingDegrees = nil
         #if targetEnvironment(simulator)
         usesManualHeading = true
         headingReference = "Preview compass"
@@ -77,10 +79,9 @@ public final class OrientationViewModel: NSObject, CLLocationManagerDelegate {
         // Keep evaluating the latest valid reading so the two-second hold can finish.
         guard let headingDegrees, !calibration.isLocked else { return }
 
-        let accuracy = usesManualHeading ? nil : headingAccuracy
         if calibration.update(
             headingDegrees: headingDegrees,
-            accuracyDegrees: accuracy,
+            toleranceDegrees: NorthAlignmentCalibration.automaticLockToleranceDegrees,
             at: date
         ) {
             stop()
@@ -136,14 +137,39 @@ public final class OrientationViewModel: NSObject, CLLocationManagerDelegate {
 
     private func receiveHeading(_ degrees: Double, reference: String, accuracy: Double?, at date: Date) {
         guard !calibration.isLocked else { return }
-        let normalized = NorthAlignmentCalibration.normalized(degrees)
+        let measuredHeading = NorthAlignmentCalibration.normalized(degrees)
+        let normalized = usesManualHeading ? measuredHeading : smoothHeading(measuredHeading)
         headingDegrees = normalized
         headingReference = reference
         headingAccuracy = accuracy
-        let didLock = calibration.update(headingDegrees: normalized, accuracyDegrees: accuracy, at: date)
+        // Accuracy remains visible as guidance, but a valid, stable heading should still
+        // complete the hold instead of leaving the Save action permanently disabled.
+        let didLock = calibration.update(
+            headingDegrees: normalized,
+            toleranceDegrees: NorthAlignmentCalibration.automaticLockToleranceDegrees,
+            at: date
+        )
         now = date
         if didLock {
             stop()
         }
+    }
+
+    private func smoothHeading(_ measuredHeading: Double) -> Double {
+        guard let previous = filteredHeadingDegrees else {
+            filteredHeadingDegrees = measuredHeading
+            return measuredHeading
+        }
+
+        var delta = (measuredHeading - previous).truncatingRemainder(dividingBy: 360)
+        if delta > 180 {
+            delta -= 360
+        } else if delta < -180 {
+            delta += 360
+        }
+
+        let smoothed = NorthAlignmentCalibration.normalized(previous + delta * 0.2)
+        filteredHeadingDegrees = smoothed
+        return smoothed
     }
 }

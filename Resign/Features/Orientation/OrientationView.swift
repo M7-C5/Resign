@@ -12,6 +12,8 @@ public struct OrientationView: View {
 
     @State private var viewModel = OrientationViewModel()
     @State private var northArrowPlanRotation: Double
+    @State private var didRotatePersonToMarkNorth = false
+    @State private var roomPlanSnapshot: RoomPlanSnapshot?
     @State private var showBackConfirmation = false
     @State private var saveError: String?
 
@@ -25,6 +27,9 @@ public struct OrientationView: View {
         self.room = room
         self.onSave = onSave
         self.onBack = onBack
+        _roomPlanSnapshot = State(initialValue: room.planSnapshotData.flatMap {
+            try? JSONDecoder().decode(RoomPlanSnapshot.self, from: $0)
+        })
         _northArrowPlanRotation = State(
             initialValue: NorthAlignmentCalibration.normalized(-room.compass)
         )
@@ -34,20 +39,37 @@ public struct OrientationView: View {
         VStack(spacing: 14) {
             header
 
-            VStack(spacing: 4) {
-                Text("Set Your North")
+            VStack(spacing: 6) {
+                Text(viewModel.isHeadingLocked ? "North Detected" : "Set Your North")
                     .font(.headline)
-                Text(instruction)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(viewModel.isHeadingLocked ? .green : .primary)
+
+                if viewModel.isHeadingLocked {
+                    Label(
+                        "Rotate the person in the center so its N arrow shows which way north lies in the scanned room.",
+                        systemImage: "hand.draw"
+                    )
+                    .font(.caption.weight(.medium))
+                    .foregroundStyle(.blue)
                     .multilineTextAlignment(.center)
-                    .frame(maxWidth: 300)
+                    .frame(maxWidth: 310)
+                } else {
+                    Text(instruction)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+                        .frame(maxWidth: 300)
+                }
             }
 
-            OrientationPlanView(
+            ScannedRoomPlanView(
                 room: room,
                 furniture: layout.furnitures.filter { !$0.isArchived },
-                northArrowPlanRotation: $northArrowPlanRotation
+                openings: room.openings,
+                scanPlan: roomPlanSnapshot,
+                northArrowPlanRotation: $northArrowPlanRotation,
+                isNorthLocked: viewModel.isHeadingLocked,
+                didRotatePersonToMarkNorth: $didRotatePersonToMarkNorth
             )
             .frame(maxHeight: 330)
             .accessibilityLabel("Room plan with a rotatable north marker")
@@ -57,16 +79,16 @@ public struct OrientationView: View {
             Spacer(minLength: 0)
 
             Button(action: saveAndContinue) {
-                Text("Save & Continue")
+                Text(continueButtonTitle)
                     .font(.headline)
                     .foregroundStyle(.white)
                     .frame(maxWidth: .infinity)
                     .frame(height: 52)
-                    .background(viewModel.isHeadingLocked ? Color.accentColor : Color.gray.opacity(0.45))
+                    .background(canContinue ? Color.accentColor : Color.gray.opacity(0.45))
                     .clipShape(RoundedRectangle(cornerRadius: 14))
             }
-            .disabled(!viewModel.isHeadingLocked)
-            .accessibilityHint("Save the room's north direction and continue to add light sources")
+            .disabled(!canContinue)
+            .accessibilityHint("After north locks, rotate the person in the plan to mark north, then save and continue")
         }
         .padding(.horizontal, 24)
         .padding(.top, 12)
@@ -126,23 +148,40 @@ public struct OrientationView: View {
     }
 
     private var instruction: String {
-        if viewModel.isHeadingLocked {
-            return "Drag around the person to point it toward north."
-        }
         if viewModel.usesManualHeading {
-            return "Set the compass heading to north and hold it steady to lock."
+            return "Set the compass to 000° and hold it steady for 2 seconds."
         }
-        return "Turn with your iPhone until it faces north. Hold steady for 2 seconds to lock."
+        return "Turn the iPhone until the compass reads 000°, then hold steady for 2 seconds."
+    }
+
+    private var canContinue: Bool {
+        viewModel.isHeadingLocked && didRotatePersonToMarkNorth
+    }
+
+    private var displayedHeadingDegrees: Double? {
+        guard let heading = viewModel.headingDegrees else {
+            return viewModel.isHeadingLocked ? 0 : nil
+        }
+        let normalized = NorthAlignmentCalibration.normalized(heading)
+        let distanceFromNorth = min(normalized, 360 - normalized)
+        return viewModel.isHeadingLocked || distanceFromNorth <= NorthAlignmentCalibration.automaticLockToleranceDegrees
+            ? 0
+            : normalized
+    }
+
+    private var continueButtonTitle: String {
+        guard viewModel.isHeadingLocked else { return "Hold Facing North to Lock" }
+        return didRotatePersonToMarkNorth ? "Save & Continue" : "Rotate Person to Set North"
     }
 
     private var compassSection: some View {
         VStack(spacing: 8) {
             HStack(alignment: .center, spacing: 18) {
-                NorthCompassDial(headingDegrees: viewModel.headingDegrees, isLocked: viewModel.isHeadingLocked)
+                NorthCompassDial(headingDegrees: displayedHeadingDegrees, isLocked: viewModel.isHeadingLocked)
                     .frame(width: 116, height: 116)
 
                 VStack(alignment: .leading, spacing: 6) {
-                    Text(viewModel.headingDegrees.map {
+                    Text(displayedHeadingDegrees.map {
                         let degrees = Int(NorthAlignmentCalibration.normalized($0).rounded()) % 360
                         return String(format: "%03d°", degrees)
                     } ?? "---°")
@@ -160,16 +199,23 @@ public struct OrientationView: View {
                         Label("North locked", systemImage: "checkmark.circle.fill")
                             .font(.caption.weight(.medium))
                             .foregroundStyle(.green)
-                    } else if viewModel.needsCompassCalibration {
-                        Text("Calibrate compass by moving the phone in a figure eight")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
                     } else if viewModel.isHoldingNorth {
                         Text("Hold steady to lock")
                             .font(.caption.weight(.medium))
                         ProgressView(value: viewModel.lockProgress)
                             .tint(.blue)
                             .frame(maxWidth: 150)
+                        if viewModel.needsCompassCalibration {
+                            Text("Low compass accuracy — move the phone in a figure eight for a better reading")
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                    } else if viewModel.needsCompassCalibration {
+                        Text("Compass accuracy is low — move the phone in a figure eight, then face north")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
                     } else {
                         Text("Face the phone toward north")
                             .font(.caption)
@@ -218,10 +264,16 @@ public struct OrientationView: View {
     }
 }
 
-private struct OrientationPlanView: View {
+struct ScannedRoomPlanView: View {
     let room: Room
     let furniture: [Furniture]
+    let openings: [RoomOpening]
+    let scanPlan: RoomPlanSnapshot?
     @Binding var northArrowPlanRotation: Double
+    let isNorthLocked: Bool
+    @Binding var didRotatePersonToMarkNorth: Bool
+    var showsNorthMarker = true
+    var showsAnnotations = true
 
     @State private var dragStartPointerAngle: Double?
     @State private var dragStartArrowAngle = 0.0
@@ -233,40 +285,96 @@ private struct OrientationPlanView: View {
     var body: some View {
         GeometryReader { geometry in
             ZStack {
-                RoundedRectangle(cornerRadius: 14)
-                    .fill(Color(red: 0.93, green: 0.92, blue: 0.88))
-                    .padding(12)
+                if scanPlan == nil || scanPlan?.wallSegments.isEmpty == true {
+                    RoundedRectangle(cornerRadius: 14)
+                        .fill(Color(red: 0.93, green: 0.92, blue: 0.88))
+                        .padding(12)
+                }
 
-                RoundedRectangle(cornerRadius: 14)
-                    .stroke(Color(.darkGray), lineWidth: 5)
-                    .padding(12)
+                if let scanPlan, !scanPlan.wallSegments.isEmpty {
+                    Canvas { context, size in
+                        for wall in scanPlan.wallSegments {
+                            var path = Path()
+                            path.move(to: planPoint(localX: wall.startX, localZ: wall.startZ, in: size))
+                            path.addLine(to: planPoint(localX: wall.endX, localZ: wall.endZ, in: size))
+                            context.stroke(
+                                path,
+                                with: .color(Color(.darkGray)),
+                                style: StrokeStyle(lineWidth: 5, lineCap: .square)
+                            )
+                        }
+                    }
+                    .allowsHitTesting(false)
+                } else {
+                    RoundedRectangle(cornerRadius: 14)
+                        .stroke(Color(.darkGray), lineWidth: 5)
+                        .padding(12)
+                }
+
+                ForEach(openings) { opening in
+                    openingFootprint(opening, in: geometry.size)
+                }
 
                 ForEach(furniture) { item in
                     furnitureFootprint(item, in: geometry.size)
                 }
 
-                northMarker
-                    .rotationEffect(.degrees(northArrowPlanRotation))
-                    .position(x: geometry.size.width / 2, y: geometry.size.height / 2)
-                    .accessibilityLabel("North direction marker")
+                if showsNorthMarker {
+                    northMarker
+                        .rotationEffect(.degrees(northArrowPlanRotation))
+                        .position(x: geometry.size.width / 2, y: geometry.size.height / 2)
+                        .contentShape(Circle())
+                        .gesture(rotationGesture(in: geometry.size))
+                        .accessibilityLabel("North direction marker")
+                }
             }
-            .contentShape(Rectangle())
-            .gesture(rotationGesture(in: geometry.size))
+            .coordinateSpace(name: "orientation-plan")
         }
         .aspectRatio(planAspectRatio, contentMode: .fit)
         .clipShape(RoundedRectangle(cornerRadius: 18))
-        .overlay(alignment: .top) {
-            Text("N")
-                .font(.caption.weight(.bold))
-                .foregroundStyle(.blue)
-                .padding(.top, 16)
+        .overlay(alignment: .topLeading) {
+            Text(String(format: "Scan · %.2f × %.2f m", room.width, room.length))
+                .opacity(showsAnnotations ? 1 : 0)
+                .font(.caption2.monospacedDigit().weight(.medium))
+                .foregroundStyle(.primary)
+                .padding(.horizontal, 9)
+                .padding(.vertical, 6)
+                .background(.regularMaterial, in: Capsule())
+                .padding(18)
                 .allowsHitTesting(false)
         }
-        .accessibilityHint("Drag anywhere on the plan to rotate the centered person toward north. The room plan does not move.")
+        .overlay(alignment: .bottomLeading) {
+            if showsAnnotations, openings.contains(where: { $0.type.lowercased() == "window" || $0.type.lowercased() == "door" }) {
+                HStack(spacing: 10) {
+                    openingLegend(color: .cyan, title: "Window")
+                    openingLegend(color: .orange, title: "Door")
+                }
+                .padding(.horizontal, 9)
+                .padding(.vertical, 6)
+                .background(.regularMaterial, in: Capsule())
+                .padding(18)
+                .allowsHitTesting(false)
+            }
+        }
+        .accessibilityHint("After the compass locks, drag the person in the center to point its N arrow toward the room's north direction. The scanned room plan stays fixed.")
     }
 
     private var northMarker: some View {
         ZStack {
+            if isNorthLocked {
+                Circle()
+                    .stroke(
+                        Color.blue.opacity(0.8),
+                        style: StrokeStyle(lineWidth: 2, dash: [5, 4])
+                    )
+                    .frame(width: 104, height: 104)
+
+                Image(systemName: "arrow.triangle.2.circlepath")
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundStyle(.blue)
+                    .offset(y: -55)
+            }
+
             Circle()
                 .fill(.white.opacity(0.92))
                 .frame(width: 72, height: 72)
@@ -279,18 +387,72 @@ private struct OrientationPlanView: View {
                 .font(.system(size: 19, weight: .bold))
                 .foregroundStyle(.blue)
                 .offset(y: -23)
+            Text("N")
+                .font(.system(size: 8, weight: .heavy))
+                .foregroundStyle(.blue)
+                .offset(y: -36)
         }
-        .frame(width: 84, height: 84)
+        .frame(width: 110, height: 110)
+    }
+
+    private func openingFootprint(_ opening: RoomOpening, in size: CGSize) -> some View {
+        let roomWidth = CGFloat(max(0.5, room.width))
+        let roomLength = CGFloat(max(0.5, room.length))
+        let localPosition = scanPlan?.localCoordinates(worldX: opening.posX, worldZ: opening.posZ)
+            ?? SIMD2<Float>(opening.posX, opening.posZ)
+        let distanceToXWall = abs(abs(CGFloat(localPosition.x)) - roomWidth / 2)
+        let distanceToZWall = abs(abs(CGFloat(localPosition.y)) - roomLength / 2)
+        let onVerticalWall = distanceToXWall <= distanceToZWall
+        let x = size.width / 2 + CGFloat(localPosition.x) / roomWidth * (size.width - 34)
+        let y = size.height / 2 + CGFloat(localPosition.y) / roomLength * (size.height - 34)
+        let wallLength = CGFloat(opening.width) / (onVerticalWall ? roomLength : roomWidth)
+            * (onVerticalWall ? size.height - 34 : size.width - 34)
+        let color: Color
+        switch opening.type.lowercased() {
+        case "window":
+            color = .cyan
+        case "door":
+            color = .orange
+        default:
+            color = .purple
+        }
+
+        return RoundedRectangle(cornerRadius: 4)
+            .fill(color)
+            .overlay {
+                RoundedRectangle(cornerRadius: 4)
+                    .stroke(.white, lineWidth: 1)
+            }
+            .frame(
+                width: onVerticalWall ? 9 : max(12, wallLength),
+                height: onVerticalWall ? max(12, wallLength) : 9
+            )
+            .position(x: x, y: y)
+            .allowsHitTesting(false)
+            .accessibilityHidden(true)
+    }
+
+    private func openingLegend(color: Color, title: String) -> some View {
+        HStack(spacing: 4) {
+            Capsule()
+                .fill(color)
+                .frame(width: 12, height: 5)
+            Text(title)
+                .font(.system(size: 9, weight: .medium))
+        }
+        .foregroundStyle(.primary)
     }
 
     @ViewBuilder
     private func furnitureFootprint(_ item: Furniture, in size: CGSize) -> some View {
         let roomWidth = CGFloat(max(0.5, room.width))
         let roomLength = CGFloat(max(0.5, room.length))
-        let x = size.width / 2 + CGFloat(item.positionX) / roomWidth * (size.width - 34)
-        let y = size.height / 2 + CGFloat(item.positionZ) / roomLength * (size.height - 34)
-        let width = min(size.width * 0.42, max(12, CGFloat(item.length) / roomWidth * (size.width - 34)))
-        let height = min(size.height * 0.42, max(12, CGFloat(item.width) / roomLength * (size.height - 34)))
+        let localPosition = scanPlan?.localCoordinates(worldX: item.positionX, worldZ: item.positionZ)
+            ?? SIMD2<Float>(item.positionX, item.positionZ)
+        let x = size.width / 2 + CGFloat(localPosition.x) / roomWidth * (size.width - 34)
+        let y = size.height / 2 + CGFloat(localPosition.y) / roomLength * (size.height - 34)
+        let width = min(size.width - 34, max(8, CGFloat(item.width) / roomWidth * (size.width - 34)))
+        let height = min(size.height - 34, max(8, CGFloat(item.length) / roomLength * (size.height - 34)))
 
         RoundedRectangle(cornerRadius: 5)
             .fill(Color(red: 0.66, green: 0.62, blue: 0.55).opacity(0.78))
@@ -298,15 +460,25 @@ private struct OrientationPlanView: View {
                 RoundedRectangle(cornerRadius: 5)
                     .stroke(.white.opacity(0.8), lineWidth: 1)
             }
+            .overlay {
+                if width >= 48, height >= 24 {
+                    Text(item.category.capitalized)
+                        .font(.system(size: 9, weight: .medium))
+                        .foregroundStyle(.primary)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.65)
+                        .padding(2)
+                }
+            }
             .frame(width: width, height: height)
-            .rotationEffect(.radians(Double(item.rotationYaw)))
+            .rotationEffect(.radians(-Double(scanPlan?.localYaw(item.rotationYaw) ?? item.rotationYaw)))
             .position(x: x, y: y)
             .allowsHitTesting(false)
             .accessibilityHidden(true)
     }
 
     private func rotationGesture(in size: CGSize) -> some Gesture {
-        DragGesture(minimumDistance: 6)
+        DragGesture(minimumDistance: 4, coordinateSpace: .named("orientation-plan"))
             .onChanged { value in
                 let pointerAngle = clockwiseAngle(from: CGPoint(x: size.width / 2, y: size.height / 2), to: value.location)
                 if dragStartPointerAngle == nil {
@@ -315,7 +487,12 @@ private struct OrientationPlanView: View {
                 }
                 guard let dragStartPointerAngle else { return }
                 let delta = signedAngleDelta(from: dragStartPointerAngle, to: pointerAngle)
-                northArrowPlanRotation = NorthAlignmentCalibration.normalized(dragStartArrowAngle + delta)
+                let updatedRotation = NorthAlignmentCalibration.normalized(dragStartArrowAngle + delta)
+                if isNorthLocked,
+                   abs(signedAngleDelta(from: northArrowPlanRotation, to: updatedRotation)) >= 4 {
+                    didRotatePersonToMarkNorth = true
+                }
+                northArrowPlanRotation = updatedRotation
             }
             .onEnded { _ in
                 dragStartPointerAngle = nil
@@ -329,6 +506,13 @@ private struct OrientationPlanView: View {
     private func signedAngleDelta(from start: Double, to current: Double) -> Double {
         let delta = (current - start).truncatingRemainder(dividingBy: 360)
         return delta > 180 ? delta - 360 : (delta < -180 ? delta + 360 : delta)
+    }
+
+    private func planPoint(localX: Float, localZ: Float, in size: CGSize) -> CGPoint {
+        CGPoint(
+            x: size.width / 2 + CGFloat(localX / max(0.5, room.width)) * (size.width - 34),
+            y: size.height / 2 + CGFloat(localZ / max(0.5, room.length)) * (size.height - 34)
+        )
     }
 }
 
@@ -413,6 +597,17 @@ private struct NorthCompassDial: View {
     let container = try! ModelContainer.createInMemoryContainer()
     let room = Room(name: "Sample Bedroom")
     let layout = Layout(name: "Bedroom Layout")
+    let walls = [
+        ScannedWallPayload(position: [0, 1.3, -2.1], dimensions: [5.0, 2.6, 0.1], rotationYaw: 0),
+        ScannedWallPayload(position: [0, 1.3, 2.1], dimensions: [5.0, 2.6, 0.1], rotationYaw: .pi),
+        ScannedWallPayload(position: [2.5, 1.3, 0], dimensions: [4.2, 2.6, 0.1], rotationYaw: .pi / 2),
+        ScannedWallPayload(position: [-2.5, 1.3, 0], dimensions: [4.2, 2.6, 0.1], rotationYaw: -.pi / 2)
+    ]
+    room.planSnapshotData = try? JSONEncoder().encode(RoomPlanSnapshot(walls: walls, floorLevel: 0))
+    room.openings = [
+        RoomOpening(type: "window", posX: room.width / 2, posY: 1.4, posZ: -0.5, width: 1.3, height: 1.2),
+        RoomOpening(type: "door", posX: 0.5, posY: 1.0, posZ: room.length / 2, width: 0.9, height: 2.0)
+    ]
     room.layouts.append(layout)
     layout.furnitures = [
         Furniture(

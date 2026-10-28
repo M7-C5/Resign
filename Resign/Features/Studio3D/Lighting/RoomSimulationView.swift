@@ -5,15 +5,18 @@ import UIKit
 struct RoomSimulationView: View {
     let settings: LightingSimulationSettings
     let fixtures: [RoomLightingFixture]?
+    let onWindowDirectionsResolved: ([Double]) -> Void
 
     @State private var controller: RoomSceneController
     @State private var dragOrigin: SIMD2<Float>?
     @State private var zoomOrigin: Float?
 
-    init(settings: LightingSimulationSettings, fixtures: [RoomLightingFixture]? = nil) {
+    init(settings: LightingSimulationSettings, fixtures: [RoomLightingFixture]? = nil, layout: RoomSimulationLayout? = nil,
+         onWindowDirectionsResolved: @escaping ([Double]) -> Void = { _ in }) {
         self.settings = settings
         self.fixtures = fixtures
-        _controller = State(initialValue: RoomSceneController(fixtures: fixtures))
+        self.onWindowDirectionsResolved = onWindowDirectionsResolved
+        _controller = State(initialValue: RoomSceneController(fixtures: fixtures, layout: layout))
     }
 
     var body: some View {
@@ -50,6 +53,9 @@ struct RoomSimulationView: View {
             .accessibilityHint("Drag to rotate. Pinch to zoom.")
             .onChange(of: fixtures) { _, newFixtures in
                 controller.setLightingFixtures(newFixtures)
+            }
+            .onChange(of: controller.resolvedWindowAzimuths) { _, directions in
+                if let directions { onWindowDirectionsResolved(directions) }
             }
     }
 }
