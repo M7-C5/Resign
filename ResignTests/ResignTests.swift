@@ -424,12 +424,38 @@ struct LayoutLightingSimulationIntegrationTests {
         let activeSpot = try #require(rig.root.findEntity(named: "FixtureSpot0") as? SpotLight)
         let inactiveSpot = try #require(rig.root.findEntity(named: "FixtureSpot1") as? SpotLight)
         #expect(activeSpot.position == active.position)
-        #expect(activeSpot.isEnabled && activeSpot.light.intensity == active.brightness)
+        #expect(activeSpot.isEnabled && activeSpot.light.intensity > active.brightness)
         #expect(!inactiveSpot.isEnabled && inactiveSpot.light.intensity == 0)
 
         let emptyRig = RoomLightingRig(fixtures: [])
         emptyRig.apply(LightingSimulationSettings(artificialLightsOn: true))
         #expect(emptyRig.root.findEntity(named: "FixtureSpot0") == nil)
+    }
+
+    @Test @MainActor func fixtureExposurePreservesLumenRatiosAndSwitches() throws {
+        let saved = Light(brightness: 1080, colorTemp: 4000)
+        let first = RoomLightingFixture(light: saved)
+        let second = RoomLightingFixture(name: "Twice as bright", position: [1, 2.6, 0],
+                                         brightness: 2160, colorTemperatureKelvin: 4000)
+        let dark = RoomLightingFixture(name: "Zero output", position: [-1, 2.6, 0],
+                                       brightness: 0, colorTemperatureKelvin: 4000)
+        let rig = RoomLightingRig(fixtures: [first, second, dark])
+        rig.apply(LightingSimulationSettings(artificialLightsOn: true, minuteOfDay: 0))
+        let spot = try #require(rig.root.findEntity(named: "FixtureSpot0") as? SpotLight)
+        let brighter = try #require(rig.root.findEntity(named: "FixtureSpot1") as? SpotLight)
+        let fill = try #require(rig.root.findEntity(named: "FixtureFill0") as? PointLight)
+        let brighterFill = try #require(rig.root.findEntity(named: "FixtureFill1") as? PointLight)
+        let zero = try #require(rig.root.findEntity(named: "FixtureFill2") as? PointLight)
+        #expect(spot.light.intensity > saved.brightness)
+        #expect(abs(brighter.light.intensity / spot.light.intensity - 2) < 0.001)
+        #expect(abs(brighterFill.light.intensity / fill.light.intensity - 2) < 0.001)
+        #expect(fill.light.intensity >= spot.light.intensity * 0.4)
+        #expect(fill.position.y < spot.position.y)
+        #expect(!zero.isEnabled && zero.light.intensity == 0)
+        #expect(saved.brightness == 1080 && saved.colorTemp == 4000)
+        rig.apply(LightingSimulationSettings(artificialLightsOn: false, minuteOfDay: 0))
+        #expect(!spot.isEnabled && spot.light.intensity == 0)
+        #expect(!fill.isEnabled && fill.light.intensity == 0)
     }
 
 }
