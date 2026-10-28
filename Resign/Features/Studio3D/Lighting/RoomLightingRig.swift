@@ -27,9 +27,13 @@ struct RoomLightingTuning {
     var beamEdgeFeather: Float = 0.32
 
     // Ceiling fixtures
-    var fixtureSpotLumens: Float = 60_000
-    /// Small omnidirectional fill so the whole room glows a little when lamps are on.
-    var fixtureFillLumens: Float = 16_000
+    /// Nominal reference-fixture output, matching the editor's default saved lumens.
+    var fixtureSpotLumens: Float = 1_080
+    /// Soft indirect-light approximation, expressed relative to the reference fixture.
+    var fixtureFillLumens: Float = 540
+    /// Render-only compensation for the deliberately dark environment and absent real-time GI.
+    /// This is a visual exposure adjustment, not an illuminance calibration.
+    var fixtureExposureGain: Float = 8
 
     /// Environment light as a power of two. Very low: the room must look dark without lamps or sun.
     var nightAmbientExponent: Float = -6.5
@@ -245,7 +249,8 @@ final class RoomLightingRig {
             fill.light.color = color
             fill.light.attenuationRadius = 9
             fill.light.intensity = 0
-            fill.position = definition.position
+            // Place the unshadowed bounce inside the room, below the ceiling surface.
+            fill.position = definition.position - SIMD3<Float>(0, min(0.35, max(0, definition.position.y * 0.15)), 0)
             root.addChild(fill)
 
             let bulb = ModelEntity(
@@ -290,7 +295,7 @@ final class RoomLightingRig {
         let lightsOn = settings.artificialLightsOn
         for fixture in fixtures {
             let fixtureIsOn = lightsOn && fixture.definition.isOn
-            let output = fixtureIsOn ? fixture.definition.brightness : 0
+            let output = fixtureIsOn ? fixture.definition.brightness * max(0, tuning.fixtureExposureGain) : 0
             fixture.spot.light.color = UIColor(kelvin: fixture.definition.colorTemperatureKelvin)
             fixture.spot.light.intensity = output
             fixture.spot.isEnabled = output > 0
