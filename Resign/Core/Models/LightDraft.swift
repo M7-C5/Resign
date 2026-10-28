@@ -5,7 +5,7 @@
 
 import Foundation
 
-/// Transient, in-memory representation of a light fixture during 5×5 ceiling-grid editing.
+/// Transient, in-memory representation of a light fixture during adaptive ceiling placement.
 ///
 /// `LightDraft` decouples live slider interactions from SwiftData by holding all
 /// edits in memory until the user confirms "Save & Continue". At that point,
@@ -19,13 +19,18 @@ public struct LightDraft: Identifiable, Sendable, Equatable {
     /// Stable identity across the editing session.
     public var id: UUID
 
-    /// Column index on the 5×5 ceiling grid (0 = left, 4 = right).
-    /// Persisted to `Light.coordinateX` as `Float(gridColumn)`.
+    /// Legacy column index (0 = left, 4 = right), used when no exact plan position is supplied.
     public var gridColumn: Int
 
-    /// Row index on the 5×5 ceiling grid (0 = top, 4 = bottom).
-    /// Persisted to `Light.coordinateY` as `Float(gridRow)`.
+    /// Legacy row index (0 = top, 4 = bottom), used when no exact plan position is supplied.
     public var gridRow: Int
+
+    /// Exact normalized plan position for adaptive placement; nil retains legacy grid semantics.
+    public var planPosition: SIMD2<Float>?
+
+    public var unitPosition: SIMD2<Float> {
+        planPosition ?? SIMD2<Float>((Float(gridColumn) + 0.5) / 5, (Float(gridRow) + 0.5) / 5)
+    }
 
     /// Display name shown in the bottom panel, e.g. "Lighting 1".
     public var name: String
@@ -46,8 +51,10 @@ public struct LightDraft: Identifiable, Sendable, Equatable {
         name: String = "Lighting",
         brightness: Float = 1080.0,
         colorTemp: Int = 5000,
-        isOn: Bool = true
+        isOn: Bool = true,
+        planPosition: SIMD2<Float>? = nil
     ) {
+        self.planPosition = planPosition
         self.id = id
         self.gridColumn = gridColumn
         self.gridRow = gridRow
