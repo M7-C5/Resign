@@ -20,10 +20,6 @@ public struct RoomDimensions: Sendable, Equatable {
 
 public enum RoomDimensionExtractor {
 
-    /// Standard LiDAR Time-of-Flight surface penetration inset per masonry wall (1.5 cm per wall = 3.0 cm per span)
-    /// when RoomPlan surfaces report zero explicit thickness (`dimensions.z == 0`).
-    private static let lidarMasonrySkinInset: Float = 0.015
-
     /// Extracts exact architectural room dimensions (width, length, height)
     /// prioritizing opposing parallel wall inner-face (masonry-to-masonry) clear spans,
     /// with fallbacks to floor polygon coordinates and orthogonal wall lengths.
@@ -33,8 +29,14 @@ public enum RoomDimensionExtractor {
         wallHeights: [Float] = [],
         wallLengths: [Float] = []
     ) -> RoomDimensions {
-        let resolvedHeights = wallHeights.isEmpty ? walls.map(\.dimensions.y) : wallHeights
-        let height = resolvedHeights.max().map { max($0, 2.2) } ?? 2.8
+        let rawHeight: Float? = if !wallHeights.isEmpty {
+            wallHeights.max()
+        } else if let dominantWall = walls.max(by: { $0.dimensions.x < $1.dimensions.x }) {
+            dominantWall.dimensions.y
+        } else {
+            nil
+        }
+        let height = rawHeight.map { max($0, 2.2) } ?? 2.8
 
         let polygonSpan = extractPolygonSpan(from: polygonCorners)
 
@@ -143,17 +145,46 @@ public enum RoomDimensionExtractor {
             return nil
         }
 
+        // Project along the opposing pair's own length-weighted normal vector rather than
+        // primaryWall's axis so VIO angular drift in large (>5m) rooms combined with laterally
+        // offset wall segment centers does not introduce diagonal projection errors.
+        let pairAxis = alignedNormal(
+            negWall: dominantNeg.wall,
+            posWall: dominantPos.wall,
+            referenceAxis: axis
+        )
+        let posNeg2D = SIMD2<Float>(dominantNeg.wall.position.x, dominantNeg.wall.position.z)
+        let posPos2D = SIMD2<Float>(dominantPos.wall.position.x, dominantPos.wall.position.z)
+        let projNeg = dot(posNeg2D, pairAxis)
+        let projPos = dot(posPos2D, pairAxis)
+
         let insetNeg = dominantNeg.wall.dimensions.z > 0.001
             ? (dominantNeg.wall.dimensions.z * 0.5)
-            : lidarMasonrySkinInset
+            : 0.0
         let insetPos = dominantPos.wall.dimensions.z > 0.001
             ? (dominantPos.wall.dimensions.z * 0.5)
-            : lidarMasonrySkinInset
+            : 0.0
 
-        let innerNeg = dominantNeg.proj + insetNeg
-        let innerPos = dominantPos.proj - insetPos
+        let innerNeg = projNeg + insetNeg
+        let innerPos = projPos - insetPos
         let clearSpan = innerPos - innerNeg
 
         return clearSpan > 0.5 ? clearSpan : nil
+    }
+
+    private static func alignedNormal(
+        negWall: ScannedWallPayload,
+        posWall: ScannedWallPayload,
+        referenceAxis: SIMD2<Float>
+    ) -> SIMD2<Float> {
+        let rawNeg = SIMD2<Float>(sin(negWall.rotationYaw), cos(negWall.rotationYaw))
+        let nNeg = dot(rawNeg, referenceAxis) >= 0 ? rawNeg : -rawNeg
+
+        let rawPos = SIMD2<Float>(sin(posWall.rotationYaw), cos(posWall.rotationYaw))
+        let nPos = dot(rawPos, referenceAxis) >= 0 ? rawPos : -rawPos
+
+        let weighted = nNeg * max(negWall.dimensions.x, 0.1) + nPos * max(posWall.dimensions.x, 0.1)
+        let len = simd_length(weighted)
+        return len > 1e-5 ? (weighted / len) : referenceAxis
     }
 }
