@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- feat(lighting): adapt placement points to scanned room proportions (2c4ab1e)
 - feat(orientation): align room north before light placement (58d1605)
 - feat(lighting-simulation): use saved layout light sources (0baa3c9)
 - feat(navigation): connect end-to-end user creation flow and decompose room scan components (c7baab3)
@@ -38,6 +39,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - refactor(arch): scaffold vertical feature-slice architecture with skeleton modules (3419a7d)
 
 ### Fixed
+- fix(lighting): brighten artificial fixtures and soften interior fill (62aba8f)
 - fix(lighting): preserve ceiling light edits and align scan positions (4d9ebbb)
 - fix(spatial): align orientation and lighting with scanned rooms (bd29d32)
 - fix(orientation): complete north lock while device is still (f6142ba)
@@ -59,6 +61,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - fix(lighting-simulation): shape natural light to the window (5fbb493)
 
 ### Documentation
+- docs(changelog): regenerate lighting history after rebase (528eb64)
 - docs(agents): record navigation query and spatial lidar glass reflection heuristics in learned patterns (b664fce)
 - docs(changelog): record compass daylight alignment (0ae54d8)
 - docs(changelog): record room north alignment (6f85b5f)
