@@ -38,7 +38,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - refactor(arch): scaffold vertical feature-slice architecture with skeleton modules (3419a7d)
 
 ### Fixed
-- fix(spatial): prevent floor polygon from clamping structural wall clear spans (e2daab9)
+- fix(lighting): preserve ceiling light edits and align scan positions (4d9ebbb)
+- fix(spatial): align orientation and lighting with scanned rooms (bd29d32)
+- fix(orientation): complete north lock while device is still (f6142ba)
+- fix(spatial): prevent floor polygon from clamping structural wall clear spans (e17e9a3)
 - fix(navigation): resolve layouts and rooms deterministically in creation flow container destinations (885deef)
 - fix(room-scan): provide persistent dismiss fallback for creation flow completion (bffa317)
 - fix(lighting-setup): prevent modal presentation dismissal collisions during container pop and save (041377a)
@@ -82,7 +85,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - docs: add agentic playbook, architecture blueprint, and changelog (178cddb)
 
 ### Tooling & Maintenance
-- test(spatial): verify clear span preservation against truncated floor polygon (4da88aa)
+- chore(orientation): add compass and setup previews (97cba71)
+- chore(release): update changelog for clear span dimension clamping fix (56d566e)
+- test(spatial): verify clear span preservation against truncated floor polygon (8171811)
 - chore(release): update changelog for agentic workflow hardening (0315060)
 - build(tooling): ignore merge commits during automated changelog generation (f7f88cb)
 - build(tooling): enforce commit path sanitization in hooks and add verification simulator fallback (7136f0b)
