@@ -8,9 +8,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- feat(studio-3d): add viewport presets snapping menu to studio controls (f0603ee)
-- feat(studio-3d): implement dynamic wall cutaway engine and smooth orbit interpolation (929a272)
-- feat(studio-3d): implement viewport preset domain model and camera snapping (dec86d4)
+- feat(lighting): adapt workspaces and compass for iPad (18cec72)
+- feat(studio-3d): add viewport presets snapping menu to studio controls (91d942a)
+- feat(studio-3d): implement dynamic wall cutaway engine and smooth orbit interpolation (6fe2132)
+- feat(studio-3d): implement viewport preset domain model and camera snapping (40e58d4)
 - feat(dashboard): add featured 3d studio demo card and idempotent reference room seeding (425d9e3)
 - feat(studio-3d): support touch triage for handle rotation, two-finger twist, and translation drag (0a82a02)
 - feat(studio-3d): support interior drywall bounds, dual architectural lighting, and floor raycasting (9e54344)
@@ -48,6 +49,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - refactor(arch): scaffold vertical feature-slice architecture with skeleton modules (3419a7d)
 
 ### Fixed
+- fix(lighting): boost preview exposure for low lumen fixtures (e15e66f)
+- fix(lighting): keep denser placement points inside scanned rooms (645a6e3)
 - fix(spatial): project opposing walls along pair normal and eliminate artificial skin inset (8052c40)
 - fix(studio-3d): preserve scanned layout lighting pipeline and entity query compatibility (5f51876)
 - fix(lighting): brighten artificial fixtures and soften interior fill (834e47a)
@@ -72,7 +75,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - fix(lighting-simulation): shape natural light to the window (5fbb493)
 
 ### Documentation
-- docs(adr): document viewport snapping and dynamic wall cutaways in adr 0026 (22ab927)
+- docs(adr): document viewport snapping and dynamic wall cutaways in adr 0026 (6a6449e)
 - docs(rules): document room dimension extraction heuristics and angular drift projection (38ec5ba)
 - docs(adr): document interactive 3d rearrangement, interior bounds, and drag rotation in adr 0025 (54c1e31)
 - docs(changelog): record adaptive placement and brighter fixtures (5021c54)
@@ -103,7 +106,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - docs: add agentic playbook, architecture blueprint, and changelog (178cddb)
 
 ### Tooling & Maintenance
-- test(studio-3d): verify viewport preset angles and dynamic wall cutaways (b4cf6f3)
+- chore(release): update changelog for viewport presets and cutaway walls (d9d2004)
+- test(studio-3d): verify viewport preset angles and dynamic wall cutaways (57cc3c5)
 - chore(release): update changelog for room dimension extraction accuracy refinement (de0e432)
 - test(spatial): verify normal projection under angular drift and dominant ceiling height (8b557d8)
 - chore(release): update changelog for scanned layout pipeline fix (78055a1)
