@@ -8,7 +8,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- feat(lighting): adapt placement points to scanned room proportions (2c4ab1e)
+- feat(dashboard): add featured 3d studio demo card and idempotent reference room seeding (6b49e9d)
+- feat(studio-3d): support touch triage for handle rotation, two-finger twist, and translation drag (7f7b0c4)
+- feat(studio-3d): support interior drywall bounds, dual architectural lighting, and floor raycasting (5caeef1)
+- feat(studio-3d): implement permissive drag rearrangement, continuous rotation, and collision gate (db51f73)
+- feat(spatial): implement interactive rotation handle knob and collision-reactive halo (9025f73)
+- feat(spatial): add offset boundary clamping, chair tuck-in allowance, and magnetic angle snapping (21134b6)
+- feat(lighting): adapt placement points to scanned room proportions (12e10a6)
 - feat(orientation): align room north before light placement (58d1605)
 - feat(lighting-simulation): use saved layout light sources (0baa3c9)
 - feat(navigation): connect end-to-end user creation flow and decompose room scan components (c7baab3)
@@ -39,10 +45,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - refactor(arch): scaffold vertical feature-slice architecture with skeleton modules (3419a7d)
 
 ### Fixed
-- fix(lighting): brighten artificial fixtures and soften interior fill (62aba8f)
-- fix(lighting): preserve ceiling light edits and align scan positions (4d9ebbb)
-- fix(spatial): align orientation and lighting with scanned rooms (bd29d32)
-- fix(orientation): complete north lock while device is still (f6142ba)
+- fix(lighting): brighten artificial fixtures and soften interior fill (834e47a)
+- fix(lighting): preserve ceiling light edits and align scan positions (2c9388f)
+- fix(spatial): align orientation and lighting with scanned rooms (6682b88)
+- fix(orientation): complete north lock while device is still (83c3eaf)
 - fix(spatial): prevent floor polygon from clamping structural wall clear spans (e17e9a3)
 - fix(navigation): resolve layouts and rooms deterministically in creation flow container destinations (885deef)
 - fix(room-scan): provide persistent dismiss fallback for creation flow completion (bffa317)
@@ -61,7 +67,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - fix(lighting-simulation): shape natural light to the window (5fbb493)
 
 ### Documentation
-- docs(changelog): regenerate lighting history after rebase (528eb64)
+- docs(adr): document interactive 3d rearrangement, interior bounds, and drag rotation in adr 0022 (abe2a92)
+- docs(changelog): record adaptive placement and brighter fixtures (5021c54)
+- docs(changelog): regenerate lighting history after rebase (d495f7e)
 - docs(agents): record navigation query and spatial lidar glass reflection heuristics in learned patterns (b664fce)
 - docs(changelog): record compass daylight alignment (0ae54d8)
 - docs(changelog): record room north alignment (6f85b5f)
@@ -88,7 +96,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - docs: add agentic playbook, architecture blueprint, and changelog (178cddb)
 
 ### Tooling & Maintenance
-- chore(orientation): add compass and setup previews (97cba71)
+- chore(orientation): add compass and setup previews (fca79d8)
 - chore(release): update changelog for clear span dimension clamping fix (56d566e)
 - test(spatial): verify clear span preservation against truncated floor polygon (8171811)
 - chore(release): update changelog for agentic workflow hardening (0315060)
