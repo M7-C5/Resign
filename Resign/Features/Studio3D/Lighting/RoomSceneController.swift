@@ -44,6 +44,7 @@ final class RoomSceneController {
 
     @ObservationIgnored private var cameraTarget: SIMD3<Float> = [0, 1.2, 0]
     @ObservationIgnored private var roomExtent: Float = 5
+    @ObservationIgnored private var viewportAspect: Float = 1
     @ObservationIgnored private var animationTask: Task<Void, Never>?
 
     // Orbit state. Comfortable dollhouse perspective
@@ -594,13 +595,23 @@ final class RoomSceneController {
         updateCamera()
     }
 
+    func setViewportSize(_ size: CGSize) {
+        guard size.width > 1, size.height > 1 else { return }
+        let aspect = Float(size.width / size.height)
+        guard abs(viewportAspect - aspect) > 0.001 else { return }
+        viewportAspect = aspect
+        updateCamera()
+    }
+
     private func updateCamera() {
         let target = cameraTarget
+        let framedDistance = distance * max(1, 1 / max(0.1, viewportAspect))
+        camera.camera.far = max(60, framedDistance * 5)
         let offset = SIMD3<Float>(
             sin(yaw) * cos(pitch),
             sin(pitch),
             cos(yaw) * cos(pitch)
-        ) * distance
+        ) * framedDistance
         camera.look(at: target, from: target + offset, relativeTo: nil)
     }
 

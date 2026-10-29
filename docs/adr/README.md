@@ -31,6 +31,8 @@ This directory documents key architectural decisions for **Resign** using the [M
 - [ADR 0025: Interactive 3D Room Rearrangement and Scanned Room Pipeline](0025-interactive-3d-rearrangement-and-scanned-room-pipeline.md)
 - [ADR 0026: Viewport Snapping and Dynamic Wall Cutaways](0026-viewport-snapping-and-dynamic-wall-cutaways.md)
 
+- [ADR 0027: Adapt Lighting Workspaces to the Available Window](0027-adaptive-lighting-workspaces.md)
+
 ## How to Create a New ADR
 1. Copy [template.md](template.md) to `docs/adr/NNNN-title-in-kebab-case.md`.
 2. Follow MADR conventions: Context, Decision Drivers, Considered Options, Decision Outcome, and Consequences.

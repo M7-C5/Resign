@@ -67,6 +67,19 @@ public final class OrientationViewModel: NSObject, CLLocationManagerDelegate {
         #endif
     }
 
+    /// The visible window's top edge is the heading reference, including iPad landscape.
+    func setHeadingOrientation(_ orientation: CLDeviceOrientation) {
+        guard locationManager.headingOrientation != orientation else { return }
+        locationManager.headingOrientation = orientation
+        guard !calibration.isLocked, !usesManualHeading else { return }
+        // Samples taken with the previous reference cannot count toward a continuous hold.
+        calibration = NorthAlignmentCalibration()
+        filteredHeadingDegrees = nil
+        headingDegrees = nil
+        headingAccuracy = nil
+        now = Date()
+    }
+
     func stop() {
         isActive = false
         locationManager.stopUpdatingHeading()
