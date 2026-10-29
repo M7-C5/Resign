@@ -433,10 +433,10 @@ struct LayoutLightingSimulationIntegrationTests {
     }
 
     @Test @MainActor func fixtureExposurePreservesLumenRatiosAndSwitches() throws {
-        let saved = Light(brightness: 1080, colorTemp: 4000)
+        let saved = Light(brightness: 600, colorTemp: 4000)
         let first = RoomLightingFixture(light: saved)
         let second = RoomLightingFixture(name: "Twice as bright", position: [1, 2.6, 0],
-                                         brightness: 2160, colorTemperatureKelvin: 4000)
+                                         brightness: 1200, colorTemperatureKelvin: 4000)
         let dark = RoomLightingFixture(name: "Zero output", position: [-1, 2.6, 0],
                                        brightness: 0, colorTemperatureKelvin: 4000)
         let rig = RoomLightingRig(fixtures: [first, second, dark])
@@ -452,7 +452,7 @@ struct LayoutLightingSimulationIntegrationTests {
         #expect(fill.light.intensity >= spot.light.intensity * 0.4)
         #expect(fill.position.y < spot.position.y)
         #expect(!zero.isEnabled && zero.light.intensity == 0)
-        #expect(saved.brightness == 1080 && saved.colorTemp == 4000)
+        #expect(saved.brightness == 600 && saved.colorTemp == 4000)
         rig.apply(LightingSimulationSettings(artificialLightsOn: false, minuteOfDay: 0))
         #expect(!spot.isEnabled && spot.light.intensity == 0)
         #expect(!fill.isEnabled && fill.light.intensity == 0)
