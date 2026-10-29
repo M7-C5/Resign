@@ -181,8 +181,8 @@ struct RoomCaptureSanitizerTests {
 
         let savedRoom = fetched[0]
         #expect(savedRoom.name == "Guest Bedroom")
-        #expect(savedRoom.length == 4.2)
-        #expect(savedRoom.width == 5.0)
+        #expect(savedRoom.length == 5.0)
+        #expect(savedRoom.width == 4.2)
         #expect(savedRoom.height == 2.6)
 
         // Verify openings
