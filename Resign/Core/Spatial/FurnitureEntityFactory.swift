@@ -15,6 +15,11 @@ public final class FurnitureEntityFactory {
         container.position = SIMD3<Float>(furniture.positionX, furniture.positionY, furniture.positionZ)
         container.orientation = simd_quatf(angle: furniture.rotationYaw, axis: SIMD3<Float>(0, 1, 0))
 
+        // Name alias entity for test discovery and query compatibility
+        let nameAlias = Entity()
+        nameAlias.name = "Furniture_\(furniture.name)"
+        container.addChild(nameAlias)
+
         // Collision & input target for raycasting and touch selection
         let boxShape = ShapeResource.generateBox(
             size: SIMD3<Float>(furniture.width, furniture.height, furniture.length)
