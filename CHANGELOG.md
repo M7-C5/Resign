@@ -48,6 +48,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - refactor(arch): scaffold vertical feature-slice architecture with skeleton modules (3419a7d)
 
 ### Fixed
+- fix(studio3d): normalize scanned room square orientation and center origin (cb8293e)
 - fix(spatial): project opposing walls along pair normal and eliminate artificial skin inset (8052c40)
 - fix(studio-3d): preserve scanned layout lighting pipeline and entity query compatibility (5f51876)
 - fix(lighting): brighten artificial fixtures and soften interior fill (834e47a)
@@ -72,6 +73,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - fix(lighting-simulation): shape natural light to the window (5fbb493)
 
 ### Documentation
+- docs(adr): record scanned room square orientation and centered origin normalization (db1c26b)
 - docs(adr): document viewport snapping and dynamic wall cutaways in adr 0026 (22ab927)
 - docs(rules): document room dimension extraction heuristics and angular drift projection (38ec5ba)
 - docs(adr): document interactive 3d rearrangement, interior bounds, and drag rotation in adr 0025 (54c1e31)
@@ -103,6 +105,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - docs: add agentic playbook, architecture blueprint, and changelog (178cddb)
 
 ### Tooling & Maintenance
+- test(studio3d): verify square room drywall bounds and collision-free furniture seeding (51a4f55)
+- chore(release): update changelog for viewport presets and cutaway walls (d5e8d33)
 - test(studio-3d): verify viewport preset angles and dynamic wall cutaways (b4cf6f3)
 - chore(release): update changelog for room dimension extraction accuracy refinement (de0e432)
 - test(spatial): verify normal projection under angular drift and dominant ceiling height (8b557d8)
