@@ -153,7 +153,9 @@ public struct Studio3DView: View {
                                 Text(furniture.name)
                                     .font(.subheadline.weight(.semibold))
                                     .foregroundStyle(.primary)
-                                Text("\(String(format: "%.1f", furniture.width))m × \(String(format: "%.1f", furniture.length))m • Drag knob to rotate")
+                                let dimW = min(furniture.width, furniture.length)
+                                let dimL = max(furniture.width, furniture.length)
+                                Text("\(String(format: "%.1f", dimW))m (W) × \(String(format: "%.1f", dimL))m (L) • Drag knob to rotate")
                                     .font(.caption)
                                     .foregroundStyle(.secondary)
                             }

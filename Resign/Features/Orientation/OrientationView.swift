@@ -337,7 +337,9 @@ struct ScannedRoomPlanView: View {
         .aspectRatio(planAspectRatio, contentMode: .fit)
         .clipShape(RoundedRectangle(cornerRadius: 18))
         .overlay(alignment: .topLeading) {
-            Text(String(format: "Scan · %.2f × %.2f m", planBounds.width, planBounds.length))
+            let scanW = min(planBounds.width, planBounds.length)
+            let scanL = max(planBounds.width, planBounds.length)
+            Text(String(format: "Scan · %.2fm (W) × %.2fm (L)", scanW, scanL))
                 .opacity(showsAnnotations ? 1 : 0)
                 .font(.caption2.monospacedDigit().weight(.medium))
                 .foregroundStyle(.primary)

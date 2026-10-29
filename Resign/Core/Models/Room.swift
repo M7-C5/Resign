@@ -13,8 +13,8 @@ public final class Room {
     public var longitude: Double = 0.0
     public var latitude: Double = 0.0
     public var compass: Double = 0.0
-    public var length: Float = 4.2
-    public var width: Float = 5.0
+    public var length: Float = 5.0
+    public var width: Float = 4.2
     public var height: Float = 2.6
     /// Optional scan-local wall frame for accurately projecting the captured room in 2D.
     public var planSnapshotData: Data? = nil
@@ -33,8 +33,8 @@ public final class Room {
         longitude: Double = 0.0,
         latitude: Double = 0.0,
         compass: Double = 0.0,
-        length: Float = 4.2,
-        width: Float = 5.0,
+        length: Float = 5.0,
+        width: Float = 4.2,
         height: Float = 2.6,
         createdAt: Date = Date(),
         updatedAt: Date = Date()
