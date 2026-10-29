@@ -17,7 +17,8 @@
 | **LP-006** | Workflow | ADR & Automated Changelog Mandate | New features, spatial assets, or architectural contracts require an ADR in `docs/adr/`. Changelogs must be generated via `scripts/changelog.sh`, with zero raw file paths in commit messages. | 2026-10-20 |
 | **LP-007** | Markdown | Relative Repository Paths Only | Never embed host machine absolute paths (`/Users/...` or `file:///Users/...`) in repository markdown files. Always use clean relative project paths (`docs/foo.md`, `ROADMAP.md`). | 2026-10-20 |
 | **LP-008** | SwiftData | Dynamic Query Navigation Destination Trap | Initializing `@Query` inside an inner struct inside `.navigationDestination(for:)` causes delayed or empty queries in iOS 17/18. Use synchronous `modelContext.fetch` on appear with hierarchy fallback instead. | 2026-10-27 |
-| **LP-009** | Spatial LiDAR | Glass Surface & Truncated Floor Polygon Clamping | Near-infrared (940nm) LiDAR transmits through glass, and floor meshes stop short. Never clamp wall clear spans with `min(wallSpan, floorPoly)`; trust structural boundaries and endpoint extrusion. | 2026-10-27 |
+| **LP-009** | Spatial LiDAR | Floor Cross-Clamping, VIO Drift Projection & Zero-Thickness Walls | Never clamp wall clear spans with `min(wallSpan, floorPoly)` (causes 90° alcove axis cross-clamping), never apply arbitrary thickness insets to zero-thickness `CapturedRoom.Surface` planes, and project opposing walls along their own length-weighted normal to prevent VIO angular drift errors in rooms > 5m. | 2026-10-28 |
+| **LP-010** | 3D Ergonomics | Permissive Dragging with Red Collision Gate | Never hard-freeze or lock furniture translation when intersecting obstacles during drag in cluttered rooms; preserve touch grab offsets, allow free dragging across obstacles, signal collision via a red halo, and block saving until clean. | 2026-10-28 |
 
 ---
 
@@ -131,4 +132,40 @@
   // ✅ Robust: Trust structural parallel wall spans and orthogonal endpoint extrusions
   // Include windows and openings as valid perimeter surfaces; never let floor mesh shrink walls
   let length = masonrySpan.length
+  ```
+
+---
+
+### LP-010: Sims-Style Permissive 3D Dragging & Red Collision Gate
+* **Context**: When rearranging furniture in 3D, hard-locking or freezing movement upon obstacle collision prevents users from dragging pieces past one another in tight rooms. Furthermore, telemetric snapping occurs if touch grab offsets from the piece centroid are not maintained.
+* **Bad Pattern**:
+  ```swift
+  // ❌ Frustrating: Freezes translation at the first obstacle boundary
+  guard SpatialClearanceEngine.canPlace(...) else { return nil }
+  ```
+* **Good Pattern**:
+  ```swift
+  // ✅ Responsive: Permissive motion across obstacles with real-time red collision gate
+  let clamped = SpatialClearanceEngine.clampToRoomBoundaries(...)
+  let colliding = obstacles.contains { SpatialClearanceEngine.checkCollision(itemA: candidate, itemB: $0) }
+  updateHaloVisual(isSelected: true, isColliding: colliding)
+  if !colliding { try? modelContext.save() }
+  ```
+
+---
+
+### LP-011: RoomPlan Wall Thickness Bounding Box Trap
+* **Context**: RoomPlan USDZ exports model structural walls as volumetric prisms with ~0.50m thickness. If room boundary clamping uses the outer visual bounds of the root entity (`loaded.visualBounds`) or outer floor limits, furniture will be allowed to penetrate up to 0.50m into the wall, sticking through exterior surfaces.
+* **Bad Pattern**:
+  ```swift
+  // ❌ Outer mesh bounds include wall thickness (~0.5m), letting furniture stick through walls
+  let bounds = loaded.visualBounds(relativeTo: root)
+  self.roomHorizontalBounds = (bounds.min.x, bounds.max.x, bounds.min.z, bounds.max.z)
+  ```
+* **Good Pattern**:
+  ```swift
+  // ✅ Derive authentic interior drywall faces by inspecting inner bounding limits of Arch_grp wall prisms
+  // Vertical walls (Z > X): East boundary uses min.x, West boundary uses max.x
+  // Horizontal walls (X > Z): South boundary uses min.z, North boundary uses max.z
+  self.roomHorizontalBounds = (interiorMinX, interiorMaxX, interiorMinZ, interiorMaxZ)
   ```

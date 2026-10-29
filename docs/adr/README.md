@@ -27,8 +27,8 @@ This directory documents key architectural decisions for **Resign** using the [M
 - [ADR 0021: Calibrate Room North Before Light Placement](0021-room-north-alignment.md)
 - [ADR 0022: Persist the Scanned Room Plan Frame](0022-persist-scanned-room-plan-frame.md)
 - [ADR 0023: Render Lighting in the Selected Scanned Layout](0023-render-selected-scanned-layout-lighting.md)
-
 - [ADR 0024: Adaptive Ceiling Light Placement](0024-adaptive-ceiling-light-placement.md)
+- [ADR 0025: Interactive 3D Room Rearrangement and Scanned Room Pipeline](0025-interactive-3d-rearrangement-and-scanned-room-pipeline.md)
 
 ## How to Create a New ADR
 1. Copy [template.md](template.md) to `docs/adr/NNNN-title-in-kebab-case.md`.
