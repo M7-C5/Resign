@@ -8,12 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- feat(dashboard): add featured 3d studio demo card and idempotent reference room seeding (6b49e9d)
-- feat(studio-3d): support touch triage for handle rotation, two-finger twist, and translation drag (7f7b0c4)
-- feat(studio-3d): support interior drywall bounds, dual architectural lighting, and floor raycasting (5caeef1)
-- feat(studio-3d): implement permissive drag rearrangement, continuous rotation, and collision gate (db51f73)
-- feat(spatial): implement interactive rotation handle knob and collision-reactive halo (9025f73)
-- feat(spatial): add offset boundary clamping, chair tuck-in allowance, and magnetic angle snapping (21134b6)
+- feat(dashboard): add featured 3d studio demo card and idempotent reference room seeding (f70cf54)
+- feat(studio-3d): support touch triage for handle rotation, two-finger twist, and translation drag (4f57eb2)
+- feat(studio-3d): support interior drywall bounds, dual architectural lighting, and floor raycasting (9eefd32)
+- feat(studio-3d): implement permissive drag rearrangement, continuous rotation, and collision gate (a135e47)
+- feat(spatial): implement interactive rotation handle knob and collision-reactive halo (d5d600d)
+- feat(spatial): add offset boundary clamping, chair tuck-in allowance, and magnetic angle snapping (3a015bc)
 - feat(lighting): adapt placement points to scanned room proportions (12e10a6)
 - feat(orientation): align room north before light placement (58d1605)
 - feat(lighting-simulation): use saved layout light sources (0baa3c9)
@@ -45,6 +45,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - refactor(arch): scaffold vertical feature-slice architecture with skeleton modules (3419a7d)
 
 ### Fixed
+- fix(studio-3d): preserve scanned layout lighting pipeline and entity query compatibility (6744460)
 - fix(lighting): brighten artificial fixtures and soften interior fill (834e47a)
 - fix(lighting): preserve ceiling light edits and align scan positions (2c9388f)
 - fix(spatial): align orientation and lighting with scanned rooms (6682b88)
@@ -67,7 +68,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - fix(lighting-simulation): shape natural light to the window (5fbb493)
 
 ### Documentation
-- docs(adr): document interactive 3d rearrangement, interior bounds, and drag rotation in adr 0022 (abe2a92)
+- docs(adr): document interactive 3d rearrangement, interior bounds, and drag rotation in adr 0025 (23eb5c9)
 - docs(changelog): record adaptive placement and brighter fixtures (5021c54)
 - docs(changelog): regenerate lighting history after rebase (d495f7e)
 - docs(agents): record navigation query and spatial lidar glass reflection heuristics in learned patterns (b664fce)
@@ -96,6 +97,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - docs: add agentic playbook, architecture blueprint, and changelog (178cddb)
 
 ### Tooling & Maintenance
+- chore(release): update changelog for scanned layout pipeline fix (de2cf32)
+- chore(release): update changelog for 3d studio interactive rearrangement (12e5f44)
 - chore(orientation): add compass and setup previews (fca79d8)
 - chore(release): update changelog for clear span dimension clamping fix (56d566e)
 - test(spatial): verify clear span preservation against truncated floor polygon (8171811)
