@@ -64,6 +64,16 @@ public final class DashboardViewModel {
             } else if let layout = existing.layouts.first, layout.furnitures.isEmpty {
                 populateInitialFurniture(in: layout, context: context)
                 try? context.save()
+            } else if let layout = existing.layouts.first {
+                // Migrate legacy uncentered/slanted furniture (floorY ≈ -1.218) to centered coordinates
+                if layout.furnitures.contains(where: { $0.positionY < -0.5 }) {
+                    for item in layout.furnitures {
+                        context.delete(item)
+                    }
+                    layout.furnitures.removeAll()
+                    populateInitialFurniture(in: layout, context: context)
+                    try? context.save()
+                }
             }
             return existing
         }
@@ -91,13 +101,13 @@ public final class DashboardViewModel {
 
     private func populateInitialFurniture(in layout: Layout, context: ModelContext) {
         guard layout.furnitures.isEmpty else { return }
-        let floorY: Float = -1.218
+        let floorY: Float = 0.0
         let items = [
-            Furniture(name: "Queen Bed", category: "bed", positionX: -1.79, positionY: floorY, positionZ: -1.10, rotationYaw: 0, length: 2.0, width: 1.6, height: 0.9),
-            Furniture(name: "Work Desk", category: "desk", positionX: 0.05, positionY: floorY, positionZ: -0.55, rotationYaw: .pi / 2, length: 1.4, width: 0.7, height: 0.75),
-            Furniture(name: "Desk Chair", category: "chair", positionX: -0.15, positionY: floorY, positionZ: -0.52, rotationYaw: -.pi / 2, length: 0.6, width: 0.6, height: 0.9),
-            Furniture(name: "Sofa", category: "sofa", positionX: -1.20, positionY: floorY, positionZ: 0.95, rotationYaw: 0, length: 2.0, width: 0.85, height: 0.8),
-            Furniture(name: "Wardrobe", category: "storage", positionX: -0.83, positionY: floorY, positionZ: -1.75, rotationYaw: 0, length: 1.2, width: 0.6, height: 2.0)
+            Furniture(name: "Queen Bed", category: "bed", positionX: -0.75, positionY: floorY, positionZ: -0.65, rotationYaw: 0, length: 2.0, width: 1.6, height: 0.9),
+            Furniture(name: "Work Desk", category: "desk", positionX: 1.30, positionY: floorY, positionZ: 0.0, rotationYaw: 0, length: 1.4, width: 0.7, height: 0.75),
+            Furniture(name: "Desk Chair", category: "chair", positionX: 0.60, positionY: floorY, positionZ: 0.0, rotationYaw: -.pi / 2, length: 0.6, width: 0.6, height: 0.9),
+            Furniture(name: "Sofa", category: "sofa", positionX: -0.30, positionY: floorY, positionZ: 1.30, rotationYaw: .pi / 2, length: 2.0, width: 0.85, height: 0.8),
+            Furniture(name: "Wardrobe", category: "storage", positionX: 0.95, positionY: floorY, positionZ: -1.45, rotationYaw: .pi / 2, length: 1.2, width: 0.6, height: 2.0)
         ]
         for item in items {
             layout.furnitures.append(item)

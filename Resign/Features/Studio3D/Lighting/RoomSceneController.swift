@@ -152,19 +152,39 @@ final class RoomSceneController {
             try Task.checkCancellation()
             prepare(loaded)
             applyArchitecturalStyling(to: loaded)
-            root.addChild(loaded)
-            roomEntity = loaded
 
-            // Derive authentic floor level and interior drywall limits
-            let bounds = loaded.visualBounds(relativeTo: root)
-            let cx = (bounds.min.x + bounds.max.x) * 0.5
-            let cz = (bounds.min.z + bounds.max.z) * 0.5
+            // Derive dominant wall tilt to align room walls squarely with world X and Z axes
+            let dominantTilt = dominantWallTilt(in: loaded)
 
-            var interiorMinX = bounds.min.x
-            var interiorMaxX = bounds.max.x
-            var interiorMinZ = bounds.min.z
-            var interiorMaxZ = bounds.max.z
+            let captureSpace = Entity()
+            captureSpace.name = "CaptureSpace"
+            captureSpace.orientation = simd_quatf(angle: dominantTilt, axis: [0, 1, 0])
+            captureSpace.addChild(loaded)
 
+            let normalizedRoom = Entity()
+            normalizedRoom.name = "NormalizedRoom"
+            normalizedRoom.addChild(captureSpace)
+
+            // Derive floor level and center in straightened coordinates
+            let rotatedBounds = loaded.visualBounds(relativeTo: normalizedRoom)
+            let cx = (rotatedBounds.min.x + rotatedBounds.max.x) * 0.5
+            let cz = (rotatedBounds.min.z + rotatedBounds.max.z) * 0.5
+
+            let rawFloorY: Float
+            if let floorGrp = loaded.findEntity(named: "Floor_grp") {
+                rawFloorY = floorGrp.visualBounds(relativeTo: normalizedRoom).center.y
+            } else {
+                rawFloorY = rotatedBounds.min.y
+            }
+
+            // Center room horizontally at (0, 0) and ground floor at Y = 0.0
+            captureSpace.position = [-cx, -rawFloorY, -cz]
+
+            root.addChild(normalizedRoom)
+            roomEntity = normalizedRoom
+            self.floorLevel = 0.0
+
+            // Derive authentic interior drywall limits and wall cutaways in centered space
             var wallCutawayList: [WallCutawayItem] = []
             let wallCandidates: [Entity]
             if let archGrp = loaded.findEntity(named: "Arch_grp") {
@@ -179,6 +199,12 @@ final class RoomSceneController {
                 wallCandidates = collectWalls(in: loaded)
             }
 
+            let centeredBounds = normalizedRoom.visualBounds(relativeTo: root)
+            var interiorMinX = centeredBounds.min.x
+            var interiorMaxX = centeredBounds.max.x
+            var interiorMinZ = centeredBounds.min.z
+            var interiorMaxZ = centeredBounds.max.z
+
             for child in wallCandidates {
                 let b = child.visualBounds(relativeTo: root)
                 let extentX = b.max.x - b.min.x
@@ -189,7 +215,7 @@ final class RoomSceneController {
                 let normal: SIMD2<Float>
                 if extentZ > extentX {
                     // North-South running wall (East or West boundary)
-                    if midX > cx {
+                    if midX > 0 {
                         interiorMaxX = min(interiorMaxX, b.min.x)
                         normal = SIMD2<Float>(1, 0)
                     } else {
@@ -198,7 +224,7 @@ final class RoomSceneController {
                     }
                 } else {
                     // East-West running wall (North or South boundary)
-                    if midZ > cz {
+                    if midZ > 0 {
                         interiorMaxZ = min(interiorMaxZ, b.min.z)
                         normal = SIMD2<Float>(0, 1)
                     } else {
@@ -212,14 +238,7 @@ final class RoomSceneController {
             self.wallCutaways = wallCutawayList
             self.roomHorizontalBounds = (interiorMinX, interiorMaxX, interiorMinZ, interiorMaxZ)
 
-            if let floorGrp = loaded.findEntity(named: "Floor_grp") {
-                let floorBounds = floorGrp.visualBounds(relativeTo: root)
-                self.floorLevel = floorBounds.center.y
-            } else {
-                self.floorLevel = bounds.min.y
-            }
-
-            // Center camera target on the true geometric room center
+            // Center camera target on the true geometric room center (0, 0.8, 0)
             self.cameraTarget = SIMD3<Float>(
                 (interiorMinX + interiorMaxX) * 0.5,
                 self.floorLevel + 0.8,
@@ -258,6 +277,7 @@ final class RoomSceneController {
             shell = try? await Entity(contentsOf: url)
         }
         try Task.checkCancellation()
+        var effectiveYaw = source.yaw
         if let shell {
             shell.findEntity(named: "Object_grp")?.isEnabled = false
             prepareScanned(shell)
@@ -268,6 +288,12 @@ final class RoomSceneController {
             if source.scanPlan?.floorLevel == nil,
                let floor = shell.findEntity(named: "Floor_grp") {
                 source.floorLevel = floor.visualBounds(relativeTo: nil).center.y
+            }
+            if source.scanPlan == nil && abs(effectiveYaw) < 0.001 {
+                let tilt = dominantWallTilt(in: shell)
+                if abs(tilt) > 0.001 {
+                    effectiveYaw = -tilt
+                }
             }
             // Some native parametric exports represent walls as solid boxes, including
             // behind the window pane. Saved wall panels provide actual aperture holes.
@@ -297,7 +323,7 @@ final class RoomSceneController {
                 furnitureEntities[item.id] = entity
             }
         }
-        let inverseYaw = simd_quatf(angle: -source.yaw, axis: [0, 1, 0])
+        let inverseYaw = simd_quatf(angle: -effectiveYaw, axis: [0, 1, 0])
         captureSpace.orientation = inverseYaw
         captureSpace.position = inverseYaw.act([-source.center.x, -source.floorLevel, -source.center.y])
 
@@ -494,11 +520,11 @@ final class RoomSceneController {
 
     private func createMockFurnitureItems(at floorY: Float) -> [Furniture] {
         [
-            Furniture(name: "Queen Bed", category: "bed", positionX: -1.79, positionY: floorY, positionZ: -1.10, rotationYaw: 0, length: 2.0, width: 1.6, height: 0.9),
-            Furniture(name: "Work Desk", category: "desk", positionX: 0.05, positionY: floorY, positionZ: -0.55, rotationYaw: .pi / 2, length: 1.4, width: 0.7, height: 0.75),
-            Furniture(name: "Desk Chair", category: "chair", positionX: -0.15, positionY: floorY, positionZ: -0.52, rotationYaw: -.pi / 2, length: 0.6, width: 0.6, height: 0.9),
-            Furniture(name: "Sofa", category: "sofa", positionX: -1.20, positionY: floorY, positionZ: 0.95, rotationYaw: 0, length: 2.0, width: 0.85, height: 0.8),
-            Furniture(name: "Wardrobe", category: "storage", positionX: -0.83, positionY: floorY, positionZ: -1.75, rotationYaw: 0, length: 1.2, width: 0.6, height: 2.0)
+            Furniture(name: "Queen Bed", category: "bed", positionX: -0.75, positionY: floorY, positionZ: -0.65, rotationYaw: 0, length: 2.0, width: 1.6, height: 0.9),
+            Furniture(name: "Work Desk", category: "desk", positionX: 1.30, positionY: floorY, positionZ: 0.0, rotationYaw: 0, length: 1.4, width: 0.7, height: 0.75),
+            Furniture(name: "Desk Chair", category: "chair", positionX: 0.60, positionY: floorY, positionZ: 0.0, rotationYaw: -.pi / 2, length: 0.6, width: 0.6, height: 0.9),
+            Furniture(name: "Sofa", category: "sofa", positionX: -0.30, positionY: floorY, positionZ: 1.30, rotationYaw: .pi / 2, length: 2.0, width: 0.85, height: 0.8),
+            Furniture(name: "Wardrobe", category: "storage", positionX: 0.95, positionY: floorY, positionZ: -1.45, rotationYaw: .pi / 2, length: 1.2, width: 0.6, height: 2.0)
         ]
     }
 
@@ -686,13 +712,53 @@ final class RoomSceneController {
         return result
     }
 
-    /// Uses the bounds of the mesh(es) named "glass" on the east wall as the window opening.
+    /// Uses the bounds of the mesh(es) named "glass" on the perimeter walls as the window opening.
     private func findWindow(in model: Entity) -> WindowOpening? {
         let glass = modelEntities(in: model).filter { $0.name.lowercased().contains("glass") }
-        guard let box = union(glass.map { $0.visualBounds(relativeTo: nil) }), box.center.x > 1 else {
+        guard let box = union(glass.map { $0.visualBounds(relativeTo: root) }), abs(box.center.x) > 0.8 || abs(box.center.z) > 0.8 else {
             return nil
         }
         return WindowOpening(center: box.center, width: box.extents.z, height: box.extents.y)
+    }
+
+    /// Derives the dominant wall orientation deviation relative to coordinate axes so the room can be un-tilted.
+    private func dominantWallTilt(in loaded: Entity) -> Float {
+        var wallModels: [Entity] = []
+        func collectWalls(in entity: Entity) {
+            if entity.name.lowercased().contains("wall"), entity.components.has(ModelComponent.self) {
+                wallModels.append(entity)
+            }
+            for child in entity.children {
+                collectWalls(in: child)
+            }
+        }
+        collectWalls(in: loaded)
+
+        var candidateAngles: [Float] = []
+        for wall in wallModels {
+            let orient = wall.orientation(relativeTo: loaded)
+            let dir = orient.act(SIMD3<Float>(1, 0, 0))
+            if abs(dir.x) > 0.001 || abs(dir.z) > 0.001 {
+                let angle = atan2(dir.z, dir.x)
+                let diff = normalizeQuarterTurn(angle)
+                candidateAngles.append(diff)
+            }
+        }
+
+        guard !candidateAngles.isEmpty else { return 0.0 }
+        candidateAngles.sort()
+        return candidateAngles[candidateAngles.count / 2]
+    }
+
+    private func normalizeQuarterTurn(_ angle: Float) -> Float {
+        let quarter = Float.pi / 2.0
+        var rem = angle.truncatingRemainder(dividingBy: quarter)
+        if rem > quarter / 2.0 {
+            rem -= quarter
+        } else if rem < -quarter / 2.0 {
+            rem += quarter
+        }
+        return rem
     }
 
     /// Glass and anything that looks like a lamp must not cast shadows,
