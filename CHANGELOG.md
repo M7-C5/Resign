@@ -8,6 +8,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- feat(studio-3d): add viewport presets snapping menu to studio controls (f0603ee)
+- feat(studio-3d): implement dynamic wall cutaway engine and smooth orbit interpolation (929a272)
+- feat(studio-3d): implement viewport preset domain model and camera snapping (dec86d4)
 - feat(dashboard): add featured 3d studio demo card and idempotent reference room seeding (425d9e3)
 - feat(studio-3d): support touch triage for handle rotation, two-finger twist, and translation drag (0a82a02)
 - feat(studio-3d): support interior drywall bounds, dual architectural lighting, and floor raycasting (9e54344)
@@ -45,7 +48,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - refactor(arch): scaffold vertical feature-slice architecture with skeleton modules (3419a7d)
 
 ### Fixed
-- fix(spatial): project opposing walls along pair normal and eliminate artificial skin inset (1898184)
+- fix(spatial): project opposing walls along pair normal and eliminate artificial skin inset (8052c40)
 - fix(studio-3d): preserve scanned layout lighting pipeline and entity query compatibility (5f51876)
 - fix(lighting): brighten artificial fixtures and soften interior fill (834e47a)
 - fix(lighting): preserve ceiling light edits and align scan positions (2c9388f)
@@ -69,7 +72,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - fix(lighting-simulation): shape natural light to the window (5fbb493)
 
 ### Documentation
-- docs(rules): document room dimension extraction heuristics and angular drift projection (49f42ae)
+- docs(adr): document viewport snapping and dynamic wall cutaways in adr 0026 (22ab927)
+- docs(rules): document room dimension extraction heuristics and angular drift projection (38ec5ba)
 - docs(adr): document interactive 3d rearrangement, interior bounds, and drag rotation in adr 0025 (54c1e31)
 - docs(changelog): record adaptive placement and brighter fixtures (5021c54)
 - docs(changelog): regenerate lighting history after rebase (d495f7e)
@@ -99,7 +103,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - docs: add agentic playbook, architecture blueprint, and changelog (178cddb)
 
 ### Tooling & Maintenance
-- test(spatial): verify normal projection under angular drift and dominant ceiling height (92f0696)
+- test(studio-3d): verify viewport preset angles and dynamic wall cutaways (b4cf6f3)
+- chore(release): update changelog for room dimension extraction accuracy refinement (de0e432)
+- test(spatial): verify normal projection under angular drift and dominant ceiling height (8b557d8)
 - chore(release): update changelog for scanned layout pipeline fix (78055a1)
 - chore(release): update changelog for 3d studio interactive rearrangement (5f02313)
 - chore(orientation): add compass and setup previews (fca79d8)
