@@ -91,17 +91,41 @@ public struct Studio3DView: View {
             )
             .padding(.bottom, viewModel.isLightingPresented ? LightingSimulationSheet.collapsedHeight + 20 : 0)
 
-            // Lighting Simulation Trigger
-            Button {
-                viewModel.beginLightingEditing()
-            } label: {
-                Image(systemName: "lightbulb")
-                    .font(.body)
-                    .foregroundStyle(.primary)
-                    .frame(width: 44, height: 44)
-                    .background(.regularMaterial, in: Circle())
+            // Top-Trailing Controls: Viewport Snapping & Lighting Simulation
+            HStack(spacing: 12) {
+                // Architectural Viewport Snapping Menu
+                Menu {
+                    ForEach(ViewportPreset.allCases) { preset in
+                        if preset == .dollhouse {
+                            Divider()
+                        }
+                        Button {
+                            controller.snapToViewport(preset)
+                        } label: {
+                            Label(preset.title, systemImage: preset.systemImage)
+                        }
+                    }
+                } label: {
+                    Image(systemName: "cube.plane.bottom.right.detached")
+                        .font(.body)
+                        .foregroundStyle(.primary)
+                        .frame(width: 44, height: 44)
+                        .background(.regularMaterial, in: Circle())
+                }
+                .accessibilityLabel("Viewport Presets")
+
+                // Lighting Simulation Trigger
+                Button {
+                    viewModel.beginLightingEditing()
+                } label: {
+                    Image(systemName: "lightbulb")
+                        .font(.body)
+                        .foregroundStyle(.primary)
+                        .frame(width: 44, height: 44)
+                        .background(.regularMaterial, in: Circle())
+                }
+                .accessibilityLabel("Lighting Simulation")
             }
-            .accessibilityLabel("Lighting Simulation")
             .padding()
 
             // Contextual Furniture Rearrangement Action Bar
