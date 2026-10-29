@@ -3,9 +3,20 @@ import Observation
 import UIKit
 import simd
 
+/// Registered wall entity with horizontal outward normal vector for dynamic cutaway rendering.
+public struct WallCutawayItem: Sendable {
+    public let entity: Entity
+    public let outwardNormal: SIMD2<Float>
+
+    public init(entity: Entity, outwardNormal: SIMD2<Float>) {
+        self.entity = entity
+        self.outwardNormal = outwardNormal
+    }
+}
+
 /// Loads the scanned Room.usdz (with Room-2.usdz colored mock fallback) or parametric scanned layout,
 /// instantiates sanitized furniture, centers the camera dynamically on the room centroid,
-/// and manages the lighting rig, PBR architectural styling, and selection visuals.
+/// and manages the lighting rig, PBR architectural styling, selection visuals, viewport presets, and cutaways.
 @MainActor
 @Observable
 final class RoomSceneController {
@@ -17,6 +28,7 @@ final class RoomSceneController {
     private(set) var resolvedWindowAzimuths: [Double]?
     public private(set) var floorLevel: Float = 0.0
     public private(set) var roomHorizontalBounds: (minX: Float, maxX: Float, minZ: Float, maxZ: Float)? = nil
+    public private(set) var wallCutaways: [WallCutawayItem] = []
 
     let root = Entity()
     let rig: RoomLightingRig
@@ -32,6 +44,7 @@ final class RoomSceneController {
 
     @ObservationIgnored private var cameraTarget: SIMD3<Float> = [0, 1.2, 0]
     @ObservationIgnored private var roomExtent: Float = 5
+    @ObservationIgnored private var animationTask: Task<Void, Never>?
 
     // Orbit state. Comfortable dollhouse perspective
     @ObservationIgnored var yaw: Float = -0.73
@@ -152,32 +165,51 @@ final class RoomSceneController {
             var interiorMinZ = bounds.min.z
             var interiorMaxZ = bounds.max.z
 
+            var wallCutawayList: [WallCutawayItem] = []
+            let wallCandidates: [Entity]
             if let archGrp = loaded.findEntity(named: "Arch_grp") {
-                for child in archGrp.children where child.name.lowercased().contains("wall") {
-                    let b = child.visualBounds(relativeTo: root)
-                    let extentX = b.max.x - b.min.x
-                    let extentZ = b.max.z - b.min.z
-                    let midX = (b.min.x + b.max.x) * 0.5
-                    let midZ = (b.min.z + b.max.z) * 0.5
-
-                    if extentZ > extentX {
-                        // North-South running wall (East or West boundary)
-                        if midX > cx {
-                            interiorMaxX = min(interiorMaxX, b.min.x)
-                        } else {
-                            interiorMinX = max(interiorMinX, b.max.x)
-                        }
-                    } else {
-                        // East-West running wall (North or South boundary)
-                        if midZ > cz {
-                            interiorMaxZ = min(interiorMaxZ, b.min.z)
-                        } else {
-                            interiorMinZ = max(interiorMinZ, b.max.z)
-                        }
-                    }
+                wallCandidates = archGrp.children.filter { $0.name.lowercased().contains("wall") }
+            } else {
+                func collectWalls(in entity: Entity) -> [Entity] {
+                    var list: [Entity] = []
+                    if entity.name.lowercased().contains("wall") { list.append(entity) }
+                    for child in entity.children { list.append(contentsOf: collectWalls(in: child)) }
+                    return list
                 }
+                wallCandidates = collectWalls(in: loaded)
             }
 
+            for child in wallCandidates {
+                let b = child.visualBounds(relativeTo: root)
+                let extentX = b.max.x - b.min.x
+                let extentZ = b.max.z - b.min.z
+                let midX = (b.min.x + b.max.x) * 0.5
+                let midZ = (b.min.z + b.max.z) * 0.5
+
+                let normal: SIMD2<Float>
+                if extentZ > extentX {
+                    // North-South running wall (East or West boundary)
+                    if midX > cx {
+                        interiorMaxX = min(interiorMaxX, b.min.x)
+                        normal = SIMD2<Float>(1, 0)
+                    } else {
+                        interiorMinX = max(interiorMinX, b.max.x)
+                        normal = SIMD2<Float>(-1, 0)
+                    }
+                } else {
+                    // East-West running wall (North or South boundary)
+                    if midZ > cz {
+                        interiorMaxZ = min(interiorMaxZ, b.min.z)
+                        normal = SIMD2<Float>(0, 1)
+                    } else {
+                        interiorMinZ = max(interiorMinZ, b.max.z)
+                        normal = SIMD2<Float>(0, -1)
+                    }
+                }
+                wallCutawayList.append(WallCutawayItem(entity: child, outwardNormal: normal))
+            }
+
+            self.wallCutaways = wallCutawayList
             self.roomHorizontalBounds = (interiorMinX, interiorMaxX, interiorMinZ, interiorMaxZ)
 
             if let floorGrp = loaded.findEntity(named: "Floor_grp") {
@@ -196,6 +228,7 @@ final class RoomSceneController {
             let span = max(interiorMaxX - interiorMinX, interiorMaxZ - interiorMinZ)
             self.distance = min(18, max(5, span * 1.6))
             updateCamera()
+            updateWallCutaways()
 
             // Populate sanitized furniture from layout or synthesize mock layout furniture
             populateFurnitures()
@@ -286,6 +319,7 @@ final class RoomSceneController {
             maxZ: source.length / 2.0
         )
         updateCamera()
+        updateWallCutaways()
     }
 
     private func prepareScanned(_ entity: Entity, windowAncestor: Bool = false) {
@@ -355,18 +389,33 @@ final class RoomSceneController {
         ]
         let capturedWalls = source.wallSegments
         let walls = capturedWalls.isEmpty ? fallbackWalls : capturedWalls
+        var scannedCutaways: [WallCutawayItem] = []
         for (index, wall) in walls.enumerated() {
-            addWall(wall, index: index, source: source, to: shell)
+            if let group = addWall(wall, index: index, source: source, to: shell) {
+                let delta = SIMD2<Float>(wall.endX - wall.startX, wall.endZ - wall.startZ)
+                let len = simd_length(delta)
+                if len > 0.02 {
+                    let tangent = delta / len
+                    var normal = simd_normalize(SIMD2<Float>(tangent.y, -tangent.x))
+                    let mid = SIMD2<Float>((wall.startX + wall.endX) * 0.5, (wall.startZ + wall.endZ) * 0.5)
+                    if simd_dot(normal, mid) < 0 { normal = -normal }
+                    scannedCutaways.append(WallCutawayItem(entity: group, outwardNormal: normal))
+                }
+            }
         }
+        self.wallCutaways = scannedCutaways
         return shell
     }
 
-    private func addWall(_ wall: RoomPlanSnapshot.WallSegment, index: Int, source: RoomSimulationLayout, to shell: Entity) {
+    @discardableResult
+    private func addWall(_ wall: RoomPlanSnapshot.WallSegment, index: Int, source: RoomSimulationLayout, to shell: Entity) -> Entity? {
         let start = SIMD2<Float>(wall.startX, wall.startZ)
         let delta = SIMD2<Float>(wall.endX - wall.startX, wall.endZ - wall.startZ)
         let length = simd_length(delta)
-        guard length > 0.02 else { return }
+        guard length > 0.02 else { return nil }
         let direction = delta / length
+        let wallGroup = Entity()
+        wallGroup.name = "ApertureWallGroup\(index)"
         // Partition the wall into solid panels around every saved opening.
         var holes: [(left: Float, right: Float, bottom: Float, top: Float)] = []
         for aperture in source.apertures {
@@ -398,14 +447,18 @@ final class RoomSceneController {
                 panel.position = [start.x + direction.x * x, y, start.y + direction.y * x]
                 panel.orientation = simd_quatf(angle: atan2(-direction.y, direction.x), axis: [0, 1, 0])
                 panel.components.set(DynamicLightShadowComponent(castsShadow: true))
-                shell.addChild(panel)
+                wallGroup.addChild(panel)
             }
         }
+        shell.addChild(wallGroup)
+        return wallGroup
     }
 
     func reload() async {
+        animationTask?.cancel()
         roomEntity?.removeFromParent()
         roomEntity = nil
+        wallCutaways.removeAll()
         for (_, entity) in furnitureEntities {
             entity.removeFromParent()
         }
@@ -469,12 +522,71 @@ final class RoomSceneController {
         furnitureEntities[id]
     }
 
+    // MARK: - Viewport Snapping & Cutaways
+
+    /// Snaps the orbit camera to an architectural viewport preset, optionally interpolating smoothly.
+    func snapToViewport(_ preset: ViewportPreset, animated: Bool = true) {
+        let startYaw = self.yaw
+        let startPitch = self.pitch
+        let targetYaw = preset.targetYaw
+        let targetPitch = preset.targetPitch
+
+        if !animated {
+            animationTask?.cancel()
+            setOrbit(yaw: targetYaw, pitch: targetPitch)
+            return
+        }
+
+        animationTask?.cancel()
+        animationTask = Task { @MainActor in
+            let duration: Double = 0.35
+            let startTime = CACurrentMediaTime()
+
+            var deltaYaw = (targetYaw - startYaw).truncatingRemainder(dividingBy: .pi * 2)
+            if deltaYaw > .pi { deltaYaw -= .pi * 2 }
+            if deltaYaw < -.pi { deltaYaw += .pi * 2 }
+
+            while !Task.isCancelled {
+                let elapsed = CACurrentMediaTime() - startTime
+                let progress = min(1.0, elapsed / duration)
+                let t = Float(progress < 0.5 ? 2 * progress * progress : 1 - pow(-2 * progress + 2, 2) / 2)
+
+                let currentYaw = startYaw + deltaYaw * t
+                let currentPitch = startPitch + (targetPitch - startPitch) * t
+                setOrbit(yaw: currentYaw, pitch: currentPitch)
+
+                if progress >= 1.0 { break }
+                try? await Task.sleep(nanoseconds: 16_000_000)
+            }
+        }
+    }
+
+    /// Evaluates dynamic wall cutaways based on camera orbit position.
+    /// In top-down bird's-eye view (pitch >= 1.05 rad / ~60°), all perimeter walls stay visible.
+    /// At side angles (pitch < 1.05 rad), walls whose normal points toward the camera (dot > 0.1) are hidden.
+    func updateWallCutaways() {
+        if pitch >= 1.05 {
+            for item in wallCutaways {
+                item.entity.isEnabled = true
+            }
+            return
+        }
+
+        let camDir = SIMD2<Float>(sin(yaw), cos(yaw))
+
+        for item in wallCutaways {
+            let isFacingCamera = simd_dot(item.outwardNormal, camDir) > 0.1
+            item.entity.isEnabled = !isFacingCamera
+        }
+    }
+
     // MARK: - Camera
 
     func setOrbit(yaw: Float, pitch: Float) {
         self.yaw = yaw
-        self.pitch = min(1.35, max(0.15, pitch))
+        self.pitch = min(1.56, max(0.10, pitch))
         updateCamera()
+        updateWallCutaways()
     }
 
     func setDistance(_ value: Float) {
