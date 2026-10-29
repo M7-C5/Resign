@@ -988,14 +988,26 @@ struct AdaptiveCeilingPlacementTests {
     @Test func elongatedRoomsHaveBalancedSpacingAndDifferentCounts() {
         let bounds = RoomPlanBounds(snapshot: nil, fallbackWidth: 8, fallbackLength: 2)
         let grid = CeilingLightPlacementGrid(bounds: bounds, walls: [])
-        #expect(grid.columns == 9 && grid.rows == 2)
-        #expect(grid.points.count == 18)
+        #expect(grid.columns == 13 && grid.rows == 3)
+        #expect(grid.points.count == 39)
         #expect(abs(bounds.width / Float(grid.columns) - bounds.length / Float(grid.rows)) < 0.15)
         let limited = CeilingLightPlacementGrid(bounds: bounds, walls: [], maxColumns: 6, maxRows: 2)
         #expect(limited.columns <= 6 && limited.rows <= 2)
         let portrait = CeilingLightPlacementGrid(
             bounds: RoomPlanBounds(snapshot: nil, fallbackWidth: 2, fallbackLength: 8), walls: [])
         #expect(portrait.rows == grid.columns && portrait.columns == grid.rows)
+    }
+
+    @Test func roomCenterIsOfferedEvenWhenDisplayLimitsRequireEvenCounts() {
+        let bounds = RoomPlanBounds(snapshot: nil, fallbackWidth: 5, fallbackLength: 4)
+        for limits in [(8, 6), (6, 4), (1, 1)] {
+            let grid = CeilingLightPlacementGrid(bounds: bounds, walls: [],
+                                                maxColumns: limits.0, maxRows: limits.1)
+            #expect(grid.points.filter { $0 == SIMD2<Float>(0.5, 0.5) }.count == 1)
+            #expect(Set(grid.points).count == grid.points.count)
+        }
+        let roomy = CeilingLightPlacementGrid(bounds: bounds, walls: [])
+        #expect(roomy.points.count > 35)
     }
 
     @Test func concaveBoundaryExcludesEmptyPartOfLayout() {
@@ -1007,10 +1019,51 @@ struct AdaptiveCeilingPlacementTests {
         }
         let bounds = RoomPlanBounds(snapshot: nil, fallbackWidth: 6, fallbackLength: 6)
         let grid = CeilingLightPlacementGrid(bounds: bounds, walls: walls)
-        #expect(grid.points.count == 24)
+        #expect(grid.points.count == 45)
         #expect(!grid.points.contains { $0.x > 1.0 / 3 && $0.y > 1.0 / 3 })
+        #expect(!grid.points.contains([0.5, 0.5])) // The bounds center lies outside this L-shaped room.
         let incomplete = CeilingLightPlacementGrid(bounds: bounds, walls: Array(walls.dropLast()))
-        #expect(incomplete.points.count == 49) // Open scans use explicit rectangular fallback.
+        #expect(incomplete.points.isEmpty) // Never offer outside positions for an unclosed scan.
+        #expect(!incomplete.hasUsableBoundary)
+    }
+
+    @Test func smallScanGapsAreJoinedWithoutFillingConcaveCutout() {
+        let vertices: [SIMD2<Float>] = [[-3,-3], [3,-3], [3,-1], [-1,-1], [-1,3], [-3,3]]
+        let walls = vertices.indices.map { index in
+            let a = vertices[index] + SIMD2<Float>(0.04, 0.03)
+            let b = vertices[(index + 1) % vertices.count] - SIMD2<Float>(0.04, 0.03)
+            return RoomPlanSnapshot.WallSegment(startX: a.x, startZ: a.y, endX: b.x, endZ: b.y)
+        }
+        let bounds = RoomPlanBounds(snapshot: nil, fallbackWidth: 6, fallbackLength: 6)
+        let grid = CeilingLightPlacementGrid(bounds: bounds, walls: walls)
+        #expect(grid.hasUsableBoundary && !grid.points.isEmpty)
+        #expect(!grid.allowsPlacement(at: SIMD2<Float>(0.8, 0.8)))
+        for point in grid.points {
+            let x = bounds.minX + point.x * bounds.width
+            let z = bounds.minZ + point.y * bounds.length
+            #expect(x < -1.15 || z < -1.15)
+        }
+    }
+
+    @Test func slantedWallsExcludePointsOnAndBeyondWallFaces() {
+        let vertices: [SIMD2<Float>] = [[0,-2], [2,0], [0,2], [-2,0]]
+        let walls = vertices.indices.map { index in
+            let a = vertices[index]
+            let b = vertices[(index + 1) % vertices.count]
+            return RoomPlanSnapshot.WallSegment(startX: a.x, startZ: a.y, endX: b.x, endZ: b.y)
+        }
+        let bounds = RoomPlanBounds(snapshot: nil, fallbackWidth: 4, fallbackLength: 4)
+        let grid = CeilingLightPlacementGrid(bounds: bounds, walls: walls, wallClearance: 0.2)
+        #expect(grid.hasUsableBoundary && !grid.points.isEmpty)
+        #expect(!grid.allowsPlacement(at: [0.75, 0.25])) // Exactly on a diagonal wall.
+        #expect(!grid.allowsPlacement(at: [0.95, 0.95]))
+        for point in grid.points {
+            let x = bounds.minX + point.x * bounds.width
+            let z = bounds.minZ + point.y * bounds.length
+            #expect(abs(x) + abs(z) < 2 - 0.2 * Float(2).squareRoot())
+        }
+        let open = CeilingLightPlacementGrid(bounds: bounds, walls: Array(walls.dropLast()))
+        #expect(open.points.isEmpty && !open.allowsPlacement(at: [0.5, 0.5]))
     }
 
     @Test @MainActor func fractionalPlacementSurvivesSaveAndSimulation() throws {
