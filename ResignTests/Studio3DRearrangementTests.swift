@@ -264,11 +264,50 @@ struct Studio3DRearrangementTests {
         await controller.load()
 
         let bounds = try #require(controller.roomHorizontalBounds)
-        // In Room-2.usdz, the outer bounding box is X [-3.55, 0.97], Z [-2.66, 2.03]
-        // But the interior drywall faces are X ~ [-3.04, 0.45], Z ~ [-2.17, 1.54]
-        #expect(bounds.minX > -3.20)
-        #expect(bounds.maxX < 0.60)
-        #expect(bounds.minZ > -2.30)
-        #expect(bounds.maxZ < 1.70)
+        // In Room-2.usdz, the room is normalized squarely at (0, 0) with floor at 0.0
+        // Symmetrical interior drywall limits: X ~ [-2.02, 2.02], Z ~ [-2.11, 2.11]
+        #expect(controller.floorLevel == 0.0)
+        #expect(abs(bounds.minX + bounds.maxX) < 0.1)
+        #expect(abs(bounds.minZ + bounds.maxZ) < 0.1)
+        #expect(bounds.minX < -1.80)
+        #expect(bounds.maxX > 1.80)
+        #expect(bounds.minZ < -1.90)
+        #expect(bounds.maxZ > 1.90)
+    }
+
+    @Test @MainActor func initialFurnitureInRoomTwoIsCenteredAndNonColliding() async throws {
+        let container = try ModelContainer.createInMemoryContainer()
+        let vm = DashboardViewModel()
+        let room = vm.ensureRoom2Seeded(context: container.mainContext)
+        let layout = try #require(room.layouts.first)
+
+        #expect(layout.furnitures.count == 5)
+        for item in layout.furnitures {
+            #expect(item.positionY == 0.0)
+        }
+
+        // Test clearance engine detects zero overlaps between initial pieces
+        for i in 0..<layout.furnitures.count {
+            for j in (i + 1)..<layout.furnitures.count {
+                let f1 = layout.furnitures[i]
+                let f2 = layout.furnitures[j]
+                let proxyA = FurnitureCollisionProxy(
+                    id: f1.id,
+                    category: f1.category,
+                    position: SIMD3<Float>(f1.positionX, f1.positionY, f1.positionZ),
+                    dimensions: SIMD3<Float>(f1.width, f1.height, f1.length),
+                    rotationYaw: f1.rotationYaw
+                )
+                let proxyB = FurnitureCollisionProxy(
+                    id: f2.id,
+                    category: f2.category,
+                    position: SIMD3<Float>(f2.positionX, f2.positionY, f2.positionZ),
+                    dimensions: SIMD3<Float>(f2.width, f2.height, f2.length),
+                    rotationYaw: f2.rotationYaw
+                )
+                let colliding = SpatialClearanceEngine.checkCollision(itemA: proxyA, itemB: proxyB)
+                #expect(!colliding, "Expected no collision between \(f1.name) and \(f2.name)")
+            }
+        }
     }
 }
