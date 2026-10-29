@@ -30,10 +30,10 @@ struct RoomLightingTuning {
     /// Nominal reference-fixture output, matching the editor's default saved lumens.
     var fixtureSpotLumens: Float = 1_080
     /// Soft indirect-light approximation, expressed relative to the reference fixture.
-    var fixtureFillLumens: Float = 540
+    var fixtureFillLumens: Float = 810
     /// Render-only compensation for the deliberately dark environment and absent real-time GI.
     /// This is a visual exposure adjustment, not an illuminance calibration.
-    var fixtureExposureGain: Float = 8
+    var fixtureExposureGain: Float = 24
 
     /// Environment light as a power of two. Very low: the room must look dark without lamps or sun.
     var nightAmbientExponent: Float = -6.5
