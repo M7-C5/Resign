@@ -385,7 +385,8 @@ private struct RoomRenderSurface: UIViewRepresentable {
     }
 
     func makeUIView(context: Context) -> ARView {
-        let view = ARView(frame: .zero, cameraMode: .nonAR, automaticallyConfigureSession: false)
+        let view = RoomPreviewARView(frame: .zero, cameraMode: .nonAR, automaticallyConfigureSession: false)
+        view.onViewportChange = { [weak controller] size in controller?.setViewportSize(size) }
         view.environment.background = .color(UIColor(red: 250.0 / 255, green: 249.0 / 255, blue: 246.0 / 255, alpha: 1))
         view.renderOptions.insert([.disableMotionBlur, .disableDepthOfField])
 
@@ -420,6 +421,17 @@ private struct RoomRenderSurface: UIViewRepresentable {
 
     static func dismantleUIView(_ view: ARView, coordinator: Coordinator) {
         coordinator.loadTask?.cancel()
+        (view as? RoomPreviewARView)?.onViewportChange = nil
         view.scene.anchors.removeAll()
+    }
+}
+
+/// Resizes the existing interactive viewport without replacing its scene or gesture coordinator.
+private final class RoomPreviewARView: ARView {
+    var onViewportChange: ((CGSize) -> Void)?
+
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        onViewportChange?(bounds.size)
     }
 }

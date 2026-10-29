@@ -33,6 +33,8 @@ This directory documents key architectural decisions for **Resign** using the [M
 - [ADR 0027: Scanned Room Square Orientation and Centered Origin Normalization](0027-scanned-room-square-orientation-and-centered-origin.md)
 - [ADR 0028: Studio 3D Inventory and Drag Archival System](0028-studio-3d-inventory-and-drag-archival-system.md)
 
+- [ADR 0027: Adapt Lighting Workspaces to the Available Window](0027-adaptive-lighting-workspaces.md)
+
 ## How to Create a New ADR
 1. Copy [template.md](template.md) to `docs/adr/NNNN-title-in-kebab-case.md`.
 2. Follow MADR conventions: Context, Decision Drivers, Considered Options, Decision Outcome, and Consequences.

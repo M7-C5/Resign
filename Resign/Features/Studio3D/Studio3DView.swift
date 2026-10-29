@@ -8,6 +8,8 @@ public struct Studio3DView: View {
     @State private var viewModel = Studio3DViewModel()
     @State private var controller = RoomSceneController()
     @State private var snapFeedbackTrigger = false
+    @State private var usesInlineLightingPanel = false
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @Query(sort: \Layout.updatedAt, order: .reverse) private var layouts: [Layout]
 
     public init(layoutID: UUID? = nil) {
@@ -43,10 +45,78 @@ public struct Studio3DView: View {
 
     public var body: some View {
         @Bindable var viewModel = viewModel
+        GeometryReader { geometry in
+            let workspace = LightingWorkspaceLayout(size: geometry.size,
+                                                    accessibilityText: dynamicTypeSize.isAccessibilitySize)
+            HStack(spacing: 0) {
+                ZStack(alignment: .topTrailing) {
+                    if layoutID != nil, selectedLayout == nil {
+                        ContentUnavailableView("Layout Not Found", systemImage: "cube")
+                    } else {
+                        roomViewport
+                            .padding(.bottom, workspace.simulationBottomInset(isEditing: viewModel.isLightingPresented))
+                    }
+                    HStack(spacing: 12) {
+                        viewportMenu
+                        Button {
+                            viewModel.beginLightingEditing()
+                        } label: {
+                            Image(systemName: "lightbulb")
+                                .font(.body)
+                                .foregroundStyle(.primary)
+                                .frame(width: 44, height: 44)
+                                .background(.regularMaterial, in: Circle())
+                        }
+                        .accessibilityLabel("Lighting Simulation")
+                    }
+                    .padding()
+                    furnitureActionBar
+                        .padding(.bottom, workspace.simulationBottomInset(isEditing: viewModel.isLightingPresented))
+                }
+                .frame(maxWidth: .infinity)
+                if workspace.usesSidePanel && viewModel.isLightingPresented {
+                    LightingSimulationControls(settings: $viewModel.lightingDraft,
+                                               onCancel: { viewModel.discardLightingEditing() },
+                                               onConfirm: { viewModel.confirmLightingEditing() })
+                        .frame(width: workspace.panelWidth)
+                        .background(.regularMaterial)
+                }
+            }
+            .onChange(of: workspace.usesSidePanel, initial: true) { _, usesSidePanel in
+                usesInlineLightingPanel = usesSidePanel
+            }
+        }
+        .sheet(isPresented: Binding(
+            get: { viewModel.isLightingPresented && !usesInlineLightingPanel },
+            set: { presented in
+                if !presented && !usesInlineLightingPanel { viewModel.discardLightingEditing() }
+            }
+        ), onDismiss: {
+            if !usesInlineLightingPanel { viewModel.sheetDidDismiss() }
+        }) {
+            LightingSimulationSheet(settings: $viewModel.lightingDraft,
+                                    onCancel: { viewModel.discardLightingEditing() },
+                                    onConfirm: { viewModel.confirmLightingEditing() })
+        }
+        .onAppear {
+            controller.setRoomAndLayout(room: selectedLayout?.room, layout: selectedLayout)
+        }
+        .onChange(of: selectedLayout) { _, newLayout in
+            controller.setRoomAndLayout(room: newLayout?.room, layout: newLayout)
+        }
+        .onChange(of: roomHeading, initial: true) { _, newHeading in
+            viewModel.updateRoomHeading(newHeading)
+        }
+        .onChange(of: sceneLayout?.windowAzimuths ?? [90], initial: true) { _, directions in
+            viewModel.updateWindowDirections(directions)
+        }
+        .navigationTitle(selectedLayout?.name ?? "3D Studio")
+        .navigationBarTitleDisplayMode(.inline)
+        .sensoryFeedback(.impact(weight: .light), trigger: snapFeedbackTrigger)
+    }
 
-        ZStack(alignment: .topTrailing) {
-            // Authentic 3D Room Viewport with Sims-style furniture manipulation
-            RoomSimulationView(
+    private var roomViewport: some View {
+RoomSimulationView(
                 controller: controller,
                 settings: viewModel.previewLighting,
                 fixtures: lightingFixtures,
@@ -97,7 +167,11 @@ public struct Studio3DView: View {
                     }
                 },
                 onBoundsResolved: { bounds in
-                    viewModel.roomHorizontalBounds = bounds
+                    let old = viewModel.roomHorizontalBounds
+                    if old == nil || old?.minX != bounds.minX || old?.maxX != bounds.maxX
+                        || old?.minZ != bounds.minZ || old?.maxZ != bounds.maxZ {
+                        viewModel.roomHorizontalBounds = bounds
+                    }
                 },
                 onReloadScannedRoom: {
                     Task { await controller.reload() }
@@ -106,11 +180,10 @@ public struct Studio3DView: View {
                     viewModel.updateWindowDirections(directions)
                 }
             )
-            .padding(.bottom, viewModel.isLightingPresented ? LightingSimulationSheet.collapsedHeight + 20 : 0)
+    }
 
-            // Top-Trailing Controls: Viewport Snapping & Lighting Simulation
-            HStack(spacing: 12) {
-                // Architectural Viewport Snapping Menu
+    private var viewportMenu: some View {
+// Architectural Viewport Snapping Menu
                 Menu {
                     ForEach(ViewportPreset.allCases) { preset in
                         if preset == .dollhouse {
@@ -130,21 +203,9 @@ public struct Studio3DView: View {
                         .background(.regularMaterial, in: Circle())
                 }
                 .accessibilityLabel("Viewport Presets")
+    }
 
-                // Lighting Simulation Trigger
-                Button {
-                    viewModel.beginLightingEditing()
-                } label: {
-                    Image(systemName: "lightbulb")
-                        .font(.body)
-                        .foregroundStyle(.primary)
-                        .frame(width: 44, height: 44)
-                        .background(.regularMaterial, in: Circle())
-                }
-                .accessibilityLabel("Lighting Simulation")
-            }
-            .padding()
-
+    private var furnitureActionBar: some View {
             // Bottom Bar: Left Inventory Drawer + Right Contextual Action Bar
             VStack {
                 Spacer()
@@ -215,7 +276,7 @@ public struct Studio3DView: View {
                                     Image(systemName: "archivebox")
                                         .font(.caption.weight(.bold))
                                         .foregroundStyle(.secondary)
-                                        .frame(width: 32, height: 32)
+                                        .frame(width: 44, height: 44)
                                         .background(Color(uiColor: .tertiarySystemFill), in: Circle())
                                 }
                                 .accessibilityLabel("Archive furniture")
@@ -223,8 +284,8 @@ public struct Studio3DView: View {
                                 // Done / Revert button
                                 Button {
                                     withAnimation(.snappy(duration: 0.2)) {
-                                        if viewModel.isColliding {
-                                            if let reverted = viewModel.revertToLastValidPosition(id: furniture.id, in: selectedLayout!, context: modelContext) {
+                                        if viewModel.isColliding, let layout = selectedLayout {
+                                            if let reverted = viewModel.revertToLastValidPosition(id: furniture.id, in: layout, context: modelContext) {
                                                 controller.updateFurnitureTransform(id: furniture.id, position: reverted.position, yaw: reverted.yaw)
                                             }
                                         }
@@ -235,7 +296,7 @@ public struct Studio3DView: View {
                                     Image(systemName: viewModel.isColliding ? "arrow.uturn.backward" : "checkmark")
                                         .font(.caption.weight(.bold))
                                         .foregroundStyle(.white)
-                                        .frame(width: 32, height: 32)
+                                        .frame(width: 44, height: 44)
                                         .background(viewModel.isColliding ? Color.orange : Color.accentColor, in: Circle())
                                 }
                                 .accessibilityLabel(viewModel.isColliding ? "Revert collision" : "Done rearranging")
@@ -250,31 +311,6 @@ public struct Studio3DView: View {
                 .padding(.horizontal, 16)
                 .padding(.bottom, 24)
             }
-        }
-        .sheet(isPresented: $viewModel.isLightingPresented, onDismiss: {
-            viewModel.sheetDidDismiss()
-        }) {
-            LightingSimulationSheet(
-                settings: $viewModel.lightingDraft,
-                onCancel: { viewModel.discardLightingEditing() },
-                onConfirm: { viewModel.confirmLightingEditing() }
-            )
-        }
-        .onAppear {
-            controller.setRoomAndLayout(room: selectedLayout?.room, layout: selectedLayout)
-        }
-        .onChange(of: selectedLayout) { _, newLayout in
-            controller.setRoomAndLayout(room: newLayout?.room, layout: newLayout)
-        }
-        .onChange(of: roomHeading, initial: true) { _, newHeading in
-            viewModel.updateRoomHeading(newHeading)
-        }
-        .onChange(of: sceneLayout?.windowAzimuths ?? [90], initial: true) { _, directions in
-            viewModel.updateWindowDirections(directions)
-        }
-        .navigationTitle(selectedLayout?.name ?? "3D Studio")
-        .navigationBarTitleDisplayMode(.inline)
-        .sensoryFeedback(.impact(weight: .light), trigger: snapFeedbackTrigger)
     }
 
     private func restoreFurnitureItem(_ furniture: Furniture, at screenPoint: CGPoint?) {

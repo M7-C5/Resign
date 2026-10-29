@@ -4,6 +4,7 @@ import SwiftUI
 /// Calibrates a scanned room to north before users place its light sources.
 public struct OrientationView: View {
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     private let layout: Layout
     private let room: Room
@@ -36,65 +37,51 @@ public struct OrientationView: View {
     }
 
     public var body: some View {
-        VStack(spacing: 14) {
-            header
-
-            VStack(spacing: 6) {
-                Text(viewModel.isHeadingLocked ? "North Detected" : "Set Your North")
-                    .font(.headline)
-                    .foregroundStyle(viewModel.isHeadingLocked ? .green : .primary)
-
-                if viewModel.isHeadingLocked {
-                    Label(
-                        "Rotate the person in the center so its N arrow shows which way north lies in the scanned room.",
-                        systemImage: "hand.draw"
-                    )
-                    .font(.caption.weight(.medium))
-                    .foregroundStyle(.blue)
-                    .multilineTextAlignment(.center)
-                    .frame(maxWidth: 310)
+        GeometryReader { geometry in
+            let workspace = LightingWorkspaceLayout(size: geometry.size,
+                                                    accessibilityText: dynamicTypeSize.isAccessibilitySize)
+            VStack(spacing: 14) {
+                header
+                if workspace.usesSidePanel {
+                    HStack(alignment: .top, spacing: 24) {
+                        roomPlan
+                            .frame(maxHeight: max(240, geometry.size.height - 100), alignment: .top)
+                            .frame(maxWidth: .infinity)
+                        ScrollView {
+                            VStack(spacing: 20) {
+                                orientationInstructions
+                                compassSection
+                                continueButton
+                            }
+                            .padding(.vertical, 12)
+                        }
+                        .frame(width: workspace.panelWidth)
+                    }
                 } else {
-                    Text(instruction)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .multilineTextAlignment(.center)
-                        .frame(maxWidth: 300)
+                    ScrollView {
+                        VStack(spacing: 20) {
+                            orientationInstructions
+                            roomPlan.frame(maxHeight: min(420, geometry.size.height * 0.46))
+                            compassSection
+                            continueButton
+                        }
+                        .frame(maxWidth: 600)
+                        .frame(maxWidth: .infinity)
+                        .padding(.bottom, 20)
+                    }
                 }
             }
-
-            ScannedRoomPlanView(
-                room: room,
-                furniture: layout.furnitures.filter { !$0.isArchived },
-                openings: room.openings,
-                scanPlan: roomPlanSnapshot,
-                northArrowPlanRotation: $northArrowPlanRotation,
-                isNorthLocked: viewModel.isHeadingLocked,
-                didRotatePersonToMarkNorth: $didRotatePersonToMarkNorth
-            )
-            .frame(maxHeight: 330)
-            .accessibilityLabel("Room plan with a rotatable north marker")
-
-            compassSection
-
-            Spacer(minLength: 0)
-
-            Button(action: saveAndContinue) {
-                Text(continueButtonTitle)
-                    .font(.headline)
-                    .foregroundStyle(.white)
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 52)
-                    .background(canContinue ? Color.accentColor : Color.gray.opacity(0.45))
-                    .clipShape(RoundedRectangle(cornerRadius: 14))
-            }
-            .disabled(!canContinue)
-            .accessibilityHint("After north locks, rotate the person in the plan to mark north, then save and continue")
+            .padding(.horizontal, 24)
+            .padding(.top, 12)
+            .frame(maxWidth: 1440)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         }
-        .padding(.horizontal, 24)
-        .padding(.top, 12)
-        .padding(.bottom, 20)
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Color(.systemBackground))
+        .background {
+            CompassHeadingOrientationReader { viewModel.setHeadingOrientation($0) }
+                .allowsHitTesting(false)
+                .accessibilityHidden(true)
+        }
         .toolbar(.hidden, for: .navigationBar)
         .confirmationDialog(
             "Discard room orientation?",
@@ -124,6 +111,50 @@ public struct OrientationView: View {
         }
     }
 
+    private var roomPlan: some View {
+        ScannedRoomPlanView(room: room, furniture: layout.furnitures.filter { !$0.isArchived },
+                            openings: room.openings, scanPlan: roomPlanSnapshot,
+                            northArrowPlanRotation: $northArrowPlanRotation,
+                            isNorthLocked: viewModel.isHeadingLocked,
+                            didRotatePersonToMarkNorth: $didRotatePersonToMarkNorth)
+            .accessibilityLabel("Room plan with a rotatable north marker")
+    }
+
+    private var orientationInstructions: some View {
+        VStack(spacing: 8) {
+            Text(viewModel.isHeadingLocked ? "North Detected" : "Set Your North")
+                .font(.headline)
+                .foregroundStyle(viewModel.isHeadingLocked ? .green : .primary)
+            if viewModel.isHeadingLocked {
+                Label("Rotate the person in the center so its N arrow shows which way north lies in the scanned room.",
+                      systemImage: "hand.draw")
+                    .font(.callout)
+                    .foregroundStyle(.blue)
+            } else {
+                Text(instruction)
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .multilineTextAlignment(.center)
+        .fixedSize(horizontal: false, vertical: true)
+    }
+
+    private var continueButton: some View {
+        Button(action: saveAndContinue) {
+            Text(continueButtonTitle)
+                .font(.headline)
+                .multilineTextAlignment(.center)
+                .foregroundStyle(.white)
+                .padding(.horizontal, 12)
+                .frame(maxWidth: .infinity, minHeight: 52)
+                .background(canContinue ? Color.accentColor : Color.gray.opacity(0.45))
+                .clipShape(RoundedRectangle(cornerRadius: 14))
+        }
+        .disabled(!canContinue)
+        .accessibilityHint("After north locks, rotate the person in the plan to mark north, then save and continue")
+    }
+
     private var header: some View {
         HStack {
             Button {
@@ -151,7 +182,7 @@ public struct OrientationView: View {
         if viewModel.usesManualHeading {
             return "Set the compass to 000° and hold it steady for 2 seconds."
         }
-        return "Turn the iPhone until the compass reads 000°, then hold steady for 2 seconds."
+        return "Turn your device until the compass reads 000°, then hold steady for 2 seconds."
     }
 
     private var canContinue: Bool {
@@ -206,18 +237,18 @@ public struct OrientationView: View {
                             .tint(.blue)
                             .frame(maxWidth: 150)
                         if viewModel.needsCompassCalibration {
-                            Text("Low compass accuracy — move the phone in a figure eight for a better reading")
+                            Text("Low compass accuracy — move your device in a figure eight for a better reading")
                                 .font(.caption2)
                                 .foregroundStyle(.secondary)
                                 .fixedSize(horizontal: false, vertical: true)
                         }
                     } else if viewModel.needsCompassCalibration {
-                        Text("Compass accuracy is low — move the phone in a figure eight, then face north")
+                        Text("Compass accuracy is low — move your device in a figure eight, then face north")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                             .fixedSize(horizontal: false, vertical: true)
                     } else {
-                        Text("Face the phone toward north")
+                        Text("Face the device toward north")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
@@ -291,7 +322,7 @@ struct ScannedRoomPlanView: View {
             ZStack {
                 if scanPlan == nil || scanPlan?.wallSegments.isEmpty == true {
                     RoundedRectangle(cornerRadius: 14)
-                        .fill(Color(red: 0.93, green: 0.92, blue: 0.88))
+                        .fill(Color(.secondarySystemBackground))
                         .padding(12)
                 }
 
@@ -303,7 +334,7 @@ struct ScannedRoomPlanView: View {
                             path.addLine(to: planPoint(localX: wall.endX, localZ: wall.endZ, in: size))
                             context.stroke(
                                 path,
-                                with: .color(Color(.darkGray)),
+                                with: .color(Color.primary.opacity(0.75)),
                                 style: StrokeStyle(lineWidth: 5, lineCap: .square)
                             )
                         }
@@ -311,7 +342,7 @@ struct ScannedRoomPlanView: View {
                     .allowsHitTesting(false)
                 } else {
                     RoundedRectangle(cornerRadius: 14)
-                        .stroke(Color(.darkGray), lineWidth: 5)
+                        .stroke(Color.primary.opacity(0.75), lineWidth: 5)
                         .padding(12)
                 }
 
@@ -348,6 +379,7 @@ struct ScannedRoomPlanView: View {
                 .background(.regularMaterial, in: Capsule())
                 .padding(18)
                 .allowsHitTesting(false)
+                .opacity(showsAnnotations ? 1 : 0)
         }
         .overlay(alignment: .bottomLeading) {
             if showsAnnotations, openings.contains(where: { $0.type.lowercased() == "window" || $0.type.lowercased() == "door" }) {
@@ -376,25 +408,25 @@ struct ScannedRoomPlanView: View {
                     .frame(width: 104, height: 104)
 
                 Image(systemName: "arrow.triangle.2.circlepath")
-                    .font(.system(size: 16, weight: .semibold))
+                    .font(.callout.weight(.semibold))
                     .foregroundStyle(.blue)
                     .offset(y: -55)
             }
 
             Circle()
-                .fill(.white.opacity(0.92))
+                .fill(Color(.systemBackground).opacity(0.95))
                 .frame(width: 72, height: 72)
                 .shadow(color: .black.opacity(0.16), radius: 8, y: 3)
             Image(systemName: "figure.stand")
-                .font(.system(size: 30, weight: .medium))
+                .font(.title.weight(.medium))
                 .foregroundStyle(.primary)
                 .offset(y: 7)
             Image(systemName: "arrow.up")
-                .font(.system(size: 19, weight: .bold))
+                .font(.headline.weight(.bold))
                 .foregroundStyle(.blue)
                 .offset(y: -23)
             Text("N")
-                .font(.system(size: 8, weight: .heavy))
+                .font(.caption2.weight(.heavy))
                 .foregroundStyle(.blue)
                 .offset(y: -36)
         }
@@ -443,7 +475,7 @@ struct ScannedRoomPlanView: View {
                 .fill(color)
                 .frame(width: 12, height: 5)
             Text(title)
-                .font(.system(size: 9, weight: .medium))
+                .font(.caption2.weight(.medium))
         }
         .foregroundStyle(.primary)
     }
@@ -459,7 +491,7 @@ struct ScannedRoomPlanView: View {
         let height = min(size.height - 34, max(8, CGFloat(item.length) / roomLength * (size.height - 34)))
 
         RoundedRectangle(cornerRadius: 5)
-            .fill(Color(red: 0.66, green: 0.62, blue: 0.55).opacity(0.78))
+            .fill(Color(.tertiarySystemFill))
             .overlay {
                 RoundedRectangle(cornerRadius: 5)
                     .stroke(.white.opacity(0.8), lineWidth: 1)
@@ -467,7 +499,7 @@ struct ScannedRoomPlanView: View {
             .overlay {
                 if width >= 48, height >= 24 {
                     Text(item.category.capitalized)
-                        .font(.system(size: 9, weight: .medium))
+                        .font(.caption2.weight(.medium))
                         .foregroundStyle(.primary)
                         .lineLimit(1)
                         .minimumScaleFactor(0.65)
@@ -549,7 +581,7 @@ private struct NorthCompassDial: View {
         .padding(4)
         .overlay(alignment: .top) {
             Image(systemName: "triangle.fill")
-                .font(.system(size: 10, weight: .bold))
+                .font(.caption2.weight(.bold))
                 .foregroundStyle(isLocked ? .green : .blue)
                 .offset(y: -1)
         }
@@ -566,7 +598,7 @@ private struct NorthCompassDial: View {
         let center: CGFloat = 58
         let radius: CGFloat = 38
         return Text(title)
-            .font(.system(size: 10, weight: .bold))
+            .font(.caption2.weight(.bold))
             .foregroundStyle(title == "N" ? .red : .secondary)
             .frame(width: 16, height: 16)
             .position(

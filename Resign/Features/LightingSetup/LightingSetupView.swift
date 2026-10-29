@@ -25,6 +25,7 @@ public struct LightingSetupView: View {
 
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     /// The `Layout` record that will receive the saved `Light` objects.
     var layout: Layout
@@ -73,17 +74,10 @@ public struct LightingSetupView: View {
     public var body: some View {
         GeometryReader { geometry in
             VStack(spacing: 0) {
-                headerView
-                ScrollView {
-                    VStack(spacing: 16) {
-                        gridView
-                            .frame(maxWidth: geometry.size.height * 0.58 * roomAspectRatio)
-                            .frame(maxWidth: .infinity)
-                        if !outsideDrafts.isEmpty { outsideLightsList }
-                        bottomPanel
-                    }
-                    .padding(.top, 8)
-                }
+                VStack(spacing: 6) { headerView }
+                    .frame(maxWidth: 1280)
+                    .frame(maxWidth: .infinity)
+                placementWorkspace(in: geometry.size)
             }
         }
         .background(Color(.systemBackground))
@@ -123,6 +117,49 @@ public struct LightingSetupView: View {
         }
     }
 
+    @ViewBuilder
+    private func placementWorkspace(in size: CGSize) -> some View {
+        let workspace = LightingWorkspaceLayout(size: size, accessibilityText: dynamicTypeSize.isAccessibilitySize)
+        if workspace.usesSidePanel {
+            HStack(alignment: .top, spacing: 16) {
+                ScrollView {
+                    gridView
+                        .frame(maxWidth: min(size.width - workspace.panelWidth - 48,
+                                             max(240, size.height - 100) * roomAspectRatio))
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 16)
+                }
+                ScrollView {
+                    VStack(spacing: 16) {
+                        if !outsideDrafts.isEmpty { outsideLightsList }
+                        bottomPanel
+                    }
+                    .padding(.top, 16)
+                }
+                .frame(width: workspace.panelWidth)
+                .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 24))
+            }
+            .padding(16)
+            .frame(maxWidth: 1440)
+            .frame(maxWidth: .infinity)
+        } else {
+            ScrollView {
+                VStack(spacing: 16) {
+                    gridView
+                        .frame(maxWidth: min(680, size.height * 0.58 * roomAspectRatio))
+                        .frame(maxWidth: .infinity)
+                    VStack(spacing: 16) {
+                        if !outsideDrafts.isEmpty { outsideLightsList }
+                        bottomPanel
+                    }
+                    .frame(maxWidth: 520)
+                    .frame(maxWidth: .infinity)
+                }
+                .padding(.top, 8)
+            }
+        }
+    }
+
     // MARK: - Header
 
     @ViewBuilder
@@ -130,6 +167,8 @@ public struct LightingSetupView: View {
         ZStack {
             Text("Add Your Light Source")
                 .font(.headline)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 52)
             HStack {
                 Button {
                     viewModel.showBackConfirm = true
@@ -300,7 +339,7 @@ public struct LightingSetupView: View {
                     .font(.headline)
                     .foregroundStyle(.white)
                     .frame(maxWidth: .infinity)
-                    .frame(height: 52)
+                    .frame(minHeight: 52)
                     .background(viewModel.canSave ? Color.accentColor : Color.gray.opacity(0.5))
                     .cornerRadius(14)
             }
@@ -366,7 +405,7 @@ private struct LightSourceMarker: View {
             .frame(width: isSelected ? 30 : 22, height: isSelected ? 30 : 22)
             .overlay {
                 Image(systemName: "lightbulb.fill")
-                    .font(.system(size: isSelected ? 12 : 9))
+                    .font(isSelected ? .caption : .caption2)
                     .foregroundStyle(Color(white: 0.42))
             }
             .background {
@@ -414,6 +453,11 @@ private struct LightingSettingsCard: View {
                     }
                     .accessibilityLabel("Delete light source")
                 }
+            } else {
+                Text("Select a light on the plan to edit it.")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
             }
 
             VStack(alignment: .leading, spacing: 4) {
