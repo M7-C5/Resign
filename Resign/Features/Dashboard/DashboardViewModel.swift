@@ -10,6 +10,8 @@ import SwiftData
 @Observable
 @MainActor
 public final class DashboardViewModel {
+    public static let room2Name = "Room-2"
+
     public init() {}
 
     public func renameRoom(_ room: Room, to newName: String, context: ModelContext) {
@@ -41,5 +43,65 @@ public final class DashboardViewModel {
         context.delete(layout)
         room.updatedAt = Date()
         try? context.save()
+    }
+
+    @discardableResult
+    public func ensureRoom2Seeded(context: ModelContext) -> Room {
+        let targetName = Self.room2Name
+        let descriptor = FetchDescriptor<Room>(
+            predicate: #Predicate<Room> { $0.name == targetName || $0.name == "Room-2 (Studio)" }
+        )
+        if let existing = try? context.fetch(descriptor).first {
+            if existing.layouts.isEmpty {
+                let layout = Layout(
+                    name: "Original Layout",
+                    usdzURL: Bundle.main.url(forResource: "Room-2", withExtension: "usdz")
+                )
+                existing.layouts.append(layout)
+                context.insert(layout)
+                populateInitialFurniture(in: layout, context: context)
+                try? context.save()
+            } else if let layout = existing.layouts.first, layout.furnitures.isEmpty {
+                populateInitialFurniture(in: layout, context: context)
+                try? context.save()
+            }
+            return existing
+        }
+
+        let room = Room(
+            name: targetName,
+            compass: 0.0,
+            length: 4.88,
+            width: 3.96,
+            height: 2.6
+        )
+        context.insert(room)
+
+        let layout = Layout(
+            name: "Original Layout",
+            usdzURL: Bundle.main.url(forResource: "Room-2", withExtension: "usdz")
+        )
+        room.layouts.append(layout)
+        context.insert(layout)
+
+        populateInitialFurniture(in: layout, context: context)
+        try? context.save()
+        return room
+    }
+
+    private func populateInitialFurniture(in layout: Layout, context: ModelContext) {
+        guard layout.furnitures.isEmpty else { return }
+        let floorY: Float = -1.218
+        let items = [
+            Furniture(name: "Queen Bed", category: "bed", positionX: -1.79, positionY: floorY, positionZ: -1.10, rotationYaw: 0, length: 2.0, width: 1.6, height: 0.9),
+            Furniture(name: "Work Desk", category: "desk", positionX: 0.05, positionY: floorY, positionZ: -0.55, rotationYaw: .pi / 2, length: 1.4, width: 0.7, height: 0.75),
+            Furniture(name: "Desk Chair", category: "chair", positionX: -0.15, positionY: floorY, positionZ: -0.52, rotationYaw: -.pi / 2, length: 0.6, width: 0.6, height: 0.9),
+            Furniture(name: "Sofa", category: "sofa", positionX: -1.20, positionY: floorY, positionZ: 0.95, rotationYaw: 0, length: 2.0, width: 0.85, height: 0.8),
+            Furniture(name: "Wardrobe", category: "storage", positionX: -0.83, positionY: floorY, positionZ: -1.75, rotationYaw: 0, length: 1.2, width: 0.6, height: 2.0)
+        ]
+        for item in items {
+            layout.furnitures.append(item)
+            context.insert(item)
+        }
     }
 }
