@@ -81,7 +81,9 @@ public struct RoomScanResultView: View {
                 .fontWeight(.bold)
                 .foregroundStyle(.white)
 
-            Text(String(format: "%.2fm (W) × %.2fm (L) • Height: %.2fm", room.width, room.length, room.height))
+            let shorter = min(room.width, room.length)
+            let longer = max(room.width, room.length)
+            Text(String(format: "%.2fm (W) × %.2fm (L) • Height: %.2fm", shorter, longer, room.height))
                 .font(.caption)
                 .foregroundStyle(.white.opacity(0.7))
         }
@@ -227,7 +229,9 @@ public struct RoomScanResultView: View {
                 .fontWeight(.semibold)
                 .foregroundStyle(.white)
 
-            Text(String(format: "%.2fm × %.2fm", item.width, item.length))
+            let itemW = min(item.width, item.length)
+            let itemL = max(item.width, item.length)
+            Text(String(format: "%.2fm (W) × %.2fm (L)", itemW, itemL))
                 .font(.caption2)
                 .foregroundStyle(.white.opacity(0.6))
         }

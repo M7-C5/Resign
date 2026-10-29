@@ -187,8 +187,8 @@ public final class RoomScanViewModel {
             longitude: -122.4194,
             latitude: 37.7749,
             compass: 90.0,
-            length: 4.2,
-            width: 5.0,
+            length: 5.0,
+            width: 4.2,
             height: 2.6
         )
 

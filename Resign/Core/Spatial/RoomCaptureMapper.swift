@@ -15,13 +15,15 @@ public final class RoomCaptureMapper: Sendable {
     }
 
     public func mapToRoom(payload: CapturedRoomPayload, roomName: String = "Scanned Room") -> Room {
+        let longerSide = max(payload.roomLength, payload.roomWidth)
+        let shorterSide = min(payload.roomLength, payload.roomWidth)
         let room = Room(
             name: roomName,
             longitude: 0.0,
             latitude: 0.0,
             compass: 0.0,
-            length: payload.roomLength,
-            width: payload.roomWidth,
+            length: longerSide,
+            width: shorterSide,
             height: payload.roomHeight
         )
         if !payload.walls.isEmpty {
