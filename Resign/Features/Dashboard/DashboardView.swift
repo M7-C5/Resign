@@ -18,6 +18,18 @@ public struct DashboardView: View {
     @State private var selectedRoom: Room?
     @State private var isShowingRoomCreation = false
 
+    private var room2Room: Room? {
+        rooms.first { $0.name == DashboardViewModel.room2Name || $0.name == "Room-2 (Studio)" }
+    }
+
+    private var room2Layout: Layout? {
+        room2Room?.layouts.first
+    }
+
+    private var scannedRooms: [Room] {
+        rooms.filter { $0.name != DashboardViewModel.room2Name && $0.name != "Room-2 (Studio)" }
+    }
+
     public init() {}
 
     public var body: some View {
@@ -33,74 +45,22 @@ public struct DashboardView: View {
                         }
                     }
 
-                if rooms.isEmpty {
-                    // Empty State
-                    VStack(spacing: 12) {
-                        Image(systemName: "clock.arrow.circlepath")
-                            .font(.system(size: 50))
-                            .foregroundStyle(.secondary)
+                ScrollView {
+                    VStack(spacing: 20) {
+                        // Hard-coded Room-2 3D Studio Card
+                        room2StudioCard
 
-                        Text("No Layout Yet.")
-                            .font(.headline)
-                            .foregroundStyle(.primary)
-
-                        Text("Create a layout to start planning\nand arranging your room.\nTap the + button to get started.")
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                            .multilineTextAlignment(.center)
-
-                        Button {
-                            isShowingRoomCreation = true
-                        } label: {
-                            Label("Scan a Room", systemImage: "plus")
-                                .font(.subheadline.weight(.semibold))
-                        }
-                        .buttonStyle(.borderedProminent)
-                        .padding(.top, 8)
+                        // Scanned Rooms Section
+                        scannedRoomsSection
                     }
-                    .offset(y: -35)
-
-                } else {
-                    // Filled State
-                    ScrollView {
-                        VStack(spacing: 16) {
-                            ForEach(rooms) { room in
-                                LayoutCardView(
-                                    layoutName: room.name,
-                                    layoutCount: room.layouts.count,
-                                    isSwiped: Binding(
-                                        get: { swipedRoomID == room.id },
-                                        set: { isOpen in
-                                            if isOpen {
-                                                swipedRoomID = room.id
-                                            } else if swipedRoomID == room.id {
-                                                swipedRoomID = nil
-                                            }
-                                        }
-                                    ),
-                                    onTap: {
-                                        swipedRoomID = nil
-                                        selectedRoom = room
-                                    },
-                                    onEdit: {
-                                        newRoomName = room.name
-                                        roomToRename = room
-                                    },
-                                    onDelete: {
-                                        roomToDelete = room
-                                    }
-                                )
-                            }
-                        }
-                        .padding(.horizontal, 16)
-                        .padding(.top, 8)
-                        .padding(.bottom, 80)
-                    }
-                    .onTapGesture {
-                        if swipedRoomID != nil {
-                            withAnimation(.smooth) {
-                                swipedRoomID = nil
-                            }
+                    .padding(.horizontal, 16)
+                    .padding(.top, 12)
+                    .padding(.bottom, 80)
+                }
+                .onTapGesture {
+                    if swipedRoomID != nil {
+                        withAnimation(.smooth) {
+                            swipedRoomID = nil
                         }
                     }
                 }
@@ -175,7 +135,7 @@ public struct DashboardView: View {
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     NavigationLink {
-                        Studio3DView()
+                        Studio3DView(layoutID: room2Layout?.id)
                     } label: {
                         Image(systemName: "sun.max")
                     }
@@ -200,25 +160,155 @@ public struct DashboardView: View {
             .fullScreenCover(isPresented: $isShowingRoomCreation) {
                 RoomCreationFlowView()
             }
+            .onAppear {
+                viewModel.ensureRoom2Seeded(context: modelContext)
+            }
+        }
+    }
+
+    // MARK: - Subviews
+
+    private var room2StudioCard: some View {
+        NavigationLink {
+            Studio3DView(layoutID: room2Layout?.id)
+        } label: {
+            ZStack(alignment: .bottomLeading) {
+                RoundedRectangle(cornerRadius: 18)
+                    .fill(
+                        LinearGradient(
+                            colors: [
+                                Color(red: 0.12, green: 0.16, blue: 0.28),
+                                Color(red: 0.06, green: 0.09, blue: 0.18)
+                            ],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+
+                VStack(alignment: .leading, spacing: 12) {
+                    HStack {
+                        Label("3D STUDIO DEMO", systemImage: "cube.transparent")
+                            .font(.caption2.weight(.bold))
+                            .foregroundStyle(.white.opacity(0.9))
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 4)
+                            .background(Color.white.opacity(0.16), in: Capsule())
+
+                        Spacer()
+
+                        Image(systemName: "arrow.right.circle.fill")
+                            .font(.system(size: 26))
+                            .foregroundStyle(.white)
+                    }
+
+                    Spacer()
+
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Room-2 Model")
+                            .font(.title3.weight(.bold))
+                            .foregroundStyle(.white)
+
+                        Text("Interactive furniture rearrangement, collision physics & PBR materials")
+                            .font(.subheadline)
+                            .foregroundStyle(.white.opacity(0.8))
+                            .lineLimit(2)
+                    }
+                }
+                .padding(18)
+            }
+            .frame(maxWidth: .infinity)
+            .frame(height: 154)
+            .clipShape(RoundedRectangle(cornerRadius: 18))
+            .shadow(color: .black.opacity(0.12), radius: 8, x: 0, y: 4)
+        }
+        .accessibilityLabel("Open Room-2 in 3D Studio")
+    }
+
+    @ViewBuilder
+    private var scannedRoomsSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Text("My Scanned Rooms")
+                    .font(.headline)
+                    .foregroundStyle(.primary)
+
+                Spacer()
+
+                if !scannedRooms.isEmpty {
+                    Text("\(scannedRooms.count)")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 2)
+                        .background(Color(uiColor: .tertiarySystemFill), in: Capsule())
+                }
+            }
+
+            if scannedRooms.isEmpty {
+                VStack(spacing: 12) {
+                    Image(systemName: "camera.metering.matrix")
+                        .font(.system(size: 34))
+                        .foregroundStyle(.secondary)
+
+                    Text("No Scanned Rooms Yet")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(.primary)
+
+                    Text("Scan your room with LiDAR to create custom 3D layouts and floor plans.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 16)
+
+                    Button {
+                        isShowingRoomCreation = true
+                    } label: {
+                        Label("Scan a Room", systemImage: "plus")
+                            .font(.subheadline.weight(.semibold))
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .padding(.top, 4)
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 28)
+                .background(Color(uiColor: .secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 16))
+            } else {
+                ForEach(scannedRooms) { room in
+                    LayoutCardView(
+                        layoutName: room.name,
+                        layoutCount: room.layouts.count,
+                        isSwiped: Binding(
+                            get: { swipedRoomID == room.id },
+                            set: { isOpen in
+                                if isOpen {
+                                    swipedRoomID = room.id
+                                } else if swipedRoomID == room.id {
+                                    swipedRoomID = nil
+                                }
+                            }
+                        ),
+                        onTap: {
+                            swipedRoomID = nil
+                            selectedRoom = room
+                        },
+                        onEdit: {
+                            newRoomName = room.name
+                            roomToRename = room
+                        },
+                        onDelete: {
+                            roomToDelete = room
+                        }
+                    )
+                }
+            }
         }
     }
 }
 
-#Preview("Empty State") {
+#Preview("Dashboard") {
     let container = try! ModelContainer.createInMemoryContainer()
-    DashboardView()
-        .modelContainer(container)
-}
-
-#Preview("Filled State") {
-    let container = try! ModelContainer.createInMemoryContainer()
-    let room1 = Room(name: "Bedroom 1")
-    let room2 = Room(name: "Living Room")
-    let layout = Layout(name: "Original")
-    room1.layouts.append(layout)
-    container.mainContext.insert(room1)
-    container.mainContext.insert(room2)
-
+    let viewModel = DashboardViewModel()
+    viewModel.ensureRoom2Seeded(context: container.mainContext)
     return DashboardView()
         .modelContainer(container)
 }

@@ -113,4 +113,40 @@ struct DashboardPersistenceTests {
         #expect(fetched.first?.name == "Newer Room")
         #expect(fetched.last?.name == "Older Room")
     }
+
+    @Test @MainActor func ensureRoom2SeededCreatesRoomWithLayoutAndFurniture() throws {
+        let container = try ModelContainer.createInMemoryContainer()
+        let context = container.mainContext
+        let viewModel = DashboardViewModel()
+
+        let room = viewModel.ensureRoom2Seeded(context: context)
+        #expect(room.name == "Room-2")
+        #expect(room.layouts.count == 1)
+
+        let layout = try #require(room.layouts.first)
+        #expect(layout.name == "Original Layout")
+        #expect(layout.furnitures.count == 5)
+
+        // Verify furniture types and positions
+        let names = Set(layout.furnitures.map(\.name))
+        #expect(names.contains("Queen Bed"))
+        #expect(names.contains("Work Desk"))
+        #expect(names.contains("Desk Chair"))
+        #expect(names.contains("Sofa"))
+        #expect(names.contains("Wardrobe"))
+    }
+
+    @Test @MainActor func ensureRoom2SeededIsIdempotent() throws {
+        let container = try ModelContainer.createInMemoryContainer()
+        let context = container.mainContext
+        let viewModel = DashboardViewModel()
+
+        let room1 = viewModel.ensureRoom2Seeded(context: context)
+        let room2 = viewModel.ensureRoom2Seeded(context: context)
+
+        #expect(room1.id == room2.id)
+        let allRooms = try context.fetch(FetchDescriptor<Room>())
+        #expect(allRooms.count == 1)
+        #expect(room2.layouts.first?.furnitures.count == 5)
+    }
 }
