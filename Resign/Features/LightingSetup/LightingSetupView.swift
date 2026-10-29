@@ -50,6 +50,14 @@ public struct LightingSetupView: View {
 
     private var roomAspectRatio: CGFloat { CGFloat(planBounds.width / planBounds.length) }
 
+    private var roomBoundary: CeilingLightPlacementGrid {
+        CeilingLightPlacementGrid(bounds: planBounds, walls: scanPlan?.wallSegments ?? [])
+    }
+
+    private var outsideDrafts: [LightDraft] {
+        viewModel.drafts.filter { !roomBoundary.allowsPlacement(at: $0.unitPosition) }
+    }
+
     public init(
         layout: Layout,
         onSave: (() -> Void)? = nil,
@@ -69,8 +77,9 @@ public struct LightingSetupView: View {
                 ScrollView {
                     VStack(spacing: 16) {
                         gridView
-                            .frame(maxWidth: geometry.size.height * 0.50 * roomAspectRatio)
+                            .frame(maxWidth: geometry.size.height * 0.58 * roomAspectRatio)
                             .frame(maxWidth: .infinity)
+                        if !outsideDrafts.isEmpty { outsideLightsList }
                         bottomPanel
                     }
                     .padding(.top, 8)
@@ -166,11 +175,12 @@ public struct LightingSetupView: View {
                     .accessibilityHidden(true)
 
                 ForEach(emptyPlacementPoints(in: geometry.size), id: \.self) { point in
-                    placementButton(at: point)
+                    placementButton(at: point, isCenter: point == SIMD2<Float>(0.5, 0.5))
                         .frame(width: 44, height: 44)
                         .position(screenPoint(point, in: geometry.size))
+                        .zIndex(point == SIMD2<Float>(0.5, 0.5) ? 1 : 0)
                 }
-                ForEach(viewModel.drafts) { draft in
+                ForEach(viewModel.drafts.filter { roomBoundary.allowsPlacement(at: $0.unitPosition) }) { draft in
                     placementButton(at: draft.unitPosition, draft: draft)
                         .frame(width: 44, height: 44)
                         .position(screenPoint(draft.unitPosition, in: geometry.size))
@@ -179,7 +189,36 @@ public struct LightingSetupView: View {
         }
         .aspectRatio(roomAspectRatio, contentMode: .fit)
         .clipped()
+        .overlay {
+            if !roomBoundary.hasUsableBoundary {
+                Text("Room outline incomplete. Scan the room again to place new lights.")
+                    .font(.callout)
+                    .multilineTextAlignment(.center)
+                    .padding()
+                    .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
+                    .padding()
+            }
+        }
         .padding(.horizontal, 12)
+    }
+
+    private var outsideLightsList: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Saved lights outside the placement area")
+                .font(.subheadline.weight(.semibold))
+            Text("Select a light below to edit or remove it.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            ForEach(outsideDrafts) { draft in
+                Button {
+                    viewModel.selectedDraftID = draft.id
+                } label: {
+                    Label(draft.name, systemImage: "lightbulb")
+                        .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+                }
+            }
+        }
+        .padding(.horizontal, 24)
     }
 
     private func screenPoint(_ point: SIMD2<Float>, in size: CGSize) -> CGPoint {
@@ -190,13 +229,20 @@ public struct LightingSetupView: View {
     private func emptyPlacementPoints(in size: CGSize) -> [SIMD2<Float>] {
         let grid = CeilingLightPlacementGrid(
             bounds: planBounds, walls: scanPlan?.wallSegments ?? [],
-            maxColumns: max(1, Int(max(1, size.width - 34) / 44)),
-            maxRows: max(1, Int(max(1, size.height - 34) / 44))
+            maxColumns: max(1, Int(max(1, size.width - 34) / 40)),
+            maxRows: max(1, Int(max(1, size.height - 34) / 40)),
+            wallClearance: max(0.15, 14 * max(planBounds.width / Float(max(1, size.width - 34)),
+                                            planBounds.length / Float(max(1, size.height - 34))))
         )
         return grid.points.filter { candidate in
             let point = screenPoint(candidate, in: size)
             return !viewModel.drafts.contains { draft in
                 let saved = screenPoint(draft.unitPosition, in: size)
+                if candidate == SIMD2<Float>(0.5, 0.5) {
+                    // A nearby lamp must not suppress the exact room-center option.
+                    return abs(draft.unitPosition.x - 0.5) < 0.0001
+                        && abs(draft.unitPosition.y - 0.5) < 0.0001
+                }
                 // Hide only points covered by the bulb marker, not a whole neighboring cell.
                 let dx = saved.x - point.x
                 let dy = saved.y - point.y
@@ -205,7 +251,7 @@ public struct LightingSetupView: View {
         }
     }
 
-    private func placementButton(at point: SIMD2<Float>, draft: LightDraft? = nil) -> some View {
+    private func placementButton(at point: SIMD2<Float>, draft: LightDraft? = nil, isCenter: Bool = false) -> some View {
         let isSelected = draft != nil && draft?.id == viewModel.selectedDraftID
         return Button {
             viewModel.tapPosition(point)
@@ -216,15 +262,21 @@ public struct LightingSetupView: View {
                     LightSourceMarker(colorTemp: draft.colorTemp, brightness: draft.brightness, isSelected: isSelected)
                 } else {
                     Circle()
-                        .fill(Color(white: 0.42))
+                        .fill(isCenter ? Color.accentColor : Color(white: 0.42))
                         .overlay { Circle().stroke(.white.opacity(0.6), lineWidth: 1) }
                         .frame(width: 8, height: 8)
+                        .overlay {
+                            if isCenter {
+                                Circle().stroke(Color.accentColor, lineWidth: 1.5)
+                                    .frame(width: 16, height: 16)
+                            }
+                        }
                 }
             }
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .accessibilityLabel(draft.map { "Edit \($0.name)" } ?? "Add light source")
+        .accessibilityLabel(draft.map { "Edit \($0.name)" } ?? (isCenter ? "Add light at room center" : "Add light source"))
         .animation(.easeInOut(duration: 0.15), value: isSelected)
     }
 
