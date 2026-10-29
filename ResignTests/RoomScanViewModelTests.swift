@@ -140,4 +140,36 @@ struct RoomScanViewModelTests {
         #expect(savedRooms.first?.name == "Master Bedroom")
         #expect(savedRooms.first?.layouts.first?.furnitures.count == 1)
     }
+
+    @Test func roomCaptureMapperEnsuresLongerSideIsAlwaysLength() {
+        let mapper = RoomCaptureMapper()
+        let payload = CapturedRoomPayload(
+            roomLength: 3.8,
+            roomWidth: 5.2,
+            roomHeight: 2.7,
+            floorLevel: 0.0,
+            walls: [],
+            openings: [],
+            objects: []
+        )
+
+        let room = mapper.mapToRoom(payload: payload, roomName: "Test Room")
+        #expect(room.length >= room.width)
+        #expect(room.length == 5.2)
+        #expect(room.width == 3.8)
+    }
+
+    @Test @MainActor func mockRoomGuaranteesLongerSideIsLength() throws {
+        let container = try ModelContainer.createInMemoryContainer()
+        let context = container.mainContext
+        let viewModel = RoomScanViewModel()
+
+        let roomId = viewModel.loadMockRoom(modelContext: context)
+        let rooms = try context.fetch(FetchDescriptor<Room>())
+        let room = try #require(rooms.first { $0.id == roomId })
+        #expect(room.length >= room.width)
+        #expect(room.length == 5.0)
+        #expect(room.width == 4.2)
+    }
 }
+

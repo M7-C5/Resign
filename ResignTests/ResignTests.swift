@@ -106,8 +106,8 @@ struct ResignTests {
     @Test @MainActor func modelDefaultInitializers() {
         let room = Room()
         #expect(room.name == "Room")
-        #expect(room.length == 4.2)
-        #expect(room.width == 5.0)
+        #expect(room.length == 5.0)
+        #expect(room.width == 4.2)
 
         let opening = RoomOpening()
         #expect(opening.type == "window")
