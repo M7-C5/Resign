@@ -56,18 +56,9 @@ public struct Studio3DView: View {
                         roomViewport
                             .padding(.bottom, workspace.simulationBottomInset(isEditing: viewModel.isLightingPresented))
                     }
-                    HStack(spacing: 12) {
+                    HStack(alignment: .top, spacing: 12) {
                         viewportMenu
-                        Button {
-                            viewModel.beginLightingEditing()
-                        } label: {
-                            Image(systemName: "lightbulb")
-                                .font(.body)
-                                .foregroundStyle(.primary)
-                                .frame(width: 44, height: 44)
-                                .background(.regularMaterial, in: Circle())
-                        }
-                        .accessibilityLabel("Lighting Simulation")
+                        simulationButtons
                     }
                     .padding()
                     furnitureActionBar
@@ -116,40 +107,40 @@ public struct Studio3DView: View {
     }
 
     private var roomViewport: some View {
-RoomSimulationView(
-                controller: controller,
-                settings: viewModel.previewLighting,
-                fixtures: lightingFixtures,
-                archiveTargetCenter: viewModel.archiveTargetCenter,
-                onSelectFurniture: { id in
-                    withAnimation(.snappy(duration: 0.2)) {
-                        viewModel.selectFurniture(id: id, in: selectedLayout)
-                        controller.setSelection(furnitureID: id, isColliding: viewModel.isColliding)
+        RoomSimulationView(
+            controller: controller,
+            settings: viewModel.previewLighting,
+            fixtures: lightingFixtures,
+            archiveTargetCenter: viewModel.archiveTargetCenter,
+            onSelectFurniture: { id in
+                withAnimation(.snappy(duration: 0.2)) {
+                    viewModel.selectFurniture(id: id, in: selectedLayout)
+                    controller.setSelection(furnitureID: id, isColliding: viewModel.isColliding)
+                }
+            },
+            onMoveFurniture: { id, floorPos in
+                if let result = viewModel.moveSelectedFurniture(to: floorPos, in: selectedLayout, context: modelContext) {
+                    controller.updateFurnitureTransform(
+                        id: id,
+                        position: result.position,
+                        yaw: selectedFurniture?.rotationYaw ?? 0
+                    )
+                    controller.setSelection(furnitureID: id, isColliding: result.isColliding)
+                }
+            },
+            onRotateFurniture: { id, targetYaw in
+                if let result = viewModel.rotateSelectedFurniture(to: targetYaw, in: selectedLayout, context: modelContext) {
+                    controller.updateFurnitureTransform(
+                        id: id,
+                        position: result.position,
+                        yaw: result.yaw
+                    )
+                    controller.setSelection(furnitureID: id, isColliding: result.isColliding)
+                    if result.didSnap {
+                        snapFeedbackTrigger.toggle()
                     }
-                },
-                onMoveFurniture: { id, floorPos in
-                    if let result = viewModel.moveSelectedFurniture(to: floorPos, in: selectedLayout, context: modelContext) {
-                        controller.updateFurnitureTransform(
-                            id: id,
-                            position: result.position,
-                            yaw: selectedFurniture?.rotationYaw ?? 0
-                        )
-                        controller.setSelection(furnitureID: id, isColliding: result.isColliding)
-                    }
-                },
-                onRotateFurniture: { id, targetYaw in
-                    if let result = viewModel.rotateSelectedFurniture(to: targetYaw, in: selectedLayout, context: modelContext) {
-                        controller.updateFurnitureTransform(
-                            id: id,
-                            position: result.position,
-                            yaw: result.yaw
-                        )
-                        controller.setSelection(furnitureID: id, isColliding: result.isColliding)
-                        if result.didSnap {
-                            snapFeedbackTrigger.toggle()
-                        }
-                    }
-                },
+                }
+            },
                 onArchiveHover: { isHovering in
                     viewModel.isHoveringArchiveTarget = isHovering
                     if let id = viewModel.selectedFurnitureID {
@@ -166,43 +157,43 @@ RoomSimulationView(
                         snapFeedbackTrigger.toggle()
                     }
                 },
-                onBoundsResolved: { bounds in
-                    let old = viewModel.roomHorizontalBounds
-                    if old == nil || old?.minX != bounds.minX || old?.maxX != bounds.maxX
-                        || old?.minZ != bounds.minZ || old?.maxZ != bounds.maxZ {
-                        viewModel.roomHorizontalBounds = bounds
-                    }
-                },
-                onReloadScannedRoom: {
-                    Task { await controller.reload() }
-                },
-                onWindowDirectionsResolved: { directions in
-                    viewModel.updateWindowDirections(directions)
+            onBoundsResolved: { bounds in
+                let old = viewModel.roomHorizontalBounds
+                if old == nil || old?.minX != bounds.minX || old?.maxX != bounds.maxX
+                    || old?.minZ != bounds.minZ || old?.maxZ != bounds.maxZ {
+                    viewModel.roomHorizontalBounds = bounds
                 }
-            )
+            },
+            onReloadScannedRoom: {
+                Task { await controller.reload() }
+            },
+            onWindowDirectionsResolved: { directions in
+                viewModel.updateWindowDirections(directions)
+            }
+        )
     }
 
     private var viewportMenu: some View {
-// Architectural Viewport Snapping Menu
-                Menu {
-                    ForEach(ViewportPreset.allCases) { preset in
-                        if preset == .dollhouse {
-                            Divider()
-                        }
-                        Button {
-                            controller.snapToViewport(preset)
-                        } label: {
-                            Label(preset.title, systemImage: preset.systemImage)
-                        }
-                    }
-                } label: {
-                    Image(systemName: "cube.plane.bottom.right.detached")
-                        .font(.body)
-                        .foregroundStyle(.primary)
-                        .frame(width: 44, height: 44)
-                        .background(.regularMaterial, in: Circle())
+        // Architectural Viewport Snapping Menu
+        Menu {
+            ForEach(ViewportPreset.allCases) { preset in
+                if preset == .dollhouse {
+                    Divider()
                 }
-                .accessibilityLabel("Viewport Presets")
+                Button {
+                    controller.snapToViewport(preset)
+                } label: {
+                    Label(preset.title, systemImage: preset.systemImage)
+                }
+            }
+        } label: {
+            Image(systemName: "cube.plane.bottom.right.detached")
+                .font(.body)
+                .foregroundStyle(.primary)
+                .frame(width: 44, height: 44)
+                .background(.regularMaterial, in: Circle())
+        }
+        .accessibilityLabel("Viewport Presets")
     }
 
     private var furnitureActionBar: some View {
@@ -311,6 +302,41 @@ RoomSimulationView(
                 .padding(.horizontal, 16)
                 .padding(.bottom, 24)
             }
+    }
+
+    private var simulationButtons: some View {
+        VStack(alignment: .trailing, spacing: 8) {
+            Button {
+                viewModel.toggleLightingSimulation()
+            } label: {
+                Image(systemName: viewModel.isSimulationEnabled ? "lightbulb.fill" : "lightbulb")
+                    .font(.body.weight(.semibold))
+                    .foregroundStyle(viewModel.isSimulationEnabled ? Color.white : Color.primary)
+                    .frame(width: 44, height: 44)
+                    .background {
+                        Circle().fill(viewModel.isSimulationEnabled ? Color.blue : Color(.secondarySystemBackground))
+                    }
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Light Simulation")
+            .accessibilityValue(viewModel.isSimulationEnabled ? "On" : "Off")
+            .accessibilityHint(viewModel.isSimulationEnabled ? "Turn off simulation and return to a neutral layout" : "Turn on lighting simulation")
+            .disabled(layoutID != nil && selectedLayout == nil)
+
+            if viewModel.isSimulationEnabled {
+                Button {
+                    viewModel.beginLightingEditing()
+                } label: {
+                    Image(systemName: "slider.horizontal.3")
+                        .font(.body)
+                        .foregroundStyle(.primary)
+                        .frame(width: 44, height: 44)
+                        .background(.regularMaterial, in: Circle())
+                }
+                .accessibilityLabel("Configure lighting simulation")
+                .disabled(viewModel.isLightingPresented)
+            }
+        }
     }
 
     private func restoreFurnitureItem(_ furniture: Furniture, at screenPoint: CGPoint?) {

@@ -67,7 +67,7 @@ struct RoomSimulationView: View {
                 .transition(.opacity)
             }
         }
-        .accessibilityLabel("Room 3D viewport")
+        .accessibilityLabel(settings.previewMode == .layoutOnly ? "Room layout preview" : "Room 3D viewport")
         .onChange(of: fixtures) { _, newFixtures in
             controller.setLightingFixtures(newFixtures)
         }
@@ -391,7 +391,7 @@ private struct RoomRenderSurface: UIViewRepresentable {
         view.renderOptions.insert([.disableMotionBlur, .disableDepthOfField])
 
         controller.install(in: view)
-        controller.rig.apply(settings)
+        controller.apply(settings)
         view.environment.lighting.intensityExponent = controller.rig.ambientExponent
 
         context.coordinator.setupGestures(in: view)
@@ -406,7 +406,7 @@ private struct RoomRenderSurface: UIViewRepresentable {
     }
 
     func updateUIView(_ view: ARView, context: Context) {
-        controller.rig.apply(settings)
+        controller.apply(settings)
         view.environment.lighting.intensityExponent = controller.rig.ambientExponent
         context.coordinator.archiveTargetCenter = archiveTargetCenter
         context.coordinator.onSelectFurniture = onSelectFurniture
@@ -434,4 +434,9 @@ private final class RoomPreviewARView: ARView {
         super.layoutSubviews()
         onViewportChange?(bounds.size)
     }
+}
+
+#Preview("Room — layout only") {
+    RoomSimulationView(controller: RoomSceneController(),
+                       settings: LightingSimulationSettings(previewMode: .layoutOnly), fixtures: nil)
 }

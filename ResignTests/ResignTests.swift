@@ -524,7 +524,7 @@ struct LightingSimulationModalTests {
         model.beginLightingEditing()
         model.lightingDraft.artificialLightsOn = true
         model.lightingDraft.minuteOfDay = 1140
-        #expect(model.lightingSettings == LightingSimulationSettings())
+        #expect(model.lightingSettings == LightingSimulationSettings(previewMode: .layoutOnly))
         model.confirmLightingEditing()
         #expect(!model.isLightingPresented)
         model.beginLightingEditing()
@@ -551,6 +551,7 @@ struct LightingSimulationModalTests {
         let model = Studio3DViewModel()
         #expect(!model.lightingSettings.artificialLightsOn)
         #expect(model.lightingSettings.timeLabel == "12.00")
+        #expect(!model.isSimulationEnabled)
         #expect(!model.isLightingPresented)
     }
 

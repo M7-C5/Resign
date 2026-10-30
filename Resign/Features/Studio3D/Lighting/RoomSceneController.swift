@@ -45,6 +45,7 @@ final class RoomSceneController {
     @ObservationIgnored private var cameraTarget: SIMD3<Float> = [0, 1.2, 0]
     @ObservationIgnored private var roomExtent: Float = 5
     @ObservationIgnored private var viewportAspect: Float = 1
+    @ObservationIgnored private var appliedPreviewMode: LightingPreviewMode = .simulation
     @ObservationIgnored private var animationTask: Task<Void, Never>?
 
     // Orbit state. Comfortable dollhouse perspective
@@ -114,6 +115,25 @@ final class RoomSceneController {
     }
 
     private(set) weak var arView: ARView?
+
+    /// Update rendering policy without replacing geometry, materials, or camera state.
+    func apply(_ settings: LightingSimulationSettings) {
+        rig.apply(settings)
+        // Staging's architectural sources serve the neutral layout, not the solar/lamp simulation.
+        architecturalKeyLight.isEnabled = settings.previewMode == .layoutOnly
+        architecturalFillLight.isEnabled = settings.previewMode == .layoutOnly
+        guard settings.previewMode != appliedPreviewMode else { return }
+        appliedPreviewMode = settings.previewMode
+        if settings.previewMode == .layoutOnly {
+            root.components.set(EnvironmentLightingConfigurationComponent(environmentLightingWeight: 1))
+            root.components.remove(ImageBasedLightReceiverComponent.self)
+            root.components.remove(ImageBasedLightComponent.self)
+        } else {
+            root.components.set(EnvironmentLightingConfigurationComponent(environmentLightingWeight: 0))
+            root.components.set(ImageBasedLightComponent(source: .none))
+            root.components.set(ImageBasedLightReceiverComponent(imageBasedLight: root))
+        }
+    }
 
     /// Puts the scene into an ARView (non-AR) and creates the lights.
     func install(in view: ARView) {

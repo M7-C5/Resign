@@ -8,8 +8,8 @@ import Foundation
 @Observable
 @MainActor
 public final class Studio3DViewModel {
-    private(set) var lightingSettings = LightingSimulationSettings()
-    var lightingDraft = LightingSimulationSettings()
+    private(set) var lightingSettings = LightingSimulationSettings(previewMode: .layoutOnly)
+    var lightingDraft = LightingSimulationSettings(previewMode: .layoutOnly)
     var isLightingPresented = false
 
     // MARK: - Furniture Rearrangement State
@@ -30,6 +30,8 @@ public final class Studio3DViewModel {
     var previewLighting: LightingSimulationSettings {
         isLightingPresented ? lightingDraft : lightingSettings
     }
+
+    var isSimulationEnabled: Bool { previewLighting.previewMode == .simulation }
 
     public init() {}
 
@@ -424,8 +426,21 @@ public final class Studio3DViewModel {
 
     // MARK: - Lighting Simulation Session
 
+    /// A new viewer remains neutral until the user explicitly enables simulation.
+    func toggleLightingSimulation() {
+        if isSimulationEnabled {
+            discardLightingEditing()
+            lightingSettings.previewMode = .layoutOnly
+            lightingDraft = lightingSettings
+        } else {
+            lightingSettings.previewMode = .simulation
+            beginLightingEditing()
+        }
+    }
+
     func beginLightingEditing() {
         lightingDraft = lightingSettings
+        lightingDraft.previewMode = .simulation
         isLightingPresented = true
     }
 

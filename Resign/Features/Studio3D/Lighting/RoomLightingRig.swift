@@ -38,6 +38,8 @@ struct RoomLightingTuning {
     /// Environment light as a power of two. Very low: the room must look dark without lamps or sun.
     var nightAmbientExponent: Float = -6.5
     var dayAmbientExponent: Float = -5.5
+    /// Fixed neutral environment exposure used only for inspecting the layout.
+    var layoutAmbientExponent: Float = 1
 
     /// Used when no lamps are found in the model (meters, room space).
     var fixturePositions: [SIMD3<Float>] = [[-1.3, 2.4, 0], [1.3, 2.4, 0]]
@@ -271,6 +273,12 @@ final class RoomLightingRig {
     func apply(_ settings: LightingSimulationSettings) {
         buildIfNeeded()
         lastSettings = settings
+        root.isEnabled = settings.previewMode == .simulation
+        guard settings.previewMode == .simulation else {
+            // One parent disables sun, sky, every fixture, and all generated bulb spheres.
+            ambientExponent = tuning.layoutAmbientExponent
+            return
+        }
         let state = settings.sun
 
         if openings.isEmpty {

@@ -35,6 +35,8 @@ This directory documents key architectural decisions for **Resign** using the [M
 
 - [ADR 0027: Adapt Lighting Workspaces to the Available Window](0027-adaptive-lighting-workspaces.md)
 
+- [ADR 0028: Inspect the Room Independently of Lighting Simulation](0028-layout-only-room-preview.md)
+
 - [ADR 0029: Aperture-Aware Ceiling Outline Validation](0029-aperture-aware-ceiling-outline.md)
 
 - [ADR 0030: Separate Ceiling Perimeter from Open Interior Wall Branches](0030-ceiling-perimeter-and-interior-walls.md)
