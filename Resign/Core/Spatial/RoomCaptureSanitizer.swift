@@ -67,7 +67,8 @@ public final class RoomCaptureSanitizer: Sendable {
     ) -> [SanitizedObject] {
         var result: [SanitizedObject] = []
 
-        let mergedPass = mergeCollidingTables(in: objects)
+        let chairPass = mergeAndFilterChairs(in: objects, floorLevel: floorLevel)
+        let mergedPass = mergeCollidingTables(in: chairPass)
         let processedObjects = mergedPass.objects
 
         for (index, obj) in processedObjects.enumerated() {
@@ -270,6 +271,105 @@ public final class RoomCaptureSanitizer: Sendable {
         default:
             return 0.0
         }
+    }
+
+    // MARK: - Chair Sanitization (Deduplication & Artifact Filtering)
+
+    private func mergeAndFilterChairs(
+        in objects: [ScannedObjectPayload],
+        floorLevel: Float
+    ) -> [ScannedObjectPayload] {
+        // Pass 1: Filter out wall-floating chair artifacts.
+        // A chair whose bottom is > 0.50m above the floor with no ground connection is an airborne artifact
+        var validObjects: [ScannedObjectPayload] = []
+        for (idx, obj) in objects.enumerated() {
+            let raw = obj.rawCategory.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+            if raw == "chair" {
+                let bottomY = obj.position.y - (obj.dimensions.y * 0.5)
+                let heightAboveFloor = bottomY - floorLevel
+                if heightAboveFloor > 0.50 {
+                    // Check if it is close to another chair on the floor (e.g. seat of a tucked chair)
+                    let hasNearbyGroundChair = objects.enumerated().contains { (otherIdx, other) in
+                        guard otherIdx != idx,
+                              other.rawCategory.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() == "chair" else {
+                            return false
+                        }
+                        let otherBottom = other.position.y - (other.dimensions.y * 0.5)
+                        let d2D = hypot(obj.position.x - other.position.x, obj.position.z - other.position.z)
+                        return (otherBottom - floorLevel) <= 0.30 && d2D <= 0.55
+                    }
+                    if !hasNearbyGroundChair {
+                        // Discard wall-floating chair artifact (e.g. whiteboard/acoustic panel misclassified as chair)
+                        continue
+                    }
+                }
+            }
+            validObjects.append(obj)
+        }
+
+        // Pass 2: Merge co-located chair backrest and seat components
+        var consumed: Set<Int> = []
+        var result: [ScannedObjectPayload] = []
+
+        for i in validObjects.indices {
+            if consumed.contains(i) { continue }
+            let objA = validObjects[i]
+            let rawA = objA.rawCategory.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+
+            guard rawA == "chair" else {
+                result.append(objA)
+                continue
+            }
+
+            var mergedChair = objA
+            for j in (i + 1)..<validObjects.count {
+                if consumed.contains(j) { continue }
+                let objB = validObjects[j]
+                let rawB = objB.rawCategory.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+                guard rawB == "chair" else { continue }
+
+                // Check 2D horizontal distance
+                let dist2D = hypot(mergedChair.position.x - objB.position.x, mergedChair.position.z - objB.position.z)
+                guard dist2D <= 0.45 else { continue }
+
+                // Check vertical bounding box overlap or proximity (e.g. backrest + seat cushion)
+                let bottomA = mergedChair.position.y - mergedChair.dimensions.y * 0.5
+                let topA = mergedChair.position.y + mergedChair.dimensions.y * 0.5
+                let bottomB = objB.position.y - objB.dimensions.y * 0.5
+                let topB = objB.position.y + objB.dimensions.y * 0.5
+
+                let verticalGap = max(0.0, max(bottomA, bottomB) - min(topA, topB))
+                guard verticalGap <= 0.35 else { continue }
+
+                // Merge objA and objB into a single unified chair
+                consumed.insert(j)
+
+                let minBottom = min(bottomA, bottomB)
+                let maxTop = max(topA, topB)
+                let combinedHeight = maxTop - minBottom
+                let combinedCenterY = minBottom + combinedHeight * 0.5
+
+                // Taller component dictates the primary yaw (the backrest has the authentic orientation)
+                let primaryYaw = mergedChair.dimensions.y >= objB.dimensions.y ? mergedChair.rotationYaw : objB.rotationYaw
+
+                let combinedWidth = max(mergedChair.dimensions.x, objB.dimensions.x)
+                let combinedDepth = max(mergedChair.dimensions.z, objB.dimensions.z, dist2D + min(mergedChair.dimensions.z, objB.dimensions.z) * 0.5)
+
+                let combinedCenterX = (mergedChair.position.x + objB.position.x) * 0.5
+                let combinedCenterZ = (mergedChair.position.z + objB.position.z) * 0.5
+
+                mergedChair = ScannedObjectPayload(
+                    rawCategory: "chair",
+                    position: SIMD3<Float>(combinedCenterX, combinedCenterY, combinedCenterZ),
+                    dimensions: SIMD3<Float>(combinedWidth, combinedHeight, combinedDepth),
+                    rotationYaw: primaryYaw
+                )
+            }
+
+            result.append(mergedChair)
+        }
+
+        return result
     }
 
     private struct TableMergeResult {
