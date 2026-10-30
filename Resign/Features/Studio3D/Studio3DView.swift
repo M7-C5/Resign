@@ -267,7 +267,7 @@ public struct Studio3DView: View {
                                     Image(systemName: "archivebox")
                                         .font(.caption.weight(.bold))
                                         .foregroundStyle(.secondary)
-                                        .frame(width: 44, height: 44)
+                                        .frame(width: 32, height: 32)
                                         .background(Color(uiColor: .tertiarySystemFill), in: Circle())
                                 }
                                 .accessibilityLabel("Archive furniture")
@@ -275,8 +275,8 @@ public struct Studio3DView: View {
                                 // Done / Revert button
                                 Button {
                                     withAnimation(.snappy(duration: 0.2)) {
-                                        if viewModel.isColliding, let layout = selectedLayout {
-                                            if let reverted = viewModel.revertToLastValidPosition(id: furniture.id, in: layout, context: modelContext) {
+                                        if viewModel.isColliding {
+                                            if let reverted = viewModel.revertToLastValidPosition(id: furniture.id, in: selectedLayout!, context: modelContext) {
                                                 controller.updateFurnitureTransform(id: furniture.id, position: reverted.position, yaw: reverted.yaw)
                                             }
                                         }
@@ -287,7 +287,7 @@ public struct Studio3DView: View {
                                     Image(systemName: viewModel.isColliding ? "arrow.uturn.backward" : "checkmark")
                                         .font(.caption.weight(.bold))
                                         .foregroundStyle(.white)
-                                        .frame(width: 44, height: 44)
+                                        .frame(width: 32, height: 32)
                                         .background(viewModel.isColliding ? Color.orange : Color.accentColor, in: Circle())
                                 }
                                 .accessibilityLabel(viewModel.isColliding ? "Revert collision" : "Done rearranging")
