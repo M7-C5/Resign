@@ -8,6 +8,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- feat(ui): add preference onboarding, suggestions display, and stabilized 3D studio viewer (cce2641)
+- feat(insights): integrate foundation model diagnostic pipeline and spatial tool calling (d554d88)
+- feat(solver): implement constraint-driven layout optimizer and validation engine (edd5553)
+- feat(core): introduce room preference schemas, layout constraints, and spatial geometry models (49a4e05)
 - feat: auto-seed reference room on startup and connect tab navigation (997c2bf)
 - feat: integrate spatial diagnostics dashboard with live room presets (b8f77f5)
 - feat: render USDZ mock room with 45-degree isometric orbit controls (04b3f1d)
@@ -21,6 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - feat(testing): add in-memory ModelContainer fixture and SwiftData unit tests (b4daaff)
 
 ### Documentation
+- docs(adr): record foundation model diagnostic pipeline and validated layout solver (a77b7e7)
 - docs: record architectural decisions for spatial diagnostics and USDZ parsing (cc3437e)
 - docs(architecture): define whiteboard domain schema and local-first persistence roadmap (1b90094)
 - docs(adr): record architectural decision for mock USDZ reference environment (4da7ecf)
@@ -32,6 +37,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - docs: add agentic playbook, architecture blueprint, and changelog (178cddb)
 
 ### Tooling & Maintenance
+- test(solver): add unit test coverage for constraint solver, tool calling, and flow journeys (5a80620)
+- build(xcode): update project structure and ignore rules for layout solver (c8f9e39)
+- chore: update changelog for interactive 3D studio and diagnostic views (9b1908e)
 - chore: update changelog for spatial diagnostics and layout solver (f0bd9af)
 - chore(changelog): update release changelog for domain schema migration (ada76db)
 - test(persistence): add room hierarchy persistence and model default initialization tests (20a21f7)
