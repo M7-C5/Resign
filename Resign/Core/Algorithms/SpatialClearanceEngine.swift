@@ -396,5 +396,6 @@ public struct SpatialClearanceEngine: Sendable {
         }
 
         return violations
+        
     }
 }
