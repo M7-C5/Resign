@@ -14,6 +14,7 @@ struct RoomSimulationView: View {
     var onArchiveHover: ((Bool) -> Void)?
     var onArchiveDrop: ((UUID) -> Void)?
     var onBoundsResolved: (((minX: Float, maxX: Float, minZ: Float, maxZ: Float)) -> Void)?
+    var onWallSegmentsResolved: (([RoomPlanSnapshot.WallSegment]) -> Void)?
     var onReloadScannedRoom: (() -> Void)?
     var onWindowDirectionsResolved: (([Double]) -> Void)?
 
@@ -28,7 +29,8 @@ struct RoomSimulationView: View {
                 onRotateFurniture: onRotateFurniture,
                 onArchiveHover: onArchiveHover,
                 onArchiveDrop: onArchiveDrop,
-                onBoundsResolved: onBoundsResolved
+                onBoundsResolved: onBoundsResolved,
+                onWallSegmentsResolved: onWallSegmentsResolved
             )
 
             // Zero Mock Fallback: Dedicated Scanned Room Error State
@@ -88,6 +90,7 @@ private struct RoomRenderSurface: UIViewRepresentable {
     var onArchiveHover: ((Bool) -> Void)?
     var onArchiveDrop: ((UUID) -> Void)?
     var onBoundsResolved: (((minX: Float, maxX: Float, minZ: Float, maxZ: Float)) -> Void)?
+    var onWallSegmentsResolved: (([RoomPlanSnapshot.WallSegment]) -> Void)?
 
     final class Coordinator: NSObject, UIGestureRecognizerDelegate {
         weak var view: ARView?
@@ -400,6 +403,9 @@ private struct RoomRenderSurface: UIViewRepresentable {
             if let bounds = controller.roomHorizontalBounds {
                 onBoundsResolved?(bounds)
             }
+            if !controller.roomWallSegments.isEmpty {
+                onWallSegmentsResolved?(controller.roomWallSegments)
+            }
         }
         return view
     }
@@ -415,6 +421,9 @@ private struct RoomRenderSurface: UIViewRepresentable {
         context.coordinator.onArchiveDrop = onArchiveDrop
         if let bounds = controller.roomHorizontalBounds {
             onBoundsResolved?(bounds)
+        }
+        if !controller.roomWallSegments.isEmpty {
+            onWallSegmentsResolved?(controller.roomWallSegments)
         }
     }
 

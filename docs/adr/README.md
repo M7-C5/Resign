@@ -32,6 +32,9 @@ This directory documents key architectural decisions for **Resign** using the [M
 - [ADR 0026: Viewport Snapping and Dynamic Wall Cutaways](0026-viewport-snapping-and-dynamic-wall-cutaways.md)
 - [ADR 0027: Scanned Room Square Orientation and Centered Origin Normalization](0027-scanned-room-square-orientation-and-centered-origin.md)
 - [ADR 0028: Studio 3D Inventory and Drag Archival System](0028-studio-3d-inventory-and-drag-archival-system.md)
+- [ADR 0029: Scanned Room Furniture Coordinate Normalization and Static Mesh Suppression](0029-scanned-room-furniture-coordinate-normalization.md)
+- [ADR 0030: Scanned Chair Component Merging, Airborne Artifact Filtering, and Procedural Under-Table Clearance](0030-scanned-chair-merging-and-airborne-artifact-filtering.md)
+- [ADR 0031: Non-Rectangular Room Polygon Boundary Clamping and Full Envelope Traversal](0031-non-rectangular-room-polygon-boundary-clamping.md)
 
 ## How to Create a New ADR
 1. Copy [template.md](template.md) to `docs/adr/NNNN-title-in-kebab-case.md`.

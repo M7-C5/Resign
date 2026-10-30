@@ -28,6 +28,7 @@ final class RoomSceneController {
     private(set) var resolvedWindowAzimuths: [Double]?
     public private(set) var floorLevel: Float = 0.0
     public private(set) var roomHorizontalBounds: (minX: Float, maxX: Float, minZ: Float, maxZ: Float)? = nil
+    public private(set) var roomWallSegments: [RoomPlanSnapshot.WallSegment] = []
     public private(set) var wallCutaways: [WallCutawayItem] = []
 
     let root = Entity()
@@ -164,33 +165,46 @@ final class RoomSceneController {
             try Task.checkCancellation()
             prepare(loaded)
             applyArchitecturalStyling(to: loaded)
+            loaded.findEntity(named: "Object_grp")?.isEnabled = false
 
-            // Derive dominant wall tilt to align room walls squarely with world X and Z axes
-            let dominantTilt = dominantWallTilt(in: loaded)
+            let snap = (room?.planSnapshotData ?? layout?.room?.planSnapshotData).flatMap {
+                try? JSONDecoder().decode(RoomPlanSnapshot.self, from: $0)
+            }
 
             let captureSpace = Entity()
             captureSpace.name = "CaptureSpace"
-            captureSpace.orientation = simd_quatf(angle: dominantTilt, axis: [0, 1, 0])
-            captureSpace.addChild(loaded)
 
             let normalizedRoom = Entity()
             normalizedRoom.name = "NormalizedRoom"
             normalizedRoom.addChild(captureSpace)
 
-            // Derive floor level and center in straightened coordinates
-            let rotatedBounds = loaded.visualBounds(relativeTo: normalizedRoom)
-            let cx = (rotatedBounds.min.x + rotatedBounds.max.x) * 0.5
-            let cz = (rotatedBounds.min.z + rotatedBounds.max.z) * 0.5
-
-            let rawFloorY: Float
-            if let floorGrp = loaded.findEntity(named: "Floor_grp") {
-                rawFloorY = floorGrp.visualBounds(relativeTo: normalizedRoom).center.y
+            if let snap {
+                let effectiveYaw = snap.yawRadians
+                let inverseYaw = simd_quatf(angle: -effectiveYaw, axis: [0, 1, 0])
+                captureSpace.orientation = inverseYaw
+                captureSpace.addChild(loaded)
+                let floorY = snap.floorLevel ?? (loaded.findEntity(named: "Floor_grp")?.visualBounds(relativeTo: normalizedRoom).center.y ?? 0)
+                captureSpace.position = inverseYaw.act([-snap.centerX, -floorY, -snap.centerZ])
             } else {
-                rawFloorY = rotatedBounds.min.y
-            }
+                // Mock room reference environment fallback (Room-2 / MockRoom)
+                let dominantTilt = dominantWallTilt(in: loaded)
+                captureSpace.orientation = simd_quatf(angle: dominantTilt, axis: [0, 1, 0])
+                captureSpace.addChild(loaded)
 
-            // Center room horizontally at (0, 0) and ground floor at Y = 0.0
-            captureSpace.position = [-cx, -rawFloorY, -cz]
+                let rotatedBounds = loaded.visualBounds(relativeTo: normalizedRoom)
+                let cx = (rotatedBounds.min.x + rotatedBounds.max.x) * 0.5
+                let cz = (rotatedBounds.min.z + rotatedBounds.max.z) * 0.5
+
+                let rawFloorY: Float
+                if let floorGrp = loaded.findEntity(named: "Floor_grp") {
+                    rawFloorY = floorGrp.visualBounds(relativeTo: normalizedRoom).center.y
+                } else {
+                    rawFloorY = rotatedBounds.min.y
+                }
+
+                // Center room horizontally at (0, 0) and ground floor at Y = 0.0
+                captureSpace.position = [-cx, -rawFloorY, -cz]
+            }
 
             root.addChild(normalizedRoom)
             roomEntity = normalizedRoom
@@ -248,7 +262,13 @@ final class RoomSceneController {
             }
 
             self.wallCutaways = wallCutawayList
-            self.roomHorizontalBounds = (interiorMinX, interiorMaxX, interiorMinZ, interiorMaxZ)
+            if let snap, !snap.wallSegments.isEmpty {
+                self.roomWallSegments = snap.wallSegments
+                let pb = RoomPlanBounds(snapshot: snap, fallbackWidth: interiorMaxX - interiorMinX, fallbackLength: interiorMaxZ - interiorMinZ)
+                self.roomHorizontalBounds = (pb.minX, pb.minX + pb.width, pb.minZ, pb.minZ + pb.length)
+            } else {
+                self.roomHorizontalBounds = (interiorMinX, interiorMaxX, interiorMinZ, interiorMaxZ)
+            }
 
             // Center camera target on the true geometric room center (0, 0.8, 0)
             self.cameraTarget = SIMD3<Float>(
@@ -322,16 +342,48 @@ final class RoomSceneController {
         }
 
         if shell?.findEntity(named: "Furniture") == nil {
+            let snap = source.scanPlan
             for item in source.furnishings {
+                var posX = item.position.x
+                var posY = item.position.y
+                var posZ = item.position.z
+                var yaw = item.yaw
+
+                if let snap {
+                    let dToSnapCenter = hypot(posX - snap.centerX, posZ - snap.centerZ)
+                    let dToOrigin = hypot(posX, posZ)
+                    let isCloserToSnapCenter = (abs(snap.centerX) > 0.2 || abs(snap.centerZ) > 0.2) && (dToSnapCenter + 0.3 < dToOrigin)
+                    let isBelowFloor = posY < -0.05
+
+                    if isCloserToSnapCenter || isBelowFloor {
+                        let localPos = snap.localCoordinates(worldX: posX, worldZ: posZ)
+                        posX = localPos.x
+                        posZ = localPos.y
+                        yaw = snap.localYaw(yaw)
+                        if let floorLvl = snap.floorLevel {
+                            posY = max(0.0, posY - floorLvl)
+                        } else {
+                            posY = max(0.0, posY)
+                        }
+                    }
+                }
+
+                // Seating grounding invariant: chairs and sofas must always ground flush to the floor
+                if item.category.lowercased() == "chair" || item.category.lowercased() == "sofa" {
+                    posY = 0.0
+                } else {
+                    posY = max(0.0, posY)
+                }
+
                 let furniture = Furniture(
                     id: item.id, name: item.name, category: item.category,
-                    positionX: item.position.x, positionY: item.position.y, positionZ: item.position.z,
-                    rotationYaw: item.yaw, length: item.dimensions.z,
+                    positionX: posX, positionY: posY, positionZ: posZ,
+                    rotationYaw: yaw, length: item.dimensions.z,
                     width: item.dimensions.x, height: item.dimensions.y, usdzURL: item.modelURL
                 )
                 let entity = FurnitureEntityFactory.createEntity(for: furniture)
                 prepareScanned(entity)
-                captureSpace.addChild(entity)
+                normalizedRoom.addChild(entity)
                 furnitureEntities[item.id] = entity
             }
         }
@@ -350,11 +402,13 @@ final class RoomSceneController {
         distance = roomExtent * 1.9
         camera.camera.far = max(60, distance * 5)
         floorLevel = 0.0
+        self.roomWallSegments = source.wallSegments
+        let pb = source.planBounds
         roomHorizontalBounds = (
-            minX: -source.width / 2.0,
-            maxX: source.width / 2.0,
-            minZ: -source.length / 2.0,
-            maxZ: source.length / 2.0
+            minX: pb.minX,
+            maxX: pb.minX + pb.width,
+            minZ: pb.minZ,
+            maxZ: pb.minZ + pb.length
         )
         updateCamera()
         updateWallCutaways()
@@ -508,25 +562,57 @@ final class RoomSceneController {
     // MARK: - Furniture Management
 
     private func populateFurnitures() {
-        if let layout, !layout.furnitures.isEmpty {
-            for furniture in layout.furnitures where !furniture.isArchived {
-                let entity = FurnitureEntityFactory.createEntity(for: furniture)
-                // Ensure furniture is grounded to the authentic floor level
-                if abs(entity.position.y) < 0.05 && floorLevel != 0 {
-                    entity.position.y = floorLevel
-                }
-                furnitureEntities[furniture.id] = entity
-                root.addChild(entity)
-            }
-        } else {
+        guard let layout, !layout.furnitures.isEmpty else {
             // Seed authentic furniture into mock room environment grounded at floorLevel
             let mockItems = createMockFurnitureItems(at: floorLevel)
             for item in mockItems {
                 let entity = FurnitureEntityFactory.createEntity(for: item)
                 furnitureEntities[item.id] = entity
                 root.addChild(entity)
-                layout?.furnitures.append(item)
+                self.layout?.furnitures.append(item)
             }
+            return
+        }
+
+        let snap = (room?.planSnapshotData ?? layout.room?.planSnapshotData).flatMap {
+            try? JSONDecoder().decode(RoomPlanSnapshot.self, from: $0)
+        }
+
+        for furniture in layout.furnitures where !furniture.isArchived {
+            // Intelligent legacy migration: detect if this item is in raw camera tracking coordinates
+            if let snap {
+                let dToSnapCenter = hypot(furniture.positionX - snap.centerX, furniture.positionZ - snap.centerZ)
+                let dToOrigin = hypot(furniture.positionX, furniture.positionZ)
+                let isCloserToSnapCenter = (abs(snap.centerX) > 0.2 || abs(snap.centerZ) > 0.2) && (dToSnapCenter + 0.3 < dToOrigin)
+                let isBelowFloor = furniture.positionY < -0.05
+
+                if isCloserToSnapCenter || isBelowFloor {
+                    let localPos = snap.localCoordinates(worldX: furniture.positionX, worldZ: furniture.positionZ)
+                    furniture.positionX = localPos.x
+                    furniture.positionZ = localPos.y
+                    furniture.rotationYaw = snap.localYaw(furniture.rotationYaw)
+                    if let floorLvl = snap.floorLevel {
+                        furniture.positionY = max(0.0, furniture.positionY - floorLvl)
+                    } else {
+                        furniture.positionY = max(0.0, furniture.positionY)
+                    }
+                }
+            }
+
+            // Seating grounding invariant: chairs and sofas must always ground flush to the floor
+            if furniture.category.lowercased() == "chair" || furniture.category.lowercased() == "sofa" {
+                furniture.positionY = 0.0
+            } else {
+                furniture.positionY = max(0.0, furniture.positionY)
+            }
+
+            let entity = FurnitureEntityFactory.createEntity(for: furniture)
+            // Ensure furniture is grounded to the authentic floor level
+            if abs(entity.position.y) < 0.05 && floorLevel != 0 {
+                entity.position.y = floorLevel
+            }
+            furnitureEntities[furniture.id] = entity
+            root.addChild(entity)
         }
     }
 
