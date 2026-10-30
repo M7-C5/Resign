@@ -19,7 +19,7 @@ Through the comprehensive `/grill-me` architectural design review, all foundatio
 | **Asset Pipeline** | **Bundled Curated USDZ Catalog** | App bundle contains stylized, optimized USDZ models (bed, desk, sofa, etc.) scaled non-uniformly to match RoomPlan bounding boxes. |
 | **Natural Sunlight Engine**| **NOAA Solar Ephemeris Algorithm**| Real-world astronomical sun vector calculations (azimuth & elevation) using device latitude, longitude, and 24-hour time of day. |
 | **Artificial Light Mapping**| **2D Interactive Ceiling Grid (5×5)**| Touch-enabled top-down grid overlay on the room floorplan for dropping fixtures with Lumens (0–2000 lm) and Kelvin (2200K–6500K) controls. |
-| **Layout Generator** | **Deterministic Swift Rules + LLM** | Mathematical clearance corridors (>= 90cm), window glare vectors, and Feng Shui command positions generate 3 layouts; LLM provides natural language design rationales. |
+| **Layout Diagnostics & AI** | **Apple Foundation Models (`FoundationModels.framework`)** | On-device `SystemLanguageModel` / `LanguageModelSession` (iOS 27) synthesizes qualitative architectural rationales under Panero & Zelnik rules; deterministic Swift physics engine calculates exact collision clearances. |
 | **3D Object Interaction** | **Sims-Style Radial Menu + Floor Drag**| Tapping furniture spawns floating action pills (Rotate, Slide, Archive); dragging is strictly constrained to the floor plane ($Y=0$) with boundary collision snapping. |
 | **Augmented Reality Mode** | **1:1 Full-Scale Physical Immersion** | Virtual furniture is superimposed directly onto the user's actual room at true 1:1 scale for real-world physical walkthroughs. |
 | **Data Persistence** | **Hierarchical SwiftData Schema** | `Room` (with `RoomOpening`) owns multiple `Layout` revisions containing `Furniture`, `Light`, and `Insight` records. |
@@ -216,7 +216,7 @@ Resign/
 │   ├── RoomScan/                      // RoomScanView, RoomScanViewModel
 │   ├── Orientation/                   // OrientationView, OrientationViewModel
 │   ├── LightingSetup/                 // LightingSetupView, LightingSetupViewModel
-│   ├── Insights/                      // InsightsView, InsightsViewModel
+│   ├── Insights/                      // SpatialJourneyFlowView, PreferencePageView, YourLayoutResultView, LayoutSuggestionsDisplayView, InsightsView, InsightsViewModel, FoundationModelAIDiagnosticService
 │   ├── Studio3D/                      // Studio3DView, Studio3DViewModel
 │   └── ARWalkthrough/                 // ARWalkthroughView, ARWalkthroughViewModel
 ├── Core/                              // Horizontal Foundation (The "Brain", Zero UI)
