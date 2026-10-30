@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- feat(lighting): separate neutral room previews from simulation (6738513)
 - feat(lighting): adapt workspaces and compass for iPad (f68d2a2)
 - feat(studio-3d): implement inventory system and interactive drag-to-archive (5af0572)
 - feat(studio-3d): add viewport presets snapping menu to studio controls (91d942a)
@@ -50,6 +51,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - refactor(arch): scaffold vertical feature-slice architecture with skeleton modules (3419a7d)
 
 ### Fixed
+- fix(lighting): recover scanned outlines with interior wall branches (bc82588)
+- fix(orientation): recover compass calibration after interruptions (d8eef7c)
 - fix(lighting): boost preview exposure for low lumen fixtures (cfc0caa)
 - fix(lighting): keep denser placement points inside scanned rooms (b9d260c)
 - fix(spatial): ensure longer dimension is length on dimension display and room mapping (e1a7adf)
@@ -78,6 +81,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - fix(lighting-simulation): shape natural light to the window (5fbb493)
 
 ### Documentation
+- docs(changelog): record adaptive placement and brighter fixtures (5c872b1)
 - docs(changelog): regenerate lighting history after rebase (ceea6fa)
 - docs(changelog): record iPad and lighting refinements (01461c0)
 - docs(adr): document studio 3d inventory and drag archival in adr 0028 (8f7f08d)
@@ -113,6 +117,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - docs: add agentic playbook, architecture blueprint, and changelog (178cddb)
 
 ### Tooling & Maintenance
+- build(ios): configure development signing for connected devices (a0be559)
 - chore(release): update changelog for 3d studio inventory system (e957708)
 - test(studio-3d): verify furniture archival, restoration, and collision exclusion (0943801)
 - chore(release): update changelog for dimension display length fix (ffe034d)
