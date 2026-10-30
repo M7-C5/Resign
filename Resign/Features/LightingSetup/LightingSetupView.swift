@@ -52,7 +52,14 @@ public struct LightingSetupView: View {
     private var roomAspectRatio: CGFloat { CGFloat(planBounds.width / planBounds.length) }
 
     private var roomBoundary: CeilingLightPlacementGrid {
-        CeilingLightPlacementGrid(bounds: planBounds, walls: scanPlan?.wallSegments ?? [])
+        CeilingLightPlacementGrid(bounds: planBounds, walls: scanPlan?.wallSegments ?? [], openings: planOpenings)
+    }
+
+    private var planOpenings: [CeilingLightPlacementGrid.Opening] {
+        guard let scanPlan else { return [] }
+        return (layout.room?.openings ?? []).map {
+            .init(center: scanPlan.localCoordinates(worldX: $0.posX, worldZ: $0.posZ), width: $0.width)
+        }
     }
 
     private var outsideDrafts: [LightDraft] {
@@ -268,6 +275,7 @@ public struct LightingSetupView: View {
     private func emptyPlacementPoints(in size: CGSize) -> [SIMD2<Float>] {
         let grid = CeilingLightPlacementGrid(
             bounds: planBounds, walls: scanPlan?.wallSegments ?? [],
+            openings: planOpenings,
             maxColumns: max(1, Int(max(1, size.width - 34) / 40)),
             maxRows: max(1, Int(max(1, size.height - 34) / 40)),
             wallClearance: max(0.15, 14 * max(planBounds.width / Float(max(1, size.width - 34)),
