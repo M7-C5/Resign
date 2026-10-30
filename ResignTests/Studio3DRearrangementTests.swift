@@ -310,4 +310,65 @@ struct Studio3DRearrangementTests {
             }
         }
     }
+
+    @Test @MainActor func viewModelAllowsFurnitureToEnterTailOfLShapedRoom() async throws {
+        let container = try ModelContainer.createInMemoryContainer()
+        let room = Room(name: "L-Shaped Room", length: 6.0, width: 5.0, height: 2.7)
+        let layout = Layout(name: "L-Layout")
+        let chair = Furniture(
+            name: "Office Chair",
+            category: "chair",
+            positionX: -1.0,
+            positionY: 0.0,
+            positionZ: 0.0,
+            rotationYaw: 0,
+            length: 0.6,
+            width: 0.6,
+            height: 0.9
+        )
+        layout.furnitures.append(chair)
+        room.layouts.append(layout)
+        container.mainContext.insert(room)
+
+        let viewModel = Studio3DViewModel()
+        // Full envelope of L-shaped room: X [-2.0, 3.0], Z [-2.0, 2.0]
+        // Main body: X in [-2, 0], Z in [-2, 2]
+        // Tail of L: X in [0, 3], Z in [-2, 0]
+        // Notch (outside): X in [0, 3], Z in [0, 2]
+        viewModel.roomHorizontalBounds = (minX: -2.0, maxX: 3.0, minZ: -2.0, maxZ: 2.0)
+        let walls = [
+            RoomPlanSnapshot.WallSegment(startX: -2.0, startZ: -2.0, endX: 3.0, endZ: -2.0),
+            RoomPlanSnapshot.WallSegment(startX: 3.0, startZ: -2.0, endX: 3.0, endZ: 0.0),
+            RoomPlanSnapshot.WallSegment(startX: 3.0, startZ: 0.0, endX: 0.0, endZ: 0.0),
+            RoomPlanSnapshot.WallSegment(startX: 0.0, startZ: 0.0, endX: 0.0, endZ: 2.0),
+            RoomPlanSnapshot.WallSegment(startX: 0.0, startZ: 2.0, endX: -2.0, endZ: 2.0),
+            RoomPlanSnapshot.WallSegment(startX: -2.0, startZ: 2.0, endX: -2.0, endZ: -2.0)
+        ]
+        viewModel.roomWallSegments = walls
+        viewModel.selectFurniture(id: chair.id, in: layout)
+
+        // 1. Move into the tail of the L at (2.0, -1.0): MUST SUCCEED (not blocked by square!)
+        let tailDrag = viewModel.moveSelectedFurniture(
+            to: SIMD2<Float>(2.0, -1.0),
+            in: layout,
+            context: container.mainContext
+        )
+        #expect(tailDrag != nil)
+        #expect(abs(chair.positionX - 2.0) < 0.01)
+        #expect(abs(chair.positionZ - (-1.0)) < 0.01)
+
+        // 2. Drag into the exterior notch at (2.0, 1.5): MUST BE PROTECTED (projected back inside room)
+        let notchDrag = viewModel.moveSelectedFurniture(
+            to: SIMD2<Float>(2.0, 1.5),
+            in: layout,
+            context: container.mainContext
+        )
+        #expect(notchDrag != nil)
+        // Position must remain inside the room polygon, NOT inside the exterior notch
+        let isInside = SpatialClearanceEngine.isPointInsidePolygon(
+            SIMD2<Float>(chair.positionX, chair.positionZ),
+            walls: walls
+        )
+        #expect(isInside, "Furniture must not escape into the exterior notch of an L-shaped room")
+    }
 }

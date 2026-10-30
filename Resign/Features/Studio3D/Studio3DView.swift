@@ -99,6 +99,9 @@ public struct Studio3DView: View {
                 onBoundsResolved: { bounds in
                     viewModel.roomHorizontalBounds = bounds
                 },
+                onWallSegmentsResolved: { walls in
+                    viewModel.roomWallSegments = walls
+                },
                 onReloadScannedRoom: {
                     Task { await controller.reload() }
                 },
