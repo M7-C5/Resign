@@ -17,7 +17,10 @@
             │
             ▼
 [RoomCaptureSanitizer]
-  - Floor Grounding (posY = 0.0)
+  - Floor Grounding Invariant for Seating (posY = 0.0)
+  - Chair Deduplication (Backrest + Seat Cushion Proximity Merging)
+  - Airborne Wall Artifact Filtering (Discards floating chairs >0.50m above floor)
+  - Table & Desk Open Clearance Geometry (Tabletop slab + 4 corner legs)
   - Wall Alignment Snapping (±5° within 15 cm)
   - Residential Object Categorization (Bed, Sofa, Table, Chair, Storage, TV)
   - 1-Master Uniform Scaling by Width
