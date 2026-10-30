@@ -31,6 +31,7 @@ This directory documents key architectural decisions for **Resign** using the [M
 - [ADR 0025: Interactive 3D Room Rearrangement and Scanned Room Pipeline](0025-interactive-3d-rearrangement-and-scanned-room-pipeline.md)
 - [ADR 0026: Viewport Snapping and Dynamic Wall Cutaways](0026-viewport-snapping-and-dynamic-wall-cutaways.md)
 - [ADR 0027: Scanned Room Square Orientation and Centered Origin Normalization](0027-scanned-room-square-orientation-and-centered-origin.md)
+- [ADR 0028: Studio 3D Inventory and Drag Archival System](0028-studio-3d-inventory-and-drag-archival-system.md)
 
 ## How to Create a New ADR
 1. Copy [template.md](template.md) to `docs/adr/NNNN-title-in-kebab-case.md`.
