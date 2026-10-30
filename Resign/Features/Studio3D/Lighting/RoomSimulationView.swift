@@ -7,9 +7,12 @@ struct RoomSimulationView: View {
     let controller: RoomSceneController
     let settings: LightingSimulationSettings
     let fixtures: [RoomLightingFixture]?
+    var archiveTargetCenter: CGPoint? = nil
     var onSelectFurniture: ((UUID?) -> Void)?
     var onMoveFurniture: ((UUID, SIMD2<Float>) -> Void)?
     var onRotateFurniture: ((UUID, Float) -> Void)?
+    var onArchiveHover: ((Bool) -> Void)?
+    var onArchiveDrop: ((UUID) -> Void)?
     var onBoundsResolved: (((minX: Float, maxX: Float, minZ: Float, maxZ: Float)) -> Void)?
     var onReloadScannedRoom: (() -> Void)?
     var onWindowDirectionsResolved: (([Double]) -> Void)?
@@ -19,9 +22,12 @@ struct RoomSimulationView: View {
             RoomRenderSurface(
                 controller: controller,
                 settings: settings,
+                archiveTargetCenter: archiveTargetCenter,
                 onSelectFurniture: onSelectFurniture,
                 onMoveFurniture: onMoveFurniture,
                 onRotateFurniture: onRotateFurniture,
+                onArchiveHover: onArchiveHover,
+                onArchiveDrop: onArchiveDrop,
                 onBoundsResolved: onBoundsResolved
             )
 
@@ -75,19 +81,26 @@ struct RoomSimulationView: View {
 private struct RoomRenderSurface: UIViewRepresentable {
     let controller: RoomSceneController
     let settings: LightingSimulationSettings
+    var archiveTargetCenter: CGPoint?
     var onSelectFurniture: ((UUID?) -> Void)?
     var onMoveFurniture: ((UUID, SIMD2<Float>) -> Void)?
     var onRotateFurniture: ((UUID, Float) -> Void)?
+    var onArchiveHover: ((Bool) -> Void)?
+    var onArchiveDrop: ((UUID) -> Void)?
     var onBoundsResolved: (((minX: Float, maxX: Float, minZ: Float, maxZ: Float)) -> Void)?
 
     final class Coordinator: NSObject, UIGestureRecognizerDelegate {
         weak var view: ARView?
         unowned var controller: RoomSceneController
+        var archiveTargetCenter: CGPoint?
         var onSelectFurniture: ((UUID?) -> Void)?
         var onMoveFurniture: ((UUID, SIMD2<Float>) -> Void)?
         var onRotateFurniture: ((UUID, Float) -> Void)?
+        var onArchiveHover: ((Bool) -> Void)?
+        var onArchiveDrop: ((UUID) -> Void)?
 
         var loadTask: Task<Void, Never>?
+        private var isHoveringArchive = false
 
         private enum DragMode {
             case none
@@ -103,14 +116,20 @@ private struct RoomRenderSurface: UIViewRepresentable {
 
         init(
             controller: RoomSceneController,
+            archiveTargetCenter: CGPoint?,
             onSelectFurniture: ((UUID?) -> Void)?,
             onMoveFurniture: ((UUID, SIMD2<Float>) -> Void)?,
-            onRotateFurniture: ((UUID, Float) -> Void)?
+            onRotateFurniture: ((UUID, Float) -> Void)?,
+            onArchiveHover: ((Bool) -> Void)?,
+            onArchiveDrop: ((UUID) -> Void)?
         ) {
             self.controller = controller
+            self.archiveTargetCenter = archiveTargetCenter
             self.onSelectFurniture = onSelectFurniture
             self.onMoveFurniture = onMoveFurniture
             self.onRotateFurniture = onRotateFurniture
+            self.onArchiveHover = onArchiveHover
+            self.onArchiveDrop = onArchiveDrop
         }
 
         func setupGestures(in arView: ARView) {
@@ -223,6 +242,25 @@ private struct RoomRenderSurface: UIViewRepresentable {
                         let target = SIMD2<Float>(floorPos.x + offset.x, floorPos.z + offset.y)
                         onMoveFurniture?(id, target)
                     }
+                    if let targetCenter = archiveTargetCenter {
+                        let windowTouch = arView.convert(point, to: nil)
+                        let touchOnIcon = Studio3DViewModel.isWithinArchiveTarget(point: windowTouch, targetCenter: targetCenter, radius: 56)
+
+                        let furnitureNearIcon: Bool
+                        if let container = arView.scene.findEntity(named: "Furniture_\(id.uuidString)"),
+                           let screenPos = arView.project(container.position(relativeTo: nil)) {
+                            let localTarget = arView.convert(targetCenter, from: nil)
+                            furnitureNearIcon = Studio3DViewModel.isWithinArchiveTarget(point: screenPos, targetCenter: localTarget, radius: 64)
+                        } else {
+                            furnitureNearIcon = false
+                        }
+
+                        let isHovering = touchOnIcon || furnitureNearIcon
+                        if isHovering != isHoveringArchive {
+                            isHoveringArchive = isHovering
+                            onArchiveHover?(isHovering)
+                        }
+                    }
 
                 case .rotating(let id, let initialTouchAngle, let initialYaw, let center):
                     if let floorPos = projectToFloor(from: point, in: arView) {
@@ -245,8 +283,36 @@ private struct RoomRenderSurface: UIViewRepresentable {
                     break
                 }
 
-            case .ended, .cancelled:
+            case .ended:
+                switch dragMode {
+                case .translating(let id, _):
+                    var droppedInArchive = isHoveringArchive
+                    if !droppedInArchive, let targetCenter = archiveTargetCenter {
+                        let windowTouch = arView.convert(point, to: nil)
+                        if Studio3DViewModel.isWithinArchiveTarget(point: windowTouch, targetCenter: targetCenter, radius: 56) {
+                            droppedInArchive = true
+                        }
+                    }
+                    if droppedInArchive {
+                        isHoveringArchive = false
+                        onArchiveHover?(false)
+                        onArchiveDrop?(id)
+                    }
+                default:
+                    break
+                }
                 dragMode = .none
+                if isHoveringArchive {
+                    isHoveringArchive = false
+                    onArchiveHover?(false)
+                }
+
+            case .cancelled:
+                dragMode = .none
+                if isHoveringArchive {
+                    isHoveringArchive = false
+                    onArchiveHover?(false)
+                }
 
             default:
                 break
@@ -309,9 +375,12 @@ private struct RoomRenderSurface: UIViewRepresentable {
     func makeCoordinator() -> Coordinator {
         Coordinator(
             controller: controller,
+            archiveTargetCenter: archiveTargetCenter,
             onSelectFurniture: onSelectFurniture,
             onMoveFurniture: onMoveFurniture,
-            onRotateFurniture: onRotateFurniture
+            onRotateFurniture: onRotateFurniture,
+            onArchiveHover: onArchiveHover,
+            onArchiveDrop: onArchiveDrop
         )
     }
 
@@ -338,9 +407,12 @@ private struct RoomRenderSurface: UIViewRepresentable {
     func updateUIView(_ view: ARView, context: Context) {
         controller.rig.apply(settings)
         view.environment.lighting.intensityExponent = controller.rig.ambientExponent
+        context.coordinator.archiveTargetCenter = archiveTargetCenter
         context.coordinator.onSelectFurniture = onSelectFurniture
         context.coordinator.onMoveFurniture = onMoveFurniture
         context.coordinator.onRotateFurniture = onRotateFurniture
+        context.coordinator.onArchiveHover = onArchiveHover
+        context.coordinator.onArchiveDrop = onArchiveDrop
         if let bounds = controller.roomHorizontalBounds {
             onBoundsResolved?(bounds)
         }

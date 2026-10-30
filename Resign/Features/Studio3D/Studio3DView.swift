@@ -50,6 +50,7 @@ public struct Studio3DView: View {
                 controller: controller,
                 settings: viewModel.previewLighting,
                 fixtures: lightingFixtures,
+                archiveTargetCenter: viewModel.archiveTargetCenter,
                 onSelectFurniture: { id in
                     withAnimation(.snappy(duration: 0.2)) {
                         viewModel.selectFurniture(id: id, in: selectedLayout)
@@ -77,6 +78,22 @@ public struct Studio3DView: View {
                         if result.didSnap {
                             snapFeedbackTrigger.toggle()
                         }
+                    }
+                },
+                onArchiveHover: { isHovering in
+                    viewModel.isHoveringArchiveTarget = isHovering
+                    if let id = viewModel.selectedFurnitureID {
+                        controller.setGhostOpacity(for: id, isGhosted: isHovering)
+                    }
+                    if isHovering {
+                        snapFeedbackTrigger.toggle()
+                    }
+                },
+                onArchiveDrop: { id in
+                    withAnimation(.spring(response: 0.35, dampingFraction: 0.75)) {
+                        viewModel.archiveFurniture(id: id, in: selectedLayout, context: modelContext)
+                        controller.archiveFurnitureEntity(id: id)
+                        snapFeedbackTrigger.toggle()
                     }
                 },
                 onBoundsResolved: { bounds in
@@ -128,67 +145,110 @@ public struct Studio3DView: View {
             }
             .padding()
 
-            // Contextual Furniture Rearrangement Action Bar
-            if let furniture = selectedFurniture {
-                VStack {
-                    Spacer()
-                    VStack(spacing: 8) {
-                        if viewModel.isColliding {
-                            HStack(spacing: 6) {
-                                Image(systemName: "exclamationmark.triangle.fill")
-                                    .font(.caption)
-                                    .foregroundStyle(.red)
-                                Text("Overlapping with furniture")
-                                    .font(.caption.weight(.semibold))
-                                    .foregroundStyle(.red)
-                            }
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 4)
-                            .background(Color.red.opacity(0.12), in: Capsule())
-                            .transition(.opacity)
-                        }
-
-                        HStack(spacing: 14) {
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(furniture.name)
-                                    .font(.subheadline.weight(.semibold))
-                                    .foregroundStyle(.primary)
-                                let dimW = min(furniture.width, furniture.length)
-                                let dimL = max(furniture.width, furniture.length)
-                                Text("\(String(format: "%.1f", dimW))m (W) × \(String(format: "%.1f", dimL))m (L) • Drag knob to rotate")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            }
-
-                            Spacer()
-
-                            Button {
-                                withAnimation(.snappy(duration: 0.2)) {
-                                    if viewModel.isColliding {
-                                        if let reverted = viewModel.revertToLastValidPosition(id: furniture.id, in: selectedLayout!, context: modelContext) {
-                                            controller.updateFurnitureTransform(id: furniture.id, position: reverted.position, yaw: reverted.yaw)
-                                        }
-                                    }
+            // Bottom Bar: Left Inventory Drawer + Right Contextual Action Bar
+            VStack {
+                Spacer()
+                HStack(alignment: .bottom, spacing: 12) {
+                    InventoryDrawerView(
+                        archivedFurnitures: viewModel.archivedFurnitures(in: selectedLayout),
+                        isHoveringArchiveTarget: viewModel.isHoveringArchiveTarget,
+                        isOpen: viewModel.isInventoryOpen,
+                        onToggleOpen: {
+                            withAnimation(.spring(response: 0.35, dampingFraction: 0.75)) {
+                                if !viewModel.isInventoryOpen && selectedFurniture != nil {
                                     viewModel.deselectFurniture(in: selectedLayout, context: modelContext)
                                     controller.setSelection(furnitureID: nil)
                                 }
-                            } label: {
-                                Image(systemName: viewModel.isColliding ? "arrow.uturn.backward" : "checkmark")
-                                    .font(.subheadline.weight(.bold))
-                                    .foregroundStyle(.white)
-                                    .frame(width: 32, height: 32)
-                                    .background(viewModel.isColliding ? Color.orange : Color.accentColor, in: Circle())
+                                viewModel.isInventoryOpen.toggle()
                             }
-                            .accessibilityLabel(viewModel.isColliding ? "Revert collision" : "Done rearranging")
+                        },
+                        onTargetCenterResolved: { center in
+                            viewModel.archiveTargetCenter = center
+                        },
+                        onRestoreItem: { item, screenPoint in
+                            restoreFurnitureItem(item, at: screenPoint)
                         }
+                    )
+
+                    Spacer(minLength: 0)
+
+                    if let furniture = selectedFurniture, !viewModel.isInventoryOpen {
+                        VStack(spacing: 6) {
+                            if viewModel.isColliding {
+                                HStack(spacing: 6) {
+                                    Image(systemName: "exclamationmark.triangle.fill")
+                                        .font(.caption2)
+                                        .foregroundStyle(.red)
+                                    Text("Overlapping")
+                                        .font(.caption2.weight(.semibold))
+                                        .foregroundStyle(.red)
+                                }
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 3)
+                                .background(Color.red.opacity(0.12), in: Capsule())
+                            }
+
+                            HStack(spacing: 8) {
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(furniture.name)
+                                        .font(.caption.weight(.semibold))
+                                        .foregroundStyle(.primary)
+                                        .lineLimit(1)
+                                    let dimW = min(furniture.width, furniture.length)
+                                    let dimL = max(furniture.width, furniture.length)
+                                    Text("\(String(format: "%.1f", dimW))m (W) × \(String(format: "%.1f", dimL))m (L)")
+                                        .font(.caption2)
+                                        .foregroundStyle(.secondary)
+                                }
+
+                                Spacer(minLength: 4)
+
+                                // Archive shortcut button
+                                Button {
+                                    withAnimation(.spring(response: 0.35, dampingFraction: 0.75)) {
+                                        let id = furniture.id
+                                        viewModel.archiveFurniture(id: id, in: selectedLayout, context: modelContext)
+                                        controller.archiveFurnitureEntity(id: id)
+                                        snapFeedbackTrigger.toggle()
+                                    }
+                                } label: {
+                                    Image(systemName: "archivebox")
+                                        .font(.caption.weight(.bold))
+                                        .foregroundStyle(.secondary)
+                                        .frame(width: 32, height: 32)
+                                        .background(Color(uiColor: .tertiarySystemFill), in: Circle())
+                                }
+                                .accessibilityLabel("Archive furniture")
+
+                                // Done / Revert button
+                                Button {
+                                    withAnimation(.snappy(duration: 0.2)) {
+                                        if viewModel.isColliding {
+                                            if let reverted = viewModel.revertToLastValidPosition(id: furniture.id, in: selectedLayout!, context: modelContext) {
+                                                controller.updateFurnitureTransform(id: furniture.id, position: reverted.position, yaw: reverted.yaw)
+                                            }
+                                        }
+                                        viewModel.deselectFurniture(in: selectedLayout, context: modelContext)
+                                        controller.setSelection(furnitureID: nil)
+                                    }
+                                } label: {
+                                    Image(systemName: viewModel.isColliding ? "arrow.uturn.backward" : "checkmark")
+                                        .font(.caption.weight(.bold))
+                                        .foregroundStyle(.white)
+                                        .frame(width: 32, height: 32)
+                                        .background(viewModel.isColliding ? Color.orange : Color.accentColor, in: Circle())
+                                }
+                                .accessibilityLabel(viewModel.isColliding ? "Revert collision" : "Done rearranging")
+                            }
+                        }
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 8)
+                        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 18))
+                        .transition(.move(edge: .bottom).combined(with: .opacity))
                     }
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 12)
-                    .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 18))
-                    .padding(.horizontal, 16)
-                    .padding(.bottom, 24)
-                    .transition(.move(edge: .bottom).combined(with: .opacity))
                 }
+                .padding(.horizontal, 16)
+                .padding(.bottom, 24)
             }
         }
         .sheet(isPresented: $viewModel.isLightingPresented, onDismiss: {
@@ -215,6 +275,25 @@ public struct Studio3DView: View {
         .navigationTitle(selectedLayout?.name ?? "3D Studio")
         .navigationBarTitleDisplayMode(.inline)
         .sensoryFeedback(.impact(weight: .light), trigger: snapFeedbackTrigger)
+    }
+
+    private func restoreFurnitureItem(_ furniture: Furniture, at screenPoint: CGPoint?) {
+        let floorPos: SIMD2<Float>
+        if let screenPoint, let p = controller.projectToFloor(from: screenPoint) {
+            floorPos = SIMD2<Float>(p.x, p.z)
+        } else {
+            floorPos = SIMD2<Float>(0, 0)
+        }
+
+        withAnimation(.spring(response: 0.35, dampingFraction: 0.75)) {
+            if let result = viewModel.restoreFurniture(id: furniture.id, to: floorPos, in: selectedLayout, context: modelContext) {
+                controller.spawnRestoredFurnitureEntity(for: furniture)
+                controller.updateFurnitureTransform(id: furniture.id, position: result.position, yaw: furniture.rotationYaw)
+                controller.setSelection(furnitureID: furniture.id, isColliding: result.isColliding)
+                viewModel.isInventoryOpen = false
+                snapFeedbackTrigger.toggle()
+            }
+        }
     }
 }
 

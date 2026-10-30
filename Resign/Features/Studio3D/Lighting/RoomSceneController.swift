@@ -112,8 +112,11 @@ final class RoomSceneController {
         distance = min(20, max(5, span * 1.6))
     }
 
+    private(set) weak var arView: ARView?
+
     /// Puts the scene into an ARView (non-AR) and creates the lights.
     func install(in view: ARView) {
+        self.arView = view
         rig.buildIfNeeded()
         if let simLayout = simulationLayout {
             rig.configure(openings: simLayout.windows, roomCenter: [0, simLayout.height * 0.65, 0])
@@ -121,6 +124,15 @@ final class RoomSceneController {
         let anchor = AnchorEntity(world: .zero)
         anchor.addChild(root)
         view.scene.addAnchor(anchor)
+    }
+
+    /// Raycasts from a screen point onto the authentic floor plane.
+    func projectToFloor(from screenPoint: CGPoint) -> SIMD3<Float>? {
+        guard let view = arView, let ray = view.ray(through: screenPoint) else { return nil }
+        guard abs(ray.direction.y) > 1e-4 else { return nil }
+        let t = (floorLevel - ray.origin.y) / ray.direction.y
+        guard t > 0 else { return nil }
+        return ray.origin + t * ray.direction
     }
 
     func load() async {
@@ -497,7 +509,7 @@ final class RoomSceneController {
 
     private func populateFurnitures() {
         if let layout, !layout.furnitures.isEmpty {
-            for furniture in layout.furnitures {
+            for furniture in layout.furnitures where !furniture.isArchived {
                 let entity = FurnitureEntityFactory.createEntity(for: furniture)
                 // Ensure furniture is grounded to the authentic floor level
                 if abs(entity.position.y) < 0.05 && floorLevel != 0 {
@@ -516,6 +528,49 @@ final class RoomSceneController {
                 layout?.furnitures.append(item)
             }
         }
+    }
+
+    func archiveFurnitureEntity(id: UUID) {
+        guard let entity = furnitureEntities.removeValue(forKey: id) else { return }
+        entity.removeFromParent()
+    }
+
+    func spawnRestoredFurnitureEntity(for furniture: Furniture) {
+        if let existing = furnitureEntities.removeValue(forKey: furniture.id) {
+            existing.removeFromParent()
+        }
+        let entity = FurnitureEntityFactory.createEntity(for: furniture)
+        if abs(entity.position.y) < 0.05 && floorLevel != 0 {
+            entity.position.y = floorLevel
+        }
+        furnitureEntities[furniture.id] = entity
+        root.addChild(entity)
+    }
+
+    func setGhostOpacity(for id: UUID, isGhosted: Bool) {
+        guard let entity = furnitureEntities[id] else { return }
+        func applyOpacity(to ent: Entity) {
+            if let model = ent as? ModelEntity, ent.name != "SelectionHalo" && !ent.name.hasPrefix("FurnitureRotationHandle") {
+                if let materials = model.model?.materials {
+                    var updatedMaterials: [RealityKit.Material] = []
+                    for mat in materials {
+                        if let sim = mat as? SimpleMaterial {
+                            var updated = sim
+                            let alpha: CGFloat = isGhosted ? 0.35 : 1.0
+                            updated.color = .init(tint: sim.color.tint.withAlphaComponent(alpha), texture: sim.color.texture)
+                            updatedMaterials.append(updated)
+                        } else {
+                            updatedMaterials.append(mat)
+                        }
+                    }
+                    model.model?.materials = updatedMaterials
+                }
+            }
+            for child in ent.children {
+                applyOpacity(to: child)
+            }
+        }
+        applyOpacity(to: entity)
     }
 
     private func createMockFurnitureItems(at floorY: Float) -> [Furniture] {

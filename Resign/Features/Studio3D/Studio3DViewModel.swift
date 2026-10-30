@@ -18,6 +18,11 @@ public final class Studio3DViewModel {
     public var isColliding = false
     public var roomHorizontalBounds: (minX: Float, maxX: Float, minZ: Float, maxZ: Float)? = nil
 
+    // MARK: - Inventory State
+    public var isInventoryOpen = false
+    public var isHoveringArchiveTarget = false
+    public var archiveTargetCenter: CGPoint? = nil
+
     @ObservationIgnored
     private var lastCommittedPositions: [UUID: (position: SIMD3<Float>, yaw: Float)] = [:]
 
@@ -98,7 +103,7 @@ public final class Studio3DViewModel {
         )
 
         let obstacles = layout.furnitures
-            .filter { $0.id != furniture.id }
+            .filter { $0.id != furniture.id && !$0.isArchived }
             .map { f in
                 FurnitureCollisionProxy(
                     id: f.id,
@@ -181,7 +186,7 @@ public final class Studio3DViewModel {
         )
 
         let obstacles = layout.furnitures
-            .filter { $0.id != furniture.id }
+            .filter { $0.id != furniture.id && !$0.isArchived }
             .map { f in
                 FurnitureCollisionProxy(
                     id: f.id,
@@ -258,7 +263,7 @@ public final class Studio3DViewModel {
         )
 
         let obstacles = layout.furnitures
-            .filter { $0.id != furniture.id }
+            .filter { $0.id != furniture.id && !$0.isArchived }
             .map { f in
                 FurnitureCollisionProxy(
                     id: f.id,
@@ -310,6 +315,111 @@ public final class Studio3DViewModel {
         }
 
         return last
+    }
+
+    // MARK: - Inventory & Archival
+
+    public func activeFurnitures(in layout: Layout?) -> [Furniture] {
+        guard let layout else { return [] }
+        return layout.furnitures.filter { !$0.isArchived }
+    }
+
+    public func archivedFurnitures(in layout: Layout?) -> [Furniture] {
+        guard let layout else { return [] }
+        return layout.furnitures.filter { $0.isArchived }
+    }
+
+    public func archiveFurniture(id: UUID, in layout: Layout?, context: ModelContext?) {
+        guard let layout, let furniture = layout.furnitures.first(where: { $0.id == id }) else { return }
+        furniture.isArchived = true
+        if selectedFurnitureID == id {
+            selectedFurnitureID = nil
+            isColliding = false
+            isDraggingFurniture = false
+        }
+        if let context {
+            try? context.save()
+        }
+    }
+
+    @discardableResult
+    public func restoreFurniture(
+        id: UUID,
+        to targetPos: SIMD2<Float>,
+        in layout: Layout?,
+        context: ModelContext?
+    ) -> (position: SIMD3<Float>, isColliding: Bool)? {
+        guard let layout, let furniture = layout.furnitures.first(where: { $0.id == id }) else { return nil }
+        furniture.isArchived = false
+
+        // Clamp to room bounds
+        let clamped: SIMD2<Float>
+        if let b = roomHorizontalBounds {
+            clamped = SpatialClearanceEngine.clampToRoomBoundaries(
+                position: targetPos,
+                furnitureWidth: furniture.width,
+                furnitureLength: furniture.length,
+                rotationYaw: furniture.rotationYaw,
+                minX: b.minX,
+                maxX: b.maxX,
+                minZ: b.minZ,
+                maxZ: b.maxZ
+            )
+        } else {
+            let roomWidth = layout.room?.width ?? 5.0
+            let roomLength = layout.room?.length ?? 5.0
+            clamped = SpatialClearanceEngine.clampToRoomBoundaries(
+                position: targetPos,
+                furnitureWidth: furniture.width,
+                furnitureLength: furniture.length,
+                rotationYaw: furniture.rotationYaw,
+                roomWidth: roomWidth,
+                roomLength: roomLength
+            )
+        }
+
+        furniture.positionX = clamped.x
+        furniture.positionZ = clamped.y
+        selectFurniture(id: furniture.id, in: layout)
+
+        // Evaluate collision against other active furnitures
+        let candidate = FurnitureCollisionProxy(
+            id: furniture.id,
+            category: furniture.category,
+            position: SIMD3<Float>(clamped.x, furniture.positionY, clamped.y),
+            dimensions: SIMD3<Float>(furniture.width, furniture.height, furniture.length),
+            rotationYaw: furniture.rotationYaw
+        )
+        let obstacles = layout.furnitures
+            .filter { $0.id != furniture.id && !$0.isArchived }
+            .map { f in
+                FurnitureCollisionProxy(
+                    id: f.id,
+                    category: f.category,
+                    position: SIMD3<Float>(f.positionX, f.positionY, f.positionZ),
+                    dimensions: SIMD3<Float>(f.width, f.height, f.length),
+                    rotationYaw: f.rotationYaw
+                )
+            }
+        let colliding = obstacles.contains { obstacle in
+            SpatialClearanceEngine.checkCollision(itemA: candidate, itemB: obstacle)
+        }
+        self.isColliding = colliding
+
+        if !colliding {
+            lastCommittedPositions[furniture.id] = (candidate.position, furniture.rotationYaw)
+        }
+        if let context {
+            try? context.save()
+        }
+
+        return (candidate.position, colliding)
+    }
+
+    public nonisolated static func isWithinArchiveTarget(point: CGPoint, targetCenter: CGPoint, radius: CGFloat = 64.0) -> Bool {
+        let dx = point.x - targetCenter.x
+        let dy = point.y - targetCenter.y
+        return (dx * dx + dy * dy) <= (radius * radius)
     }
 
     // MARK: - Lighting Simulation Session
