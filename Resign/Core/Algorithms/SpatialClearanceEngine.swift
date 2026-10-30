@@ -55,7 +55,12 @@ public struct SpatialClearanceEngine: Sendable {
         violations.append(contentsOf: checkWalkwayClearances(furnitures: layout.furnitures, roomLength: room.length, roomWidth: room.width))
         violations.append(contentsOf: checkDeskClearance(furnitures: layout.furnitures, roomLength: room.length, roomWidth: room.width))
         violations.append(contentsOf: checkBedClearance(furnitures: layout.furnitures, roomLength: room.length, roomWidth: room.width))
-        violations.append(contentsOf: checkDoorSwing(furnitures: layout.furnitures, doors: room.openings.filter { $0.type.lowercased() == "door" }))
+        violations.append(contentsOf: checkDoorSwing(
+            furnitures: layout.furnitures,
+            doors: room.openings.filter { $0.type.lowercased() == "door" },
+            roomWidth: room.width,
+            roomLength: room.length
+        ))
         return violations
     }
 
@@ -132,19 +137,45 @@ public struct SpatialClearanceEngine: Sendable {
 
             let referenceBox: BoundingBox2D
             var involvedIDs: [UUID] = [desk.id]
+            let dx: Float
+            let dz: Float
             if let chair = pairedChair, boundingBox(for: chair).distance(to: deskBox) < 1.2 {
                 referenceBox = boundingBox(for: chair)
                 involvedIDs.append(chair.id)
+                dx = referenceBox.centerX - deskBox.centerX
+                dz = referenceBox.centerZ - deskBox.centerZ
             } else {
                 referenceBox = deskBox
+                let front = FurnitureOrientation.frontDirection(of: desk)
+                dx = front.x
+                dz = front.z
             }
+            let halfWidth = roomWidth / 2.0
 
-            // Direction of egress/pullback: vector from desk center to chair center, or away from nearest wall
-            let pullDirZ: Float = (referenceBox.centerZ >= deskBox.centerZ) ? 1.0 : -1.0
-            
-            // Measure distance behind chair/desk along pullDirZ to obstacles or wall
             var rearClearance: Float
-            if pullDirZ > 0 {
+            if abs(dx) > abs(dz) {
+                if dx > 0 {
+                    // Pulling toward +X (East)
+                    var minDist = max(0, halfWidth - referenceBox.maxX)
+                    for obstacle in obstacles where !involvedIDs.contains(obstacle.id) {
+                        let obsBox = boundingBox(for: obstacle)
+                        if obsBox.minX >= referenceBox.maxX && obsBox.maxZ > referenceBox.minZ && obsBox.minZ < referenceBox.maxZ {
+                            minDist = min(minDist, obsBox.minX - referenceBox.maxX)
+                        }
+                    }
+                    rearClearance = minDist
+                } else {
+                    // Pulling toward -X (West)
+                    var minDist = max(0, referenceBox.minX - (-halfWidth))
+                    for obstacle in obstacles where !involvedIDs.contains(obstacle.id) {
+                        let obsBox = boundingBox(for: obstacle)
+                        if obsBox.maxX <= referenceBox.minX && obsBox.maxZ > referenceBox.minZ && obsBox.minZ < referenceBox.maxZ {
+                            minDist = min(minDist, referenceBox.minX - obsBox.maxX)
+                        }
+                    }
+                    rearClearance = minDist
+                }
+            } else if dz >= 0 {
                 // Moving towards positive Z (South)
                 let wallDist = halfLength - referenceBox.maxZ
                 var minDist = max(0, wallDist)
@@ -195,33 +226,63 @@ public struct SpatialClearanceEngine: Sendable {
         let obstacles = furnitures.filter { !$0.isArchived }
 
         let halfWidth = roomWidth / 2.0
+        let halfLength = roomLength / 2.0
 
         for bed in beds {
             let bedBox = boundingBox(for: bed)
 
-            // Side clearance: left side (-X) and right side (+X)
-            // Left side distance to wall or obstacle
-            let leftWallDist = bedBox.minX - (-halfWidth)
-            var minLeftDist = max(0, leftWallDist)
-            for obs in obstacles where obs.id != bed.id {
-                let obsBox = boundingBox(for: obs)
-                if obsBox.maxX <= bedBox.minX && obsBox.maxZ > bedBox.minZ && obsBox.minZ < bedBox.maxZ {
-                    minLeftDist = min(minLeftDist, bedBox.minX - obsBox.maxX)
-                }
-            }
+            // Determine orientation: if yaw is closer to 0 or pi (cos >= sin), bed length runs along Z and sides are along X (-X, +X).
+            // If yaw is closer to +/- pi/2 (sin > cos), bed length runs along X and sides are along Z (-Z, +Z).
+            let isZAligned = abs(cos(bed.rotationYaw)) >= abs(sin(bed.rotationYaw))
 
-            // Right side distance to wall or obstacle
-            let rightWallDist = halfWidth - bedBox.maxX
-            var minRightDist = max(0, rightWallDist)
-            for obs in obstacles where obs.id != bed.id {
-                let obsBox = boundingBox(for: obs)
-                if obsBox.minX >= bedBox.maxX && obsBox.maxZ > bedBox.minZ && obsBox.minZ < bedBox.maxZ {
-                    minRightDist = min(minRightDist, obsBox.minX - bedBox.maxX)
-                }
-            }
+            let leftCm: Double
+            let rightCm: Double
 
-            let leftCm = Double(minLeftDist * 100.0)
-            let rightCm = Double(minRightDist * 100.0)
+            if isZAligned {
+                // Side clearance: left side (-X) and right side (+X)
+                let leftWallDist = bedBox.minX - (-halfWidth)
+                var minLeftDist = max(0, leftWallDist)
+                for obs in obstacles where obs.id != bed.id {
+                    let obsBox = boundingBox(for: obs)
+                    if obsBox.maxX <= bedBox.minX && obsBox.maxZ > bedBox.minZ && obsBox.minZ < bedBox.maxZ {
+                        minLeftDist = min(minLeftDist, bedBox.minX - obsBox.maxX)
+                    }
+                }
+
+                let rightWallDist = halfWidth - bedBox.maxX
+                var minRightDist = max(0, rightWallDist)
+                for obs in obstacles where obs.id != bed.id {
+                    let obsBox = boundingBox(for: obs)
+                    if obsBox.minX >= bedBox.maxX && obsBox.maxZ > bedBox.minZ && obsBox.minZ < bedBox.maxZ {
+                        minRightDist = min(minRightDist, obsBox.minX - bedBox.maxX)
+                    }
+                }
+
+                leftCm = Double(minLeftDist * 100.0)
+                rightCm = Double(minRightDist * 100.0)
+            } else {
+                // Side clearance: side A (-Z) and side B (+Z)
+                let sideAWallDist = bedBox.minZ - (-halfLength)
+                var minSideADist = max(0, sideAWallDist)
+                for obs in obstacles where obs.id != bed.id {
+                    let obsBox = boundingBox(for: obs)
+                    if obsBox.maxZ <= bedBox.minZ && obsBox.maxX > bedBox.minX && obsBox.minX < bedBox.maxX {
+                        minSideADist = min(minSideADist, bedBox.minZ - obsBox.maxZ)
+                    }
+                }
+
+                let sideBWallDist = halfLength - bedBox.maxZ
+                var minSideBDist = max(0, sideBWallDist)
+                for obs in obstacles where obs.id != bed.id {
+                    let obsBox = boundingBox(for: obs)
+                    if obsBox.minZ >= bedBox.maxZ && obsBox.maxX > bedBox.minX && obsBox.minX < bedBox.maxX {
+                        minSideBDist = min(minSideBDist, obsBox.minZ - bedBox.maxZ)
+                    }
+                }
+
+                leftCm = Double(minSideADist * 100.0)
+                rightCm = Double(minSideBDist * 100.0)
+            }
 
             // A bed placed directly in a corner is acceptable on one side, but the open accessible side MUST have >= 66 cm
             let accessibleSideCm = min(leftCm, rightCm)
@@ -276,41 +337,45 @@ public struct SpatialClearanceEngine: Sendable {
 
     // MARK: - Door Swing Clearance (R6: 100% Unobstructed)
 
-    public func checkDoorSwing(furnitures: [Furniture], doors: [RoomOpening]) -> [SpatialViolation] {
+    /// Floor area an opening door sweeps. Uses the nearest wall when the room size is known
+    /// (correct for non-square rooms) and the legacy |z| >= |x| heuristic otherwise.
+    public func doorSwingBox(for door: RoomOpening, roomWidth: Float? = nil, roomLength: Float? = nil) -> BoundingBox2D {
+        let doorRadius = door.width
+        let wall: RoomWall
+        if let roomWidth, let roomLength {
+            wall = RoomWall.nearest(toX: door.posX, z: door.posZ, halfWidth: roomWidth / 2, halfLength: roomLength / 2)
+        } else if abs(door.posZ) >= abs(door.posX) {
+            wall = door.posZ > 0 ? .south : .north
+        } else {
+            wall = door.posX > 0 ? .east : .west
+        }
+
+        // The swing always extends from the wall toward the room centre.
+        switch wall {
+        case .south:
+            return BoundingBox2D(minX: door.posX - doorRadius / 2.0, maxX: door.posX + doorRadius / 2.0, minZ: door.posZ - doorRadius, maxZ: door.posZ)
+        case .north:
+            return BoundingBox2D(minX: door.posX - doorRadius / 2.0, maxX: door.posX + doorRadius / 2.0, minZ: door.posZ, maxZ: door.posZ + doorRadius)
+        case .east:
+            return BoundingBox2D(minX: door.posX - doorRadius, maxX: door.posX, minZ: door.posZ - doorRadius / 2.0, maxZ: door.posZ + doorRadius / 2.0)
+        case .west:
+            return BoundingBox2D(minX: door.posX, maxX: door.posX + doorRadius, minZ: door.posZ - doorRadius / 2.0, maxZ: door.posZ + doorRadius / 2.0)
+        }
+    }
+
+    public func checkDoorSwing(
+        furnitures: [Furniture],
+        doors: [RoomOpening],
+        roomWidth: Float? = nil,
+        roomLength: Float? = nil
+    ) -> [SpatialViolation] {
         var violations: [SpatialViolation] = []
         let active = furnitures.filter { !$0.isArchived }
+        let actualDoors = doors.filter { $0.type.localizedCaseInsensitiveContains("door") }
 
-        for door in doors {
+        for door in actualDoors {
             let doorRadius = door.width
-            // Door swing bounding box extending inward:
-            // Door on south wall (posZ > 0) swings north into negative Z direction
-            // Door on north wall (posZ < 0) swings south into positive Z direction
-            // Door on west wall (posX < 0) swings east into positive X direction
-            // Door on east wall (posX > 0) swings west into negative X direction
-            let swingBox: BoundingBox2D
-            if abs(door.posZ) >= abs(door.posX) {
-                // Attached to North or South wall
-                let minX = door.posX - doorRadius / 2.0
-                let maxX = door.posX + doorRadius / 2.0
-                if door.posZ > 0 {
-                    // South wall: swings inward towards center (-Z)
-                    swingBox = BoundingBox2D(minX: minX, maxX: maxX, minZ: door.posZ - doorRadius, maxZ: door.posZ)
-                } else {
-                    // North wall: swings inward towards center (+Z)
-                    swingBox = BoundingBox2D(minX: minX, maxX: maxX, minZ: door.posZ, maxZ: door.posZ + doorRadius)
-                }
-            } else {
-                // Attached to East or West wall
-                let minZ = door.posZ - doorRadius / 2.0
-                let maxZ = door.posZ + doorRadius / 2.0
-                if door.posX > 0 {
-                    // East wall: swings inward towards center (-X)
-                    swingBox = BoundingBox2D(minX: door.posX - doorRadius, maxX: door.posX, minZ: minZ, maxZ: maxZ)
-                } else {
-                    // West wall: swings inward towards center (+X)
-                    swingBox = BoundingBox2D(minX: door.posX, maxX: door.posX + doorRadius, minZ: minZ, maxZ: maxZ)
-                }
-            }
+            let swingBox = doorSwingBox(for: door, roomWidth: roomWidth, roomLength: roomLength)
 
             for item in active {
                 let itemBox = boundingBox(for: item)

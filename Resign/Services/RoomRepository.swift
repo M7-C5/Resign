@@ -57,7 +57,7 @@ public final class RoomRepository {
             positionX: 2.125,
             positionY: 0.375,
             positionZ: -1.2,
-            rotationYaw: .pi / 2,
+            rotationYaw: 0,
             length: 1.2,
             width: 0.65,
             height: 0.75
@@ -70,7 +70,7 @@ public final class RoomRepository {
             positionX: 1.42,
             positionY: 0.45,
             positionZ: -1.2,
-            rotationYaw: .pi / 2,
+            rotationYaw: 0,
             length: 0.44,
             width: 0.44,
             height: 0.9
@@ -106,7 +106,7 @@ public final class RoomRepository {
             name: "TV & Console",
             category: "television",
             texture: "walnut_black",
-            positionX: 1.2,
+            positionX: 0.95,
             positionY: 0.28,
             positionZ: -1.83,
             rotationYaw: 0,
@@ -121,13 +121,13 @@ public final class RoomRepository {
         return room
     }
 
-    /// Creates a mock room intentionally seeded with Panero & Zelnik clearance violations
-    /// (e.g. door swing blocked, desk rear clearance < 76.2 cm, bed making corridor < 66 cm).
+    /// Creates a mock room intentionally seeded with Panero & Zelnik clearance violations:
+    /// standard room baseline (bed-closet R1 and bed-left R4) plus an Entry Stool obstructing the door swing (R6).
     public static func createViolatingMockRoom() -> Room {
         let room = createStandardMockRoom()
         guard let layout = room.layouts.first else { return room }
 
-        // 1. Move chair right into the door swing path at South wall (X: -1.5, Z: 1.65) -> R6
+        // Move stool right into the door swing path at South wall (X: -1.5, Z: 1.65) -> R6
         let obstructingChair = Furniture(
             name: "Entry Stool",
             category: "chair",
@@ -141,15 +141,6 @@ public final class RoomRepository {
             height: 0.5
         )
         layout.furnitures.append(obstructingChair)
-
-        // 2. Adjust desk so rear clearance to TV console/wall is restricted to 45 cm -> R3
-        if let desk = layout.furnitures.first(where: { $0.name == "Work Desk" }),
-           let chair = layout.furnitures.first(where: { $0.name == "Office Chair" }) {
-            desk.positionX = 1.0
-            desk.positionZ = -1.6
-            chair.positionX = 1.0
-            chair.positionZ = -1.15
-        }
 
         return room
     }
