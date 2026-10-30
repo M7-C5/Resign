@@ -8,7 +8,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- feat(studio-3d): implement inventory system and interactive drag-to-archive (d2a51d9)
+- feat(studio3d): support full envelope traversal and polygon clamping in irregular rooms (b96242e)
+- feat(spatial): deduplicate chair components, filter wall artifacts, and add table clearance (4dbb614)
+- feat(studio-3d): implement inventory system and interactive drag-to-archive (5af0572)
 - feat(studio-3d): add viewport presets snapping menu to studio controls (91d942a)
 - feat(studio-3d): implement dynamic wall cutaway engine and smooth orbit interpolation (6fe2132)
 - feat(studio-3d): implement viewport preset domain model and camera snapping (40e58d4)
@@ -49,6 +51,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - refactor(arch): scaffold vertical feature-slice architecture with skeleton modules (3419a7d)
 
 ### Fixed
+- fix(spatial): normalize furniture coordinates at ingestion and suppress baked meshes (41ddc60)
 - fix(spatial): ensure longer dimension is length on dimension display and room mapping (e1a7adf)
 - fix(studio3d): normalize scanned room square orientation and center origin (759dc11)
 - fix(spatial): project opposing walls along pair normal and eliminate artificial skin inset (8052c40)
@@ -75,7 +78,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - fix(lighting-simulation): shape natural light to the window (5fbb493)
 
 ### Documentation
-- docs(adr): document studio 3d inventory and drag archival in adr 0028 (b9eb3d5)
+- docs(adr): document studio 3d inventory and drag archival in adr 0028 (8f7f08d)
 - docs(adr): record scanned room square orientation and centered origin normalization (e1161c9)
 - docs(adr): document viewport snapping and dynamic wall cutaways in adr 0026 (6a6449e)
 - docs(rules): document room dimension extraction heuristics and angular drift projection (38ec5ba)
@@ -108,7 +111,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - docs: add agentic playbook, architecture blueprint, and changelog (178cddb)
 
 ### Tooling & Maintenance
-- test(studio-3d): verify furniture archival, restoration, and collision exclusion (2faf6da)
+- build(ci): add line buffering to verification test pipe (a02c863)
+- chore(release): update changelog for 3d studio inventory system (e957708)
+- test(studio-3d): verify furniture archival, restoration, and collision exclusion (0943801)
 - chore(release): update changelog for dimension display length fix (ffe034d)
 - test(spatial): verify longer dimension is mapped to length in room models (544131f)
 - chore(release): update changelog for room orientation and snap alignment fix (ca47898)
