@@ -27,6 +27,10 @@ struct Room3DRealityViewport: View {
             let roomContent = Entity()
             roomContent.name = "RoomContent"
 
+            let snap = room.planSnapshotData.flatMap {
+                try? JSONDecoder().decode(RoomPlanSnapshot.self, from: $0)
+            }
+
             // 1. Load Apple's native parametric room shell (Room.usdz)
             if let url = layout.usdzURL, FileManager.default.fileExists(atPath: url.path) {
                 if let roomShell = try? await Entity(contentsOf: url) {
@@ -40,7 +44,20 @@ struct Room3DRealityViewport: View {
                     // Apply warm architectural PBR materials to drywall and hardwood floor
                     applyArchitecturalStyling(to: roomShell)
 
-                    roomContent.addChild(roomShell)
+                    let captureSpace = Entity()
+                    captureSpace.name = "CaptureSpace"
+                    if let snap {
+                        let effectiveYaw = snap.yawRadians
+                        let inverseYaw = simd_quatf(angle: -effectiveYaw, axis: [0, 1, 0])
+                        captureSpace.orientation = inverseYaw
+                        captureSpace.addChild(roomShell)
+                        let floorY = snap.floorLevel ?? (roomShell.findEntity(named: "Floor_grp")?.visualBounds(relativeTo: captureSpace).center.y ?? 0)
+                        captureSpace.position = inverseYaw.act([-snap.centerX, -floorY, -snap.centerZ])
+                    } else {
+                        captureSpace.addChild(roomShell)
+                    }
+
+                    roomContent.addChild(captureSpace)
                 }
             }
 
@@ -49,7 +66,50 @@ struct Room3DRealityViewport: View {
             let hasModeledFurniture = (roomContent.findEntity(named: "Furniture") != nil)
             if !hasModeledFurniture {
                 for furniture in layout.furnitures {
-                    let entity = FurnitureEntityFactory.createEntity(for: furniture)
+                    var posX = furniture.positionX
+                    var posY = furniture.positionY
+                    var posZ = furniture.positionZ
+                    var yaw = furniture.rotationYaw
+
+                    if let snap {
+                        let dToSnapCenter = hypot(posX - snap.centerX, posZ - snap.centerZ)
+                        let dToOrigin = hypot(posX, posZ)
+                        let isCloserToSnapCenter = (abs(snap.centerX) > 0.2 || abs(snap.centerZ) > 0.2) && (dToSnapCenter + 0.3 < dToOrigin)
+                        let isBelowFloor = posY < -0.05
+
+                        if isCloserToSnapCenter || isBelowFloor {
+                            let localPos = snap.localCoordinates(worldX: posX, worldZ: posZ)
+                            posX = localPos.x
+                            posZ = localPos.y
+                            yaw = snap.localYaw(yaw)
+                            if let floorLvl = snap.floorLevel {
+                                posY = max(0.0, posY - floorLvl)
+                            } else {
+                                posY = max(0.0, posY)
+                            }
+                        }
+                    }
+
+                    if furniture.category.lowercased() == "chair" || furniture.category.lowercased() == "sofa" {
+                        posY = 0.0
+                    } else {
+                        posY = max(0.0, posY)
+                    }
+
+                    let displayItem = Furniture(
+                        id: furniture.id,
+                        name: furniture.name,
+                        category: furniture.category,
+                        positionX: posX,
+                        positionY: posY,
+                        positionZ: posZ,
+                        rotationYaw: yaw,
+                        length: furniture.length,
+                        width: furniture.width,
+                        height: furniture.height,
+                        usdzURL: furniture.usdzURL
+                    )
+                    let entity = FurnitureEntityFactory.createEntity(for: displayItem)
                     roomContent.addChild(entity)
                 }
             }

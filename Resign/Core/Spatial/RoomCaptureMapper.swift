@@ -26,8 +26,13 @@ public final class RoomCaptureMapper: Sendable {
             width: shorterSide,
             height: payload.roomHeight
         )
+        let snapshot: RoomPlanSnapshot?
         if !payload.walls.isEmpty {
-            room.planSnapshotData = try? JSONEncoder().encode(RoomPlanSnapshot(walls: payload.walls, floorLevel: payload.floorLevel))
+            let snap = RoomPlanSnapshot(walls: payload.walls, floorLevel: payload.floorLevel)
+            snapshot = snap
+            room.planSnapshotData = try? JSONEncoder().encode(snap)
+        } else {
+            snapshot = nil
         }
 
         // Map window and door apertures
@@ -54,13 +59,31 @@ public final class RoomCaptureMapper: Sendable {
 
         let layout = Layout(name: "Original Scan")
         for obj in sanitizedObjects {
+            let posX: Float
+            let posY: Float
+            let posZ: Float
+            let yaw: Float
+
+            if let snapshot {
+                let local = snapshot.localCoordinates(worldX: obj.position.x, worldZ: obj.position.z)
+                posX = local.x
+                posZ = local.y
+                yaw = snapshot.localYaw(obj.rotationYaw)
+                posY = max(0.0, obj.position.y - payload.floorLevel)
+            } else {
+                posX = obj.position.x
+                posY = max(0.0, obj.position.y - payload.floorLevel)
+                posZ = obj.position.z
+                yaw = obj.rotationYaw
+            }
+
             let furniture = Furniture(
                 name: obj.name,
                 category: obj.category,
-                positionX: obj.position.x,
-                positionY: obj.position.y,
-                positionZ: obj.position.z,
-                rotationYaw: obj.rotationYaw,
+                positionX: posX,
+                positionY: posY,
+                positionZ: posZ,
+                rotationYaw: yaw,
                 length: obj.dimensions.z,
                 width: obj.dimensions.x,
                 height: obj.dimensions.y
