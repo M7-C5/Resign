@@ -39,7 +39,7 @@ xcodebuild build \
     CODE_SIGNING_ALLOWED=NO \
     CODE_SIGN_IDENTITY="" \
     CODE_SIGNING_REQUIRED=NO \
-    | grep -E '\*\*( BUILD | TEST )|error:|warning:|passed|failed|fatal error:|Undefined symbol|clang: error:|ld:'
+    | grep --line-buffered -E '\*\*( BUILD | TEST )|error:|warning:|passed|failed|fatal error:|Undefined symbol|clang: error:|ld:'
 
 if [ ${PIPESTATUS[0]} -ne 0 ]; then
     echo "=========================================="
@@ -56,7 +56,7 @@ xcodebuild test \
     CODE_SIGNING_ALLOWED=NO \
     CODE_SIGN_IDENTITY="" \
     CODE_SIGNING_REQUIRED=NO \
-    | grep -E 'Test suite|Test case|\*\* TEST|✘|failed|failure|Expectation|Issue recorded'
+    | grep --line-buffered -E 'Test suite|Test case|\*\* TEST|✘|failed|failure|Expectation|Issue recorded'
 
 if [ ${PIPESTATUS[0]} -ne 0 ]; then
     echo "=========================================="
