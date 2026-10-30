@@ -207,8 +207,7 @@ public struct LightingSetupView: View {
                     ScannedRoomPlanView(
                         room: room, furniture: layout.furnitures.filter { !$0.isArchived }, openings: room.openings,
                         scanPlan: scanPlan,
-                        northArrowPlanRotation: .constant(0), isNorthLocked: false,
-                        didRotatePersonToMarkNorth: .constant(false), showsNorthMarker: false, showsAnnotations: false
+                        showsAnnotations: false
                     )
                     .frame(width: geometry.size.width, height: geometry.size.height)
                     .allowsHitTesting(false)

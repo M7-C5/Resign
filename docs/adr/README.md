@@ -41,6 +41,8 @@ This directory documents key architectural decisions for **Resign** using the [M
 
 - [ADR 0030: Separate Ceiling Perimeter from Open Interior Wall Branches](0030-ceiling-perimeter-and-interior-walls.md)
 
+- [ADR 0032: Remove the Standalone Compass from Room Creation](0032-remove-standalone-compass.md)
+
 ## How to Create a New ADR
 1. Copy [template.md](template.md) to `docs/adr/NNNN-title-in-kebab-case.md`.
 2. Follow MADR conventions: Context, Decision Drivers, Considered Options, Decision Outcome, and Consequences.
