@@ -73,19 +73,48 @@ public struct CompactViolation: Codable, Sendable {
     }
 }
 
+/// Structured form of the user's preference step. Free text is untrusted data, never instructions.
+public struct CompactUserPreference: Codable, Equatable, Sendable {
+    public var reportedProblems: [String]
+    public var inferredProblems: [String]
+    public var freeText: String
+    public var suggestedGoalWeights: GoalWeights?
+
+    public init(
+        reportedProblems: [String],
+        inferredProblems: [String],
+        freeText: String,
+        suggestedGoalWeights: GoalWeights?
+    ) {
+        self.reportedProblems = reportedProblems
+        self.inferredProblems = inferredProblems
+        self.freeText = freeText
+        self.suggestedGoalWeights = suggestedGoalWeights
+    }
+
+    public init(_ preference: RoomPreference) {
+        self.init(
+            reportedProblems: preference.selectedKeywords.map(\.title),
+            inferredProblems: preference.inferredKeywords.map(\.title),
+            freeText: preference.freeText,
+            suggestedGoalWeights: preference.suggestedGoalWeights
+        )
+    }
+}
+
 public struct CompactRoomPayload: Codable, Sendable {
     public var roomDimensionsCm: [Int] // [width, length, height]
     public var openings: [CompactRoomOpening]
     public var items: [CompactRoomItem]
     public var measuredViolations: [CompactViolation]
-    public var userPreference: String
+    public var userPreference: CompactUserPreference
 
     public init(
         roomDimensionsCm: [Int],
         openings: [CompactRoomOpening],
         items: [CompactRoomItem],
         measuredViolations: [CompactViolation],
-        userPreference: String
+        userPreference: CompactUserPreference
     ) {
         self.roomDimensionsCm = roomDimensionsCm
         self.openings = openings
@@ -104,6 +133,22 @@ public struct AIDiagnosticInsight: Identifiable, Codable, Equatable, Sendable {
     public var explanation: String
     public var suggestedFix: String
     public var sentiment: String // "+" for positive opportunity, "-" for clash/violation
+    /// One or two word card label, e.g. "Narrow", "Desk", "Window".
+    public var title: String
+    /// Only meaningful for "-" insights.
+    public var severity: ViolationSeverity?
+
+    public static func defaultTitle(forRule ruleId: String) -> String {
+        switch ruleId {
+        case PaneroZelnikRule.walkwayCritical, PaneroZelnikRule.walkwayRecommended: return "Narrow"
+        case PaneroZelnikRule.deskRearClearance: return "Desk"
+        case PaneroZelnikRule.bedOperationalZone, PaneroZelnikRule.bedStorageZone: return "Bed"
+        case PaneroZelnikRule.doorSwingUnobstructed: return "Door"
+        case "R7": return "Window"
+        case "R_CUSTOM": return "Preference"
+        default: return "Layout"
+        }
+    }
 
     public init(
         id: UUID = UUID(),
@@ -111,7 +156,9 @@ public struct AIDiagnosticInsight: Identifiable, Codable, Equatable, Sendable {
         involvedFurnitureIds: [UUID],
         explanation: String,
         suggestedFix: String,
-        sentiment: String = "-"
+        sentiment: String = "-",
+        title: String? = nil,
+        severity: ViolationSeverity? = nil
     ) {
         self.id = id
         self.ruleId = ruleId
@@ -119,6 +166,36 @@ public struct AIDiagnosticInsight: Identifiable, Codable, Equatable, Sendable {
         self.explanation = explanation
         self.suggestedFix = suggestedFix
         self.sentiment = sentiment
+        self.title = title ?? Self.defaultTitle(forRule: ruleId)
+        self.severity = sentiment == "-" ? (severity ?? .warning) : nil
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case id, ruleId, involvedFurnitureIds, explanation, suggestedFix, sentiment, title, severity
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.id = (try? container.decode(UUID.self, forKey: .id)) ?? UUID()
+        self.ruleId = (try? container.decode(String.self, forKey: .ruleId)) ?? "R1"
+
+        if let uuids = try? container.decode([UUID].self, forKey: .involvedFurnitureIds) {
+            self.involvedFurnitureIds = uuids
+        } else if let strings = try? container.decode([String].self, forKey: .involvedFurnitureIds) {
+            self.involvedFurnitureIds = strings.compactMap { UUID(uuidString: $0) }
+        } else {
+            self.involvedFurnitureIds = []
+        }
+
+        self.explanation = (try? container.decode(String.self, forKey: .explanation)) ?? ""
+        self.suggestedFix = (try? container.decode(String.self, forKey: .suggestedFix)) ?? ""
+        self.sentiment = (try? container.decode(String.self, forKey: .sentiment)) ?? "-"
+
+        let rawTitle = ((try? container.decode(String.self, forKey: .title)) ?? "")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        self.title = rawTitle.isEmpty ? Self.defaultTitle(forRule: ruleId) : String(rawTitle.prefix(LayoutInsight.maxTitleLength))
+        let decodedSeverity = try? container.decode(ViolationSeverity.self, forKey: .severity)
+        self.severity = sentiment == "-" ? (decodedSeverity ?? .warning) : nil
     }
 }
 
@@ -132,31 +209,95 @@ public struct GoalWeights: Codable, Equatable, Sendable {
         self.balanced = balanced
         self.reachable = reachable
     }
+
+    enum CodingKeys: String, CodingKey {
+        case spacious, balanced, reachable
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.spacious = (try? container.decode(Double.self, forKey: .spacious)) ?? 0.5
+        self.balanced = (try? container.decode(Double.self, forKey: .balanced)) ?? 0.5
+        self.reachable = (try? container.decode(Double.self, forKey: .reachable)) ?? 0.5
+    }
 }
 
 public struct SolverSettings: Codable, Equatable, Sendable {
     public var pinnedItemIds: [UUID]
     public var mustHaveItemIds: [UUID]
     public var goalWeights: GoalWeights
+    /// Structured user intent honoured by every generated variant.
+    public var constraints: LayoutConstraints
 
     public init(
         pinnedItemIds: [UUID] = [],
         mustHaveItemIds: [UUID] = [],
-        goalWeights: GoalWeights = GoalWeights()
+        goalWeights: GoalWeights = GoalWeights(),
+        constraints: LayoutConstraints = LayoutConstraints()
     ) {
         self.pinnedItemIds = pinnedItemIds
         self.mustHaveItemIds = mustHaveItemIds
         self.goalWeights = goalWeights
+        self.constraints = constraints
     }
+
+    enum CodingKeys: String, CodingKey {
+        case pinnedItemIds, mustHaveItemIds, goalWeights, constraints
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+
+        if let uuids = try? container.decode([UUID].self, forKey: .pinnedItemIds) {
+            self.pinnedItemIds = uuids
+        } else if let strings = try? container.decode([String].self, forKey: .pinnedItemIds) {
+            self.pinnedItemIds = strings.compactMap { UUID(uuidString: $0) }
+        } else {
+            self.pinnedItemIds = []
+        }
+
+        if let uuids = try? container.decode([UUID].self, forKey: .mustHaveItemIds) {
+            self.mustHaveItemIds = uuids
+        } else if let strings = try? container.decode([String].self, forKey: .mustHaveItemIds) {
+            self.mustHaveItemIds = strings.compactMap { UUID(uuidString: $0) }
+        } else {
+            self.mustHaveItemIds = []
+        }
+
+        self.goalWeights = (try? container.decode(GoalWeights.self, forKey: .goalWeights)) ?? GoalWeights()
+        self.constraints = (try? container.decode(LayoutConstraints.self, forKey: .constraints)) ?? LayoutConstraints()
+    }
+}
+
+public enum DiagnosticEngineSource: String, Codable, Equatable, Sendable {
+    case appleIntelligence = "Apple Intelligence"
+    case rulebookFallback = "Rulebook Engine (Simulator)"
 }
 
 public struct AIDiagnosticResponse: Codable, Equatable, Sendable {
     public var insights: [AIDiagnosticInsight]
     public var solverSettings: SolverSettings
+    public var engineSource: DiagnosticEngineSource
 
-    public init(insights: [AIDiagnosticInsight], solverSettings: SolverSettings) {
+    public init(
+        insights: [AIDiagnosticInsight],
+        solverSettings: SolverSettings,
+        engineSource: DiagnosticEngineSource = .appleIntelligence
+    ) {
         self.insights = insights
         self.solverSettings = solverSettings
+        self.engineSource = engineSource
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case insights, solverSettings, engineSource
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.insights = (try? container.decode([AIDiagnosticInsight].self, forKey: .insights)) ?? []
+        self.solverSettings = (try? container.decode(SolverSettings.self, forKey: .solverSettings)) ?? SolverSettings()
+        self.engineSource = (try? container.decodeIfPresent(DiagnosticEngineSource.self, forKey: .engineSource)) ?? .appleIntelligence
     }
 }
 
@@ -176,7 +317,9 @@ public struct AIDiagnosticValidator: Sendable {
                 involvedFurnitureIds: validInvolved,
                 explanation: insight.explanation,
                 suggestedFix: insight.suggestedFix,
-                sentiment: insight.sentiment
+                sentiment: insight.sentiment,
+                title: insight.title,
+                severity: insight.severity
             )
         }
 
@@ -197,8 +340,10 @@ public struct AIDiagnosticValidator: Sendable {
             solverSettings: SolverSettings(
                 pinnedItemIds: validPins,
                 mustHaveItemIds: validMustHaves,
-                goalWeights: clampedWeights
-            )
+                goalWeights: clampedWeights,
+                constraints: response.solverSettings.constraints
+            ),
+            engineSource: response.engineSource
         )
     }
 }
