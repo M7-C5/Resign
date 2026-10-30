@@ -175,4 +175,107 @@ struct SpatialClearanceEngineTests {
         #expect(r6Violations[0].itemIds.contains(chair.id))
         #expect(r6Violations[0].severity == .critical)
     }
+
+    @Test @MainActor func studio3DViewModelViolationRadiusCalculation() {
+        let layout = Layout(name: "Test Markers")
+        let desk = Furniture(
+            name: "Workstation",
+            category: "desk",
+            positionX: 0.5,
+            positionY: 0.0,
+            positionZ: -1.0,
+            length: 0.7,
+            width: 1.2,
+            height: 0.75
+        )
+        layout.furnitures = [desk]
+
+        let violation = SpatialViolation(
+            ruleId: PaneroZelnikRule.deskRearClearance,
+            ruleTitle: "Desk rear egress",
+            severity: .warning,
+            measuredClearanceCm: 45.0,
+            requiredClearanceCm: 76.2,
+            itemIds: [desk.id],
+            message: "Chair egress is restricted."
+        )
+
+        let viewModel = Studio3DViewModel()
+        viewModel.setViolations([violation], in: layout)
+
+        #expect(viewModel.violationMarkers.count == 1)
+        let marker = viewModel.violationMarkers[0]
+        #expect(marker.ruleId == PaneroZelnikRule.deskRearClearance)
+        #expect(marker.severity == .warning)
+        #expect(marker.clearanceRadius >= 0.762, "Clearance radius must reflect required operational buffer in meters")
+        #expect(marker.clearanceRadius > Float(max(desk.width, desk.length) * 0.5), "Radius must extend beyond furniture footprint")
+    }
+
+    @Test @MainActor func ruleSpecificDistinctColors() {
+        let rules = [
+            PaneroZelnikRule.walkwayCritical,
+            PaneroZelnikRule.walkwayRecommended,
+            PaneroZelnikRule.deskRearClearance,
+            PaneroZelnikRule.bedOperationalZone,
+            PaneroZelnikRule.bedStorageZone,
+            PaneroZelnikRule.doorSwingUnobstructed
+        ]
+
+        var colorDescriptions = Set<String>()
+        for rule in rules {
+            let marker = ViolationMarker(
+                id: "test-\(rule)",
+                ruleId: rule,
+                title: "Test",
+                severity: .warning,
+                measuredCm: 50.0,
+                requiredCm: 80.0,
+                centerX: 0.0,
+                centerZ: 0.0,
+                sizeX: 1.0,
+                sizeZ: 1.0
+            )
+            let colorDesc = marker.uiColor.description
+            #expect(!colorDescriptions.contains(colorDesc), "Each rule must have a distinct color theme")
+            colorDescriptions.insert(colorDesc)
+        }
+        #expect(colorDescriptions.count == rules.count)
+    }
+
+    @Test @MainActor func contextualDoorSwingGeometryCalculation() {
+        let layout = Layout(name: "Door Clash")
+        let chair = Furniture(
+            name: "Accent Chair",
+            category: "chair",
+            positionX: -1.5,
+            positionY: 0.0,
+            positionZ: 1.6,
+            length: 0.6,
+            width: 0.6,
+            height: 0.8
+        )
+        layout.furnitures = [chair]
+
+        let door = RoomOpening(type: "door", posX: -1.5, posY: 0.0, posZ: 2.1, width: 0.9, height: 2.1)
+
+        let violation = SpatialViolation(
+            ruleId: PaneroZelnikRule.doorSwingUnobstructed,
+            ruleTitle: "Door Swing Obstructed",
+            severity: .critical,
+            measuredClearanceCm: 0.0,
+            requiredClearanceCm: 90.0,
+            itemIds: [chair.id],
+            message: "Chair obstructs door swing."
+        )
+
+        let viewModel = Studio3DViewModel()
+        viewModel.setViolations([violation], in: layout, doors: [door])
+
+        #expect(viewModel.violationMarkers.count == 1)
+        let marker = viewModel.violationMarkers[0]
+        #expect(marker.isDoorSwing == true)
+        #expect(marker.doorSwingRadius == 0.9)
+        #expect(marker.doorPivotZ == 2.1)
+        #expect(abs(marker.doorSweepAngle) == Float.pi / 2.0, "Door sweep angle must be a 90° arc")
+    }
 }

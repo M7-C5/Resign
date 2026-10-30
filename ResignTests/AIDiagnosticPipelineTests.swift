@@ -169,4 +169,85 @@ struct AIDiagnosticPipelineTests {
         #expect(viewModel.generatedLayouts.count == 3)
         #expect(viewModel.selectedLayout != nil)
     }
+
+    @Test func foundationModelJSONSanitizerExtractsRawJSONFromMarkdownAndProse() {
+        let markdownFenced = """
+        Here is the requested layout analysis:
+        ```json
+        {
+          "insights": [],
+          "solverSettings": {
+            "pinnedItemIds": [],
+            "mustHaveItemIds": [],
+            "goalWeights": { "spacious": 0.8, "balanced": 0.5, "reachable": 0.7 }
+          }
+        }
+        ```
+        Hope this helps!
+        """
+        let sanitized = FoundationModelAIDiagnosticService.sanitizeJSONResponse(markdownFenced)
+        #expect(sanitized.hasPrefix("{"))
+        #expect(sanitized.hasSuffix("}"))
+        #expect(!sanitized.contains("```"))
+        #expect(!sanitized.contains("Here is the requested"))
+
+        let data = sanitized.data(using: .utf8)
+        #expect(data != nil)
+        let decoded = try? JSONDecoder().decode(AIDiagnosticResponse.self, from: data!)
+        #expect(decoded != nil)
+        #expect(decoded?.solverSettings.goalWeights.spacious == 0.8)
+    }
+
+    @Test @MainActor func foundationModelAIDiagnosticServiceExecutesSafelyWithFallback() async throws {
+        let room = RoomRepository.createStandardMockRoom()
+        guard let layout = room.layouts.first else {
+            #expect(Bool(false), "Room must have at least one layout")
+            return
+        }
+
+        let service = FoundationModelAIDiagnosticService()
+        let response = try await service.diagnose(
+            room: room,
+            layout: layout,
+            violations: [],
+            userPreference: "Spacious Circulation"
+        )
+
+        // Verifies that whether on-device Foundation Model is active or fallback engages,
+        // a valid, sanitized AIDiagnosticResponse is guaranteed
+        #expect(!response.solverSettings.mustHaveItemIds.isEmpty)
+        #expect(response.solverSettings.goalWeights.spacious >= 0.0)
+        #expect(response.engineSource == .rulebookFallback || response.engineSource == .appleIntelligence)
+    }
+
+    @Test func foundationModelResilientDecoderHandlesMissingIDAndMalformedFields() {
+        let jsonWithoutID = """
+        {
+          "insights": [
+            {
+              "ruleId": "R1",
+              "involvedFurnitureIds": ["E621E1F8-C36C-495A-93FC-0C247A3E6E5F", "invalid-uuid"],
+              "explanation": "Clearance corridor restricted",
+              "suggestedFix": "Shift desk outward",
+              "sentiment": "-"
+            }
+          ],
+          "solverSettings": {
+            "pinnedItemIds": ["E621E1F8-C36C-495A-93FC-0C247A3E6E5F"],
+            "mustHaveItemIds": []
+          }
+        }
+        """
+        guard let data = jsonWithoutID.data(using: .utf8) else {
+            #expect(Bool(false), "Data must not be nil")
+            return
+        }
+
+        let decoded = try? JSONDecoder().decode(AIDiagnosticResponse.self, from: data)
+        #expect(decoded != nil)
+        #expect(decoded?.insights.count == 1)
+        #expect(decoded?.insights[0].involvedFurnitureIds.count == 1)
+        #expect(decoded?.solverSettings.goalWeights.spacious == 0.5)
+    }
 }
+
