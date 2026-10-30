@@ -15,6 +15,7 @@ public struct InsightsView: View {
     @Query private var rooms: [Room]
 
     @State private var environmentPreset: Int = 0
+    @State private var showAllKeywords = false
 
     public init(studioViewModel: Studio3DViewModel? = nil) {
         self.studioViewModel = studioViewModel
@@ -65,6 +66,14 @@ public struct InsightsView: View {
                 .padding()
             }
             .navigationTitle("Spatial Diagnostics")
+            .onChange(of: viewModel.detectedViolations) { _, violations in
+                guard let room = viewModel.currentRoom, let layout = viewModel.activeLayout ?? room.layouts.first else { return }
+                let doors = room.openings.filter { $0.type.localizedCaseInsensitiveContains("door") }
+                studioViewModel?.setViolations(violations, in: layout, doors: doors)
+            }
+            .onChange(of: viewModel.highlightedFurnitureIDs) { _, ids in
+                studioViewModel?.highlightFurniture(ids: ids)
+            }
             .task {
                 if viewModel.currentRoom == nil {
                     if let first = rooms.first {
@@ -130,12 +139,55 @@ public struct InsightsView: View {
 
     private var diagnosticControlsCard: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Text("Optimization Goal")
-                .font(.subheadline).bold()
-                .foregroundStyle(.secondary)
+            Text("What's not working in your room?")
+                .font(.headline)
+            Text("Pick the problems that sound familiar, describe them in your own words, or both.")
+                .font(.caption).foregroundStyle(.secondary)
 
-            TextField("e.g. Spacious Circulation, Work Focus", text: $viewModel.userPreference)
-                .textFieldStyle(.roundedBorder)
+            HStack {
+                Text("Suggested keywords").font(.subheadline)
+                Spacer()
+                Button(showAllKeywords ? "See less" : "See more") {
+                    withAnimation { showAllKeywords.toggle() }
+                }
+                .font(.caption)
+            }
+
+            LazyVGrid(columns: [GridItem(.adaptive(minimum: 130), spacing: 8)], alignment: .leading, spacing: 8) {
+                ForEach(showAllKeywords ? ProblemKeyword.allCases : ProblemKeyword.suggested) { keyword in
+                    let isOn = viewModel.preference.selectedKeywords.contains(keyword)
+                    Button {
+                        viewModel.toggleKeyword(keyword)
+                    } label: {
+                        Text(keyword.title)
+                            .font(.footnote)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.8)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 8)
+                            .background(isOn ? Color.blue : Color(.tertiarySystemFill), in: Capsule())
+                            .foregroundStyle(isOn ? Color.white : Color.primary)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+
+            Text("Describe in your own words (optional)")
+                .font(.subheadline)
+            TextEditor(text: $viewModel.userPreference)
+                .frame(minHeight: 90)
+                .padding(6)
+                .scrollContentBackground(.hidden)
+                .background(Color(.tertiarySystemBackground), in: RoundedRectangle(cornerRadius: 10))
+            HStack(alignment: .top) {
+                if !viewModel.preference.inferredKeywords.isEmpty {
+                    Text("Detected: " + viewModel.preference.inferredKeywords.map(\.title).joined(separator: ", "))
+                        .font(.caption2).foregroundStyle(.secondary)
+                }
+                Spacer()
+                Text("\(viewModel.preference.freeText.count)/\(RoomPreference.maxFreeTextLength)")
+                    .font(.caption2).foregroundStyle(.secondary)
+            }
 
             Button {
                 guard let room = viewModel.currentRoom, let layout = viewModel.activeLayout ?? room.layouts.first else { return }
@@ -143,7 +195,7 @@ public struct InsightsView: View {
                     await viewModel.runDiagnosticPipeline(
                         for: room,
                         in: layout,
-                        preference: viewModel.userPreference
+                        roomPreference: viewModel.preference
                     )
                 }
             } label: {
@@ -225,22 +277,55 @@ public struct InsightsView: View {
 
     private func aiInsightsSection(response: AIDiagnosticResponse) -> some View {
         VStack(alignment: .leading, spacing: 14) {
-            HStack {
-                Label("AI Human Reasoning & Fixes", systemImage: "brain.head.profile")
-                    .font(.headline)
-                    .foregroundStyle(.purple)
-                Spacer()
-                if !viewModel.highlightedFurnitureIDs.isEmpty {
-                    Button("Clear 3D Rings") {
-                        viewModel.clearHighlights()
+            VStack(alignment: .leading, spacing: 6) {
+                HStack {
+                    Label("AI Human Reasoning & Fixes", systemImage: "brain.head.profile")
+                        .font(.headline)
+                        .foregroundStyle(.purple)
+                    Spacer()
+                    if !viewModel.highlightedFurnitureIDs.isEmpty {
+                        Button("Clear 3D Rings") {
+                            viewModel.clearHighlights()
+                        }
+                        .font(.caption)
                     }
-                    .font(.caption)
                 }
+
+                // Transparent Engine Source Indicator Badge
+                HStack(spacing: 6) {
+                    Image(systemName: response.engineSource == .appleIntelligence ? "sparkles" : "cpu")
+                        .font(.caption2)
+                    Text("Engine: \(response.engineSource.rawValue)")
+                        .font(.caption2).bold()
+                }
+                .padding(.horizontal, 8)
+                .padding(.vertical, 3)
+                .background(
+                    response.engineSource == .appleIntelligence
+                        ? Color.purple.opacity(0.12)
+                        : Color.blue.opacity(0.12),
+                    in: Capsule()
+                )
+                .foregroundStyle(
+                    response.engineSource == .appleIntelligence
+                        ? Color.purple
+                        : Color.blue
+                )
             }
 
             ForEach(response.insights) { insight in
                 VStack(alignment: .leading, spacing: 8) {
                     HStack {
+                        Text(insight.title)
+                            .font(.caption).bold()
+                        if let severity = insight.severity {
+                            Text(severity == .critical ? "Critical" : "Warning")
+                                .font(.caption2).bold()
+                                .padding(.horizontal, 6)
+                                .padding(.vertical, 2)
+                                .background((severity == .critical ? Color.red : Color.orange).opacity(0.15), in: Capsule())
+                                .foregroundStyle(severity == .critical ? Color.red : Color.orange)
+                        }
                         Text(insight.ruleId)
                             .font(.caption2).bold()
                             .padding(.horizontal, 6)
@@ -297,7 +382,7 @@ public struct InsightsView: View {
                         VStack(alignment: .leading, spacing: 2) {
                             Text(layout.name)
                                 .font(.headline)
-                            Text("\(layout.furnitures.count) Furnishings • \(layout.insights.count) Enhancements")
+                            Text("\(layout.furnitures.count) Furnishings • \((viewModel.layoutInsights[layout.id] ?? []).count) Insights")
                                 .font(.caption).foregroundStyle(.secondary)
                         }
                         Spacer()
@@ -314,14 +399,19 @@ public struct InsightsView: View {
                         }
                     }
 
-                    ForEach(layout.insights) { item in
+                    ForEach(viewModel.layoutInsights[layout.id] ?? []) { item in
+                        let positive = item.sentiment == "+"
                         HStack(alignment: .top, spacing: 6) {
-                            Image(systemName: "checkmark.seal.fill")
+                            Image(systemName: positive ? "checkmark.seal.fill" : "exclamationmark.triangle.fill")
                                 .font(.caption)
-                                .foregroundStyle(.green)
+                                .foregroundStyle(positive ? Color.green : Color.orange)
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(item.title).font(.caption).bold()
                                 Text(item.detail).font(.caption2).foregroundStyle(.secondary)
+                                if !item.addressedProblems.isEmpty {
+                                    Text("Helps with: " + item.addressedProblems.map(\.title).joined(separator: ", "))
+                                        .font(.caption2).foregroundStyle(.blue)
+                                }
                             }
                         }
                     }
