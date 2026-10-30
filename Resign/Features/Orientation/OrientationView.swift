@@ -5,6 +5,7 @@ import SwiftUI
 public struct OrientationView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    @Environment(\.scenePhase) private var scenePhase
 
     private let layout: Layout
     private let room: Room
@@ -100,10 +101,18 @@ public struct OrientationView: View {
             Text(saveError ?? "Unknown error")
         }
         .task {
-            viewModel.start()
+            if scenePhase == .active { viewModel.start() }
             while !Task.isCancelled {
                 try? await Task.sleep(nanoseconds: 100_000_000)
+                guard !Task.isCancelled else { break }
                 viewModel.tick()
+            }
+        }
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .active {
+                viewModel.start()
+            } else if phase == .background {
+                viewModel.stop()
             }
         }
         .onDisappear {
@@ -254,6 +263,17 @@ public struct OrientationView: View {
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
+            }
+
+            if let issue = viewModel.compassIssue, !viewModel.isHeadingLocked {
+                Text(issue)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                Button("Retry Compass", systemImage: "arrow.clockwise") {
+                    viewModel.retryCompass()
+                }
+                .frame(minWidth: 44, minHeight: 44)
             }
 
             if viewModel.usesManualHeading, !viewModel.isHeadingLocked {

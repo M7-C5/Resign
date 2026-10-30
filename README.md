@@ -41,7 +41,7 @@ flowchart TD
 3. **Model & USDZ Asset Generation**:
    - Translates detected bounding boxes and spatial dimensions into a unified USDZ 3D room hierarchy, automatically substituting generic wireframes with curated 3D model assets.
 4. **Geographic True North Orientation**:
-   - After scanning, prompts the user with a real-time compass powered by `CoreLocation`; a smoothed heading must stay within 2° of 000° for 2 seconds to auto-lock. Sensor accuracy remains visible as guidance.
+   - After scanning, prompts the user with a real-time compass powered by `CoreLocation`; a smoothed heading must stay within 2° of 000° for 2 seconds to auto-lock. Sensor accuracy remains visible as guidance. Invalid readings and magnetic interference cancel the pending hold and show calibration guidance with a Retry Compass action. Returning to the foreground restarts sensor updates and requires a fresh hold; an already locked north reference is preserved.
 5. **Orientation Lock & Virtual Avatar Sync**:
    - The plan shows the scanned walls, furniture, windows, and doors in the scan's local frame. After lock, the user rotates a highlighted centered person marker to show where north lies in the room; saving stores the room's clockwise north bearing before continuing to light placement.
 6. **Artificial Light Source Grid Mapping**:

@@ -54,6 +54,61 @@ struct LightingWorkspaceLayoutTests {
         #expect(CompassHeadingOrientationReader.headingOrientation(for: .unknown) == nil)
     }
 
+    @Test @MainActor func invalidSensorReadingCancelsHoldAndValidReadingRecovers() {
+        let model = OrientationViewModel()
+        model.start()
+        defer { model.stop() }
+        let date = Date()
+        model.receiveHeading(0, reference: "Magnetic North", accuracy: 5, at: date)
+        #expect(model.isHoldingNorth)
+        model.receiveHeading(0, reference: "Magnetic North", accuracy: -1,
+                             at: date.addingTimeInterval(1))
+        model.tick(at: date.addingTimeInterval(3))
+        #expect(!model.isHeadingLocked && model.headingDegrees == nil)
+        #expect(model.compassIssue != nil)
+
+        model.receiveHeading(0, reference: "Magnetic North", accuracy: 5,
+                             at: date.addingTimeInterval(4))
+        #expect(model.compassIssue == nil)
+        model.tick(at: date.addingTimeInterval(5))
+        #expect(!model.isHeadingLocked)
+        model.tick(at: date.addingTimeInterval(6.1))
+        #expect(model.isHeadingLocked)
+    }
+
+    @Test @MainActor func backgroundTimeDoesNotCountTowardNorthHold() {
+        let model = OrientationViewModel()
+        model.start()
+        defer { model.stop() }
+        let date = Date()
+        model.receiveHeading(0, reference: "Magnetic North", accuracy: 5, at: date)
+        model.stop()
+        model.tick(at: date.addingTimeInterval(10))
+        #expect(!model.isHeadingLocked && model.headingDegrees == nil)
+        model.start()
+        model.receiveHeading(0, reference: "Magnetic North", accuracy: 5,
+                             at: date.addingTimeInterval(11))
+        model.start()
+        model.tick(at: date.addingTimeInterval(12))
+        #expect(!model.isHeadingLocked)
+        model.tick(at: date.addingTimeInterval(13.1))
+        #expect(model.isHeadingLocked)
+    }
+
+    @Test @MainActor func headingInterferenceIsReportedWithoutLockingAnOldSample() {
+        let model = OrientationViewModel()
+        model.start()
+        defer { model.stop() }
+        let date = Date()
+        model.receiveHeading(0, reference: "Magnetic North", accuracy: 5, at: date)
+        model.locationManager(CLLocationManager(), didFailWithError: CLError(.headingFailure))
+        model.tick(at: date.addingTimeInterval(3))
+        #expect(model.compassIssue != nil)
+        #expect(model.headingDegrees == nil && !model.isHeadingLocked)
+        model.retryCompass()
+        #expect(model.compassIssue == nil && !model.isHeadingLocked)
+    }
+
     @Test @MainActor func rotatingAfterManualNorthLockPreservesCalibration() {
         let model = OrientationViewModel()
         model.start()

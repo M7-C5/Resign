@@ -14,12 +14,14 @@ public final class OrientationViewModel: NSObject, CLLocationManagerDelegate {
     @ObservationIgnored private var calibration = NorthAlignmentCalibration()
     @ObservationIgnored private var isActive = false
     @ObservationIgnored private var filteredHeadingDegrees: Double?
+    @ObservationIgnored private var startedAt = Date()
 
     private(set) var headingDegrees: Double?
     private(set) var headingReference = ""
     private(set) var headingAccuracy: Double?
     private(set) var usesManualHeading = false
     private(set) var now = Date()
+    private(set) var compassIssue: String?
 
     var isHeadingLocked: Bool { calibration.isLocked }
     var isHoldingNorth: Bool { calibration.alignedSince != nil && !calibration.isLocked }
@@ -36,9 +38,11 @@ public final class OrientationViewModel: NSObject, CLLocationManagerDelegate {
     }
 
     func start() {
-        guard !calibration.isLocked else { return }
+        guard !calibration.isLocked, !isActive else { return }
         isActive = true
-        filteredHeadingDegrees = nil
+        resetPendingHeading()
+        compassIssue = nil
+        startedAt = Date()
         #if targetEnvironment(simulator)
         usesManualHeading = true
         headingReference = "Preview compass"
@@ -84,10 +88,21 @@ public final class OrientationViewModel: NSObject, CLLocationManagerDelegate {
         isActive = false
         locationManager.stopUpdatingHeading()
         locationManager.stopUpdatingLocation()
+        if !calibration.isLocked { resetPendingHeading() }
+    }
+
+    func retryCompass() {
+        guard !calibration.isLocked else { return }
+        stop()
+        start()
     }
 
     func tick(at date: Date = Date()) {
         now = date
+        guard isActive else { return }
+        if headingDegrees == nil, compassIssue == nil, date.timeIntervalSince(startedAt) >= 10 {
+            compassIssue = "No compass reading yet. Move away from magnetic accessories, then retry the compass."
+        }
         // Core Location may not emit another sample while the device is still.
         // Keep evaluating the latest valid reading so the two-second hold can finish.
         guard let headingDegrees, !calibration.isLocked else { return }
@@ -123,7 +138,6 @@ public final class OrientationViewModel: NSObject, CLLocationManagerDelegate {
 
     public func locationManager(_ manager: CLLocationManager, didUpdateHeading newHeading: CLHeading) {
         guard isActive else { return }
-        guard newHeading.headingAccuracy >= 0 else { return }
         let hasTrueHeading = newHeading.trueHeading >= 0
         receiveHeading(
             hasTrueHeading ? newHeading.trueHeading : newHeading.magneticHeading,
@@ -134,6 +148,13 @@ public final class OrientationViewModel: NSObject, CLLocationManagerDelegate {
     }
 
     public func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
+        guard isActive, !calibration.isLocked else { return }
+        if let error = error as? CLError, error.code == .headingFailure {
+            resetPendingHeading()
+            compassIssue = "Compass interference detected. Move away from magnetic cases or keyboards and move your device in a figure eight."
+            return
+        }
+        // Location failures affect true north; magnetic heading can still be available.
         headingReference = "Magnetic North"
         manager.stopUpdatingLocation()
     }
@@ -148,8 +169,15 @@ public final class OrientationViewModel: NSObject, CLLocationManagerDelegate {
         locationManager.startUpdatingLocation()
     }
 
-    private func receiveHeading(_ degrees: Double, reference: String, accuracy: Double?, at date: Date) {
-        guard !calibration.isLocked else { return }
+    func receiveHeading(_ degrees: Double, reference: String, accuracy: Double?, at date: Date) {
+        guard isActive, !calibration.isLocked else { return }
+        guard degrees.isFinite, degrees >= 0,
+              accuracy.map({ $0.isFinite && $0 >= 0 }) ?? true else {
+            resetPendingHeading()
+            compassIssue = "Compass needs calibration. Move your device in a figure eight, away from magnetic cases or keyboards."
+            return
+        }
+        compassIssue = nil
         let measuredHeading = NorthAlignmentCalibration.normalized(degrees)
         let normalized = usesManualHeading ? measuredHeading : smoothHeading(measuredHeading)
         headingDegrees = normalized
@@ -166,6 +194,13 @@ public final class OrientationViewModel: NSObject, CLLocationManagerDelegate {
         if didLock {
             stop()
         }
+    }
+
+    private func resetPendingHeading() {
+        calibration = NorthAlignmentCalibration()
+        filteredHeadingDegrees = nil
+        headingDegrees = nil
+        headingAccuracy = nil
     }
 
     private func smoothHeading(_ measuredHeading: Double) -> Double {

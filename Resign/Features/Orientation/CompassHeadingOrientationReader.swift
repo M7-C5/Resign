@@ -44,7 +44,7 @@ struct CompassHeadingOrientationReader: UIViewRepresentable {
         }
 
         func reportOrientation() {
-            guard let interface = window?.windowScene?.interfaceOrientation,
+            guard let interface = window?.windowScene?.effectiveGeometry.interfaceOrientation,
                   let orientation = CompassHeadingOrientationReader.headingOrientation(for: interface),
                   orientation != lastReported else { return }
             lastReported = orientation
