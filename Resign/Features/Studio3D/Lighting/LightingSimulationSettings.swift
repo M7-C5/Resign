@@ -1,11 +1,17 @@
 import Foundation
 import UIKit
 
+enum LightingPreviewMode: Equatable, Sendable {
+    case simulation
+    case layoutOnly
+}
+
 /// Session-only lighting choices for the room preview. Never persisted.
 struct LightingSimulationSettings: Equatable, Sendable {
     var artificialLightsOn = false
     var minuteOfDay = 12 * 60
     var solarContext = SolarSimulationContext()
+    var previewMode: LightingPreviewMode = .simulation
 
     var clampedMinute: Int { min(1439, max(0, minuteOfDay)) }
     var hourOfDay: Double { Double(clampedMinute) / 60 }
