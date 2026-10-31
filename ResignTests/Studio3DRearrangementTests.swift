@@ -371,4 +371,31 @@ struct Studio3DRearrangementTests {
         )
         #expect(isInside, "Furniture must not escape into the exterior notch of an L-shaped room")
     }
+
+    @Test @MainActor func scannedRoomInLoadPathConfiguresWindowsAndNeverSeedsMockFurnitureWhenEmpty() async throws {
+        let room = Room(name: "Empty Scanned Room", length: 5.0, width: 4.0, height: 2.7)
+        let walls = [
+            ScannedWallPayload(position: [0, 1.35, -2.0], dimensions: [5.0, 2.7, 0.1], rotationYaw: 0),
+            ScannedWallPayload(position: [0, 1.35, 2.0], dimensions: [5.0, 2.7, 0.1], rotationYaw: .pi),
+            ScannedWallPayload(position: [2.5, 1.35, 0], dimensions: [4.0, 2.7, 0.1], rotationYaw: .pi / 2),
+            ScannedWallPayload(position: [-2.5, 1.35, 0], dimensions: [4.0, 2.7, 0.1], rotationYaw: -.pi / 2)
+        ]
+        room.planSnapshotData = try JSONEncoder().encode(RoomPlanSnapshot(walls: walls, floorLevel: 0.0))
+        // East-facing window at X = +2.5
+        room.openings.append(RoomOpening(type: "window", posX: 2.5, posY: 1.4, posZ: 0.0, width: 1.4, height: 1.2))
+
+        let layout = Layout(name: "Original Scan")
+        layout.usdzURL = Bundle.main.url(forResource: "Room", withExtension: "usdz")
+        room.layouts.append(layout)
+
+        let controller = RoomSceneController(room: room, layout: layout)
+        await controller.load()
+
+        #expect(controller.loadState == .loaded)
+        // Must NOT seed 5 mock bedroom furniture items into an empty scanned room
+        #expect(layout.furnitures.isEmpty)
+        // Must resolve window azimuths from room.openings even in the standard load() path
+        let azimuths = try #require(controller.resolvedWindowAzimuths)
+        #expect(azimuths.count == 1)
+    }
 }
