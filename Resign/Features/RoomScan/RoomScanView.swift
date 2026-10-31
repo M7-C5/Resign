@@ -60,6 +60,9 @@ public struct RoomScanView: View {
                 viewModel.startScanning()
             }
         }
+        .onDisappear {
+            viewModel.pauseScanningIfActive()
+        }
         .onChange(of: viewModel.state) { _, newState in
             switch newState {
             case .completed(let roomId):
@@ -128,7 +131,8 @@ public struct RoomScanView: View {
             Spacer()
 
             Image(systemName: "sensor.tag.radiowaves.forward.fill")
-                .font(.system(size: 64))
+                .font(.largeTitle)
+                .imageScale(.large)
                 .foregroundStyle(.secondary)
 
             VStack(spacing: 8) {

@@ -90,7 +90,7 @@ struct LightingSetupContainerView: View {
             } else if hasLoaded {
                 VStack(spacing: 16) {
                     Image(systemName: "exclamationmark.triangle")
-                        .font(.system(size: 40))
+                        .font(.largeTitle)
                         .foregroundStyle(.secondary)
 
                     Text("Could not find room layout")

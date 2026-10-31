@@ -17,7 +17,8 @@ public struct RoomScanResultView: View {
     public var onFinish: (() -> Void)?
 
     @Environment(\.dismiss) private var dismiss
-    @Query private var rooms: [Room]
+    @Environment(\.modelContext) private var modelContext
+    @State private var loadedRoom: Room?
     @State private var quickLookURL: URL? = nil
 
     public init(
@@ -30,12 +31,10 @@ public struct RoomScanResultView: View {
         self.onScanAgain = onScanAgain
         self.onContinueToOrientation = onContinueToOrientation
         self.onFinish = onFinish
-        let targetId = roomId
-        _rooms = Query(filter: #Predicate<Room> { $0.id == targetId })
     }
 
     private var room: Room? {
-        rooms.first
+        loadedRoom
     }
 
     private var layout: Layout? {
@@ -63,7 +62,18 @@ public struct RoomScanResultView: View {
                     .foregroundStyle(.white)
             }
         }
+        .onAppear {
+            loadRoom()
+        }
         .quickLookPreview($quickLookURL)
+    }
+
+    private func loadRoom() {
+        let targetId = roomId
+        let descriptor = FetchDescriptor<Room>(predicate: #Predicate<Room> { $0.id == targetId })
+        if let match = try? modelContext.fetch(descriptor).first {
+            loadedRoom = match
+        }
     }
 
     private func headerBar(room: Room) -> some View {
@@ -122,7 +132,7 @@ public struct RoomScanResultView: View {
             }
 
             // QuickLook & Export Actions Row
-            if let url = layout.usdzURL {
+            if let url = layout.resolvedUSDZURL ?? layout.usdzURL {
                 HStack(spacing: 12) {
                     Button {
                         quickLookURL = url
