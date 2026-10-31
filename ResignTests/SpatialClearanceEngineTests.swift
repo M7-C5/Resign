@@ -11,6 +11,260 @@ import simd
 @Suite("Spatial Clearance Engine Tests")
 struct SpatialClearanceEngineTests {
 
+    let engine = SpatialClearanceEngine()
+
+    @Test @MainActor func walkwayCriticalAndRecommendedViolations() {
+        let room = Room(length: 4.2, width: 5.0, height: 2.6)
+        let layout = Layout(name: "Test Walkway")
+
+        // Two pieces of furniture placed very close: distance between them is 50 cm (< 76.2 cm critical R1)
+        let sofa = Furniture(
+            name: "Sofa",
+            category: "sofa",
+            positionX: 0.0,
+            positionY: 0.0,
+            positionZ: 0.0,
+            length: 1.0,
+            width: 2.0,
+            height: 0.8
+        )
+        let coffeeTable = Furniture(
+            name: "Coffee Table",
+            category: "table",
+            positionX: 0.0,
+            positionY: 0.0,
+            positionZ: 1.0,
+            length: 0.5,
+            width: 1.2,
+            height: 0.4
+        )
+        let bed = Furniture(
+            name: "Bed",
+            category: "bed",
+            positionX: -1.5,
+            positionY: 0.0,
+            positionZ: -1.0,
+            length: 2.0,
+            width: 1.6,
+            height: 1.0
+        )
+        let desk = Furniture(
+            name: "Desk",
+            category: "desk",
+            positionX: 0.45,
+            positionY: 0.0,
+            positionZ: -1.0,
+            length: 0.8,
+            width: 0.6,
+            height: 0.75
+        )
+
+        layout.furnitures = [sofa, coffeeTable, bed, desk]
+
+        let violations = engine.checkWalkwayClearances(furnitures: layout.furnitures, roomLength: room.length, roomWidth: room.width)
+
+        let r1Violations = violations.filter { $0.ruleId == PaneroZelnikRule.walkwayCritical }
+        let r2Violations = violations.filter { $0.ruleId == PaneroZelnikRule.walkwayRecommended }
+
+        #expect(!r1Violations.isEmpty, "Should detect critical walkway violation under 76.2 cm")
+        #expect(!r2Violations.isEmpty, "Should detect recommended walkway warning between 76.2 cm and 91.4 cm")
+    }
+
+    @Test @MainActor func deskRearClearanceViolation() {
+        let room = Room(length: 4.2, width: 5.0, height: 2.6)
+        let layout = Layout(name: "Test Desk Clearance")
+
+        let desk = Furniture(
+            name: "Work Desk",
+            category: "desk",
+            positionX: 1.0,
+            positionY: 0.0,
+            positionZ: -1.5,
+            length: 0.7,
+            width: 1.2,
+            height: 0.75
+        )
+        let chair = Furniture(
+            name: "Office Chair",
+            category: "chair",
+            positionX: 1.0,
+            positionY: 0.0,
+            positionZ: -1.0,
+            length: 0.5,
+            width: 0.5,
+            height: 0.9
+        )
+        let bookshelf = Furniture(
+            name: "Bookshelf",
+            category: "bookshelf",
+            positionX: 1.0,
+            positionY: 0.0,
+            positionZ: -0.4,
+            length: 0.4,
+            width: 1.0,
+            height: 1.8
+        )
+
+        layout.furnitures = [desk, chair, bookshelf]
+        let violations = engine.checkDeskClearance(furnitures: layout.furnitures, roomLength: room.length, roomWidth: room.width)
+
+        let r3Violations = violations.filter { $0.ruleId == PaneroZelnikRule.deskRearClearance }
+        #expect(!r3Violations.isEmpty, "Should detect desk rear pullback clearance under 76.2 cm")
+        #expect(r3Violations[0].measuredClearanceCm < 76.2)
+    }
+
+    @Test @MainActor func bedOperationalZoneViolation() {
+        let room = Room(length: 4.2, width: 5.0, height: 2.6)
+        let layout = Layout(name: "Test Bed Clearance")
+
+        let bed = Furniture(
+            name: "Queen Bed",
+            category: "bed",
+            positionX: -1.5,
+            positionY: 0.0,
+            positionZ: -0.5,
+            length: 2.0,
+            width: 1.6,
+            height: 1.0
+        )
+        layout.furnitures = [bed]
+
+        let violations = engine.checkBedClearance(furnitures: layout.furnitures, roomLength: room.length, roomWidth: room.width)
+        let r4Violations = violations.filter { $0.ruleId == PaneroZelnikRule.bedOperationalZone }
+
+        #expect(!r4Violations.isEmpty, "Should detect bed operational making clearance under 66 cm")
+        #expect(r4Violations[0].measuredClearanceCm < 66.0)
+    }
+
+    @Test @MainActor func doorSwingObstructionViolation() {
+        let layout = Layout(name: "Test Door Swing")
+        let door = RoomOpening(type: "door", posX: -1.5, posY: 0.0, posZ: 2.1, width: 0.9, height: 2.1)
+
+        let chair = Furniture(
+            name: "Accent Chair",
+            category: "chair",
+            positionX: -1.5,
+            positionY: 0.0,
+            positionZ: 1.6,
+            length: 0.6,
+            width: 0.6,
+            height: 0.8
+        )
+        layout.furnitures = [chair]
+
+        let violations = engine.checkDoorSwing(furnitures: layout.furnitures, doors: [door])
+        let r6Violations = violations.filter { $0.ruleId == PaneroZelnikRule.doorSwingUnobstructed }
+
+        #expect(!r6Violations.isEmpty, "Should detect door swing obstruction (R6)")
+        #expect(r6Violations[0].itemIds.contains(chair.id))
+        #expect(r6Violations[0].severity == .critical)
+    }
+
+    @Test @MainActor func studio3DViewModelViolationRadiusCalculation() {
+        let layout = Layout(name: "Test Markers")
+        let desk = Furniture(
+            name: "Workstation",
+            category: "desk",
+            positionX: 0.5,
+            positionY: 0.0,
+            positionZ: -1.0,
+            length: 0.7,
+            width: 1.2,
+            height: 0.75
+        )
+        layout.furnitures = [desk]
+
+        let violation = SpatialViolation(
+            ruleId: PaneroZelnikRule.deskRearClearance,
+            ruleTitle: "Desk rear egress",
+            severity: .warning,
+            measuredClearanceCm: 45.0,
+            requiredClearanceCm: 76.2,
+            itemIds: [desk.id],
+            message: "Chair egress is restricted."
+        )
+
+        let viewModel = Studio3DViewModel()
+        viewModel.setViolations([violation], in: layout)
+
+        #expect(viewModel.violationMarkers.count == 1)
+        let marker = viewModel.violationMarkers[0]
+        #expect(marker.ruleId == PaneroZelnikRule.deskRearClearance)
+        #expect(marker.severity == .warning)
+        #expect(marker.clearanceRadius >= 0.762, "Clearance radius must reflect required operational buffer in meters")
+        #expect(marker.clearanceRadius > Float(max(desk.width, desk.length) * 0.5), "Radius must extend beyond furniture footprint")
+    }
+
+    @Test @MainActor func ruleSpecificDistinctColors() {
+        let rules = [
+            PaneroZelnikRule.walkwayCritical,
+            PaneroZelnikRule.walkwayRecommended,
+            PaneroZelnikRule.deskRearClearance,
+            PaneroZelnikRule.bedOperationalZone,
+            PaneroZelnikRule.bedStorageZone,
+            PaneroZelnikRule.doorSwingUnobstructed
+        ]
+
+        var colorDescriptions = Set<String>()
+        for rule in rules {
+            let marker = ViolationMarker(
+                id: "test-\(rule)",
+                ruleId: rule,
+                title: "Test",
+                severity: .warning,
+                measuredCm: 50.0,
+                requiredCm: 80.0,
+                centerX: 0.0,
+                centerZ: 0.0,
+                sizeX: 1.0,
+                sizeZ: 1.0
+            )
+            let colorDesc = marker.uiColor.description
+            #expect(!colorDescriptions.contains(colorDesc), "Each rule must have a distinct color theme")
+            colorDescriptions.insert(colorDesc)
+        }
+        #expect(colorDescriptions.count == rules.count)
+    }
+
+    @Test @MainActor func contextualDoorSwingGeometryCalculation() {
+        let layout = Layout(name: "Door Clash")
+        let chair = Furniture(
+            name: "Accent Chair",
+            category: "chair",
+            positionX: -1.5,
+            positionY: 0.0,
+            positionZ: 1.6,
+            length: 0.6,
+            width: 0.6,
+            height: 0.8
+        )
+        layout.furnitures = [chair]
+
+        let door = RoomOpening(type: "door", posX: -1.5, posY: 0.0, posZ: 2.1, width: 0.9, height: 2.1)
+
+        let violation = SpatialViolation(
+            ruleId: PaneroZelnikRule.doorSwingUnobstructed,
+            ruleTitle: "Door Swing Obstructed",
+            severity: .critical,
+            measuredClearanceCm: 0.0,
+            requiredClearanceCm: 90.0,
+            itemIds: [chair.id],
+            message: "Chair obstructs door swing."
+        )
+
+        let viewModel = Studio3DViewModel()
+        viewModel.setViolations([violation], in: layout, doors: [door])
+
+        #expect(viewModel.violationMarkers.count == 1)
+        let marker = viewModel.violationMarkers[0]
+        #expect(marker.isDoorSwing == true)
+        #expect(marker.doorSwingRadius == 0.9)
+        #expect(marker.doorPivotZ == 2.1)
+        #expect(abs(marker.doorSweepAngle) == Float.pi / 2.0, "Door sweep angle must be a 90° arc")
+    }
+
+    // MARK: - 3D Studio Boundaries, Clamping & Rigid Collisions
+
     @Test func clampsPositionWithinRoomDrywallBoundariesAtZeroYaw() {
         // Room 5.0m wide (X: -2.5 to +2.5), 6.0m long (Z: -3.0 to +3.0)
         // Bed 1.6m wide, 2.0m long at yaw = 0 (half-extents: X = 0.8, Z = 1.0)
