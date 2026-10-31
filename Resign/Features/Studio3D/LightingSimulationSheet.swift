@@ -2,34 +2,40 @@ import SwiftUI
 
 /// Edits session-only lighting choices. The presenter decides what confirm and discard do.
 struct LightingSimulationSheet: View {
-    static let collapsedHeight: CGFloat = 230
-
+    static let collapsedHeight: CGFloat = 280
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @Binding var settings: LightingSimulationSettings
     let onCancel: () -> Void
     let onConfirm: () -> Void
 
     var body: some View {
+        LightingSimulationControls(settings: $settings, onCancel: onCancel, onConfirm: onConfirm)
+            .presentationDetents(dynamicTypeSize.isAccessibilitySize ? [.medium, .large] : [.height(Self.collapsedHeight)])
+            .presentationDragIndicator(.visible)
+            .presentationCornerRadius(28)
+            .presentationBackground(.regularMaterial)
+            .presentationBackgroundInteraction(.enabled(upThrough: .height(Self.collapsedHeight)))
+    }
+}
+
+/// Shared controls for the compact sheet and the iPad inspector; both edit the same draft.
+struct LightingSimulationControls: View {
+    @Binding var settings: LightingSimulationSettings
+    let onCancel: () -> Void
+    let onConfirm: () -> Void
+
+    var body: some View {
         ScrollView {
-            VStack(spacing: 16) {
+            VStack(spacing: 24) {
                 header
                 artificialLightRow
-                TimeOfDaySlider(
-                    minuteOfDay: $settings.minuteOfDay,
-                    sourceDescription: settings.solarContext.naturalLightDescription
-                )
+                TimeOfDaySlider(minuteOfDay: $settings.minuteOfDay,
+                                sourceDescription: settings.solarContext.naturalLightDescription)
             }
-            .padding(.horizontal, 20)
-            .padding(.top, 24)
-            .padding(.bottom, 16)
+            .padding(20)
+            .frame(maxWidth: 520)
+            .frame(maxWidth: .infinity)
         }
-        .presentationDetents(
-            dynamicTypeSize.isAccessibilitySize ? [.medium, .large] : [.height(Self.collapsedHeight)]
-        )
-        .presentationDragIndicator(.visible)
-        .presentationCornerRadius(28)
-        .presentationBackground(.regularMaterial)
-        .presentationBackgroundInteraction(.enabled(upThrough: .height(Self.collapsedHeight)))
     }
 
     private var header: some View {
@@ -117,6 +123,7 @@ private struct TimeOfDaySlider: View {
                         step: 1
                     )
                     .tint(.blue)
+                    .frame(minHeight: 44)
                     .accessibilityLabel("Time of day")
                     .accessibilityValue(label)
                 }
@@ -127,6 +134,8 @@ private struct TimeOfDaySlider: View {
             .font(.caption)
             .foregroundStyle(.secondary)
             Text(sourceDescription)
+                .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }
