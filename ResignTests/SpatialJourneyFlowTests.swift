@@ -119,5 +119,31 @@ struct SpatialJourneyFlowTests {
         #expect(studioViewModel.violationMarkers.allSatisfy { $0.ruleId == "OPT" })
         #expect(studioViewModel.violationMarkers.count == chosenVariant.furnitures.count)
     }
+
+    @Test @MainActor func applySelectedLayoutPersistsVariantAndPreservesUSDZAndLights() async {
+        let room = RoomRepository.createViolatingMockRoom()
+        let baseLayout = room.layouts.first!
+        baseLayout.usdzURL = URL(fileURLWithPath: "/tmp/scanned-room.usdz")
+        baseLayout.lights.append(Light(name: "Center Ceiling", coordinateX: 0.5, coordinateY: 0.5, elevationZ: 2.5, brightness: 900, colorTemp: 4000, isOn: true))
+
+        let viewModel = InsightsViewModel()
+        viewModel.loadRoom(room, initialLayout: baseLayout)
+        await viewModel.runDiagnosticPipeline(for: room, in: baseLayout)
+
+        guard let selected = viewModel.selectedLayout else {
+            Issue.record("Expected generated layout variant to be selected")
+            return
+        }
+
+        #expect(selected.usdzURL == baseLayout.usdzURL)
+        #expect(selected.lights.count == 1)
+        #expect(selected.lights.first?.name == "Center Ceiling")
+
+        let initialCount = room.layouts.count
+        viewModel.applySelectedLayout()
+        #expect(viewModel.activeLayout?.id == selected.id)
+        #expect(room.layouts.count == initialCount + 1)
+        #expect(room.layouts.contains(where: { $0.id == selected.id }))
+    }
 }
 

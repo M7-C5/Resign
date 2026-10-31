@@ -63,6 +63,18 @@ public struct LayoutOptimizerEngine: Sendable {
                 settings: settings,
                 earlier: earlier
             )
+            layout.usdzURL = baseLayout.usdzURL
+            layout.lights = baseLayout.lights.map { light in
+                Light(
+                    name: light.name,
+                    coordinateX: light.coordinateX,
+                    coordinateY: light.coordinateY,
+                    elevationZ: light.elevationZ,
+                    brightness: light.brightness,
+                    colorTemp: light.colorTemp,
+                    isOn: light.isOn
+                )
+            }
             earlier.append(placements)
             layouts.append(layout)
         }
