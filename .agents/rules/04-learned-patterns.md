@@ -18,6 +18,7 @@
 | **LP-007** | Markdown | Relative Repository Paths Only | Never embed host machine absolute paths (`/Users/...` or `file:///Users/...`) in repository markdown files. Always use clean relative project paths (`docs/foo.md`, `ROADMAP.md`). | 2026-10-20 |
 | **LP-008** | SwiftData | Dynamic Query Navigation Destination Trap | Initializing `@Query` inside an inner struct inside `.navigationDestination(for:)` causes delayed or empty queries in iOS 17/18. Use synchronous `modelContext.fetch` on appear with hierarchy fallback instead. | 2026-10-27 |
 | **LP-009** | Spatial LiDAR | Floor Cross-Clamping, VIO Drift Projection & Zero-Thickness Walls | Never clamp wall clear spans with `min(wallSpan, floorPoly)` (causes 90° alcove axis cross-clamping), never apply arbitrary thickness insets to zero-thickness `CapturedRoom.Surface` planes, and project opposing walls along their own length-weighted normal to prevent VIO angular drift errors in rooms > 5m. | 2026-10-28 |
+| **LP-012** | RoomPlan | Interior Partition Perimeter Trap | Prune open interior branches for perimeter validation; retain all walls for fixture clearance. | 2026-10-30 |
 | **LP-010** | 3D Ergonomics | Permissive Dragging with Red Collision Gate | Never hard-freeze or lock furniture translation when intersecting obstacles during drag in cluttered rooms; preserve touch grab offsets, allow free dragging across obstacles, signal collision via a red halo, and block saving until clean. | 2026-10-28 |
 
 ---
@@ -174,3 +175,8 @@
   // Horizontal walls (X > Z): South boundary uses min.z, North boundary uses max.z
   self.roomHorizontalBounds = (interiorMinX, interiorMaxX, interiorMinZ, interiorMaxZ)
   ```
+
+
+### LP-012: RoomPlan Interior Partitions Are Not Perimeter Edges
+* **Context**: A real iPad scan contained a valid eight-segment perimeter plus an interior wall extending from a corner. Requiring every captured wall to join the perimeter falsely reported an incomplete outline.
+* **Rule**: Prune open branches before validating the perimeter cycle, but retain all nondegenerate captured walls for placement clearance. Never discard interior partitions from collision checks or replace incomplete traces with rectangular bounds. Reproduce device wall geometry in regression tests before changing join tolerances.
