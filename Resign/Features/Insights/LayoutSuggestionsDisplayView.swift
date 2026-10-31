@@ -47,6 +47,10 @@ public struct LayoutSuggestionsDisplayView: View {
         return viewModel.layoutInsights[layout.id] ?? []
     }
 
+    private var resolvedRoomUSDZURL: URL? {
+        currentLayout?.resolvedUSDZURL ?? viewModel.currentRoom?.layouts.first?.resolvedUSDZURL
+    }
+
     public var body: some View {
         VStack(spacing: 0) {
             // Header Bar
@@ -57,19 +61,22 @@ public struct LayoutSuggestionsDisplayView: View {
                     // Option Index & Layout Title
                     VStack(alignment: .leading, spacing: 4) {
                         Text("OPTION \(selectedIndex + 1)")
-                            .font(.system(size: 11, weight: .bold))
+                            .font(.caption2.weight(.bold))
                             .foregroundStyle(.secondary)
                             .tracking(0.5)
 
                         Text(currentLayout?.name ?? "Balanced & Spacious")
-                            .font(.system(size: 22, weight: .bold))
+                            .font(.title2.weight(.bold))
                             .foregroundStyle(.primary)
                     }
                     .padding(.horizontal, 20)
                     .padding(.top, 4)
 
                     // 3D Studio Canvas showing the selected layout
-                    Studio3DSuggestionView(viewModel: studioViewModel)
+                    Studio3DSuggestionView(
+                        viewModel: studioViewModel,
+                        usdzURL: resolvedRoomUSDZURL ?? USDZRoomLoader.findBundledMockRoomURL()
+                    )
                         .frame(maxWidth: .infinity)
                         .frame(height: 360)
                         .clipShape(RoundedRectangle(cornerRadius: 20))
@@ -82,7 +89,7 @@ public struct LayoutSuggestionsDisplayView: View {
                     // Layout Variants Option Selector
                     VStack(alignment: .leading, spacing: 10) {
                         Text("Alternative Solutions")
-                            .font(.system(size: 14, weight: .semibold))
+                            .font(.subheadline.weight(.semibold))
                             .foregroundStyle(.secondary)
                             .padding(.horizontal, 20)
 
@@ -104,7 +111,7 @@ public struct LayoutSuggestionsDisplayView: View {
 
                                                 // Isometric room preview representation
                                                 Image(systemName: isSelected ? "cube.transparent.fill" : "cube.transparent")
-                                                    .font(.system(size: 26))
+                                                    .font(.title2)
                                                     .foregroundStyle(isSelected ? Color.blue : Color.secondary)
                                             }
                                             .frame(width: 88, height: 74)
@@ -114,7 +121,7 @@ public struct LayoutSuggestionsDisplayView: View {
                                             )
 
                                             Text("Option \(index + 1)")
-                                                .font(.system(size: 12, weight: isSelected ? .bold : .medium))
+                                                .font(.caption.weight(isSelected ? .bold : .medium))
                                                 .foregroundStyle(isSelected ? Color.primary : Color.secondary)
                                         }
                                     }
@@ -125,6 +132,46 @@ public struct LayoutSuggestionsDisplayView: View {
                         }
                     }
                     .padding(.top, 4)
+
+                    // Dynamic Grounded Layout Insights for Selected Variant
+                    if !currentInsights.isEmpty {
+                        VStack(alignment: .leading, spacing: 10) {
+                            Button {
+                                withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                                    isInsightsExpanded.toggle()
+                                }
+                            } label: {
+                                HStack {
+                                    Text("Why This Layout Works")
+                                        .font(.subheadline.weight(.semibold))
+                                        .foregroundStyle(.secondary)
+                                    Spacer()
+                                    Image(systemName: isInsightsExpanded ? "chevron.up" : "chevron.down")
+                                        .font(.caption.weight(.semibold))
+                                        .foregroundStyle(.secondary)
+                                }
+                                .frame(minHeight: 44)
+                                .contentShape(Rectangle())
+                            }
+                            .buttonStyle(.plain)
+                            .padding(.horizontal, 20)
+
+                            if isInsightsExpanded {
+                                LazyVGrid(
+                                    columns: [
+                                        GridItem(.flexible(), spacing: 12),
+                                        GridItem(.flexible(), spacing: 12)
+                                    ],
+                                    spacing: 12
+                                ) {
+                                    ForEach(currentInsights) { insight in
+                                        insightCard(for: insight)
+                                    }
+                                }
+                                .padding(.horizontal, 16)
+                            }
+                        }
+                    }
 
                     // Bottom Spacing for Floating Action Bar
                     Spacer().frame(height: 90)
@@ -140,7 +187,7 @@ public struct LayoutSuggestionsDisplayView: View {
                                 onStartOver()
                             } label: {
                                 Text("Start Over")
-                                    .font(.system(size: 15, weight: .semibold))
+                                    .font(.subheadline.weight(.semibold))
                                     .foregroundStyle(.secondary)
                                     .frame(height: 50)
                                     .padding(.horizontal, 16)
@@ -158,7 +205,7 @@ public struct LayoutSuggestionsDisplayView: View {
                                 Image(systemName: "checkmark")
                                 Text("Apply This Layout")
                             }
-                            .font(.system(size: 16, weight: .semibold))
+                            .font(.headline)
                             .foregroundStyle(.white)
                             .frame(maxWidth: .infinity)
                             .frame(height: 50)
@@ -201,18 +248,18 @@ public struct LayoutSuggestionsDisplayView: View {
                     .frame(width: 32, height: 32)
 
                 Image(systemName: iconName(for: insight.category))
-                    .font(.system(size: 15))
+                    .font(.subheadline)
                     .foregroundStyle(badgeTint(for: insight.category))
             }
 
             VStack(alignment: .leading, spacing: 3) {
                 Text(insight.title)
-                    .font(.system(size: 13, weight: .bold))
+                    .font(.footnote.weight(.bold))
                     .foregroundStyle(.primary)
                     .lineLimit(1)
 
                 Text(insight.detail)
-                    .font(.system(size: 11))
+                    .font(.caption2)
                     .foregroundStyle(.secondary)
                     .lineLimit(3)
                     .lineSpacing(2)
@@ -260,16 +307,17 @@ public struct LayoutSuggestionsDisplayView: View {
                 onBack()
             } label: {
                 Image(systemName: "chevron.left")
-                    .font(.system(size: 16, weight: .semibold))
+                    .font(.headline)
                     .foregroundStyle(.primary)
-                    .frame(width: 36, height: 36)
+                    .frame(minWidth: 44, minHeight: 44)
                     .contentShape(Rectangle())
             }
+            .accessibilityLabel("Back")
 
             Spacer()
 
             Text("Layout Suggestions")
-                .font(.system(size: 16, weight: .bold))
+                .font(.headline)
                 .foregroundStyle(.primary)
 
             Spacer()
@@ -284,13 +332,16 @@ public struct LayoutSuggestionsDisplayView: View {
                 ZStack {
                     Circle()
                         .fill(Color.blue)
-                        .frame(width: 30, height: 30)
+                        .frame(width: 32, height: 32)
 
                     Image(systemName: "checkmark")
-                        .font(.system(size: 14, weight: .bold))
+                        .font(.footnote.weight(.bold))
                         .foregroundStyle(.white)
                 }
+                .frame(minWidth: 44, minHeight: 44)
+                .contentShape(Rectangle())
             }
+            .accessibilityLabel("Apply Layout")
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 8)
