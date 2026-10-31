@@ -23,6 +23,13 @@ public final class DashboardViewModel {
     }
 
     public func deleteRoom(_ room: Room, context: ModelContext) {
+        let roomID = room.id
+        if let docsDir = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first {
+            let roomDir = docsDir.appendingPathComponent("Rooms/\(roomID)", isDirectory: true)
+            if FileManager.default.fileExists(atPath: roomDir.path) {
+                try? FileManager.default.removeItem(at: roomDir)
+            }
+        }
         context.delete(room)
         try? context.save()
     }
