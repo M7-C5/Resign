@@ -265,7 +265,7 @@ public final class Studio3DViewModel {
         let candidate = FurnitureCollisionProxy(
             id: furniture.id,
             category: furniture.category,
-            position: SIMD3<Float>(clamped.x, furniture.positionY, clamped.y),
+            position: SIMD3<Float>(clamped.x, max(0.0, furniture.positionY), clamped.y),
             dimensions: SIMD3<Float>(furniture.width, furniture.height, furniture.length),
             rotationYaw: nextYaw
         )
@@ -276,7 +276,7 @@ public final class Studio3DViewModel {
                 FurnitureCollisionProxy(
                     id: f.id,
                     category: f.category,
-                    position: SIMD3<Float>(f.positionX, f.positionY, f.positionZ),
+                    position: SIMD3<Float>(f.positionX, max(0.0, f.positionY), f.positionZ),
                     dimensions: SIMD3<Float>(f.width, f.height, f.length),
                     rotationYaw: f.rotationYaw
                 )
@@ -395,7 +395,7 @@ public final class Studio3DViewModel {
         let candidate = FurnitureCollisionProxy(
             id: furniture.id,
             category: furniture.category,
-            position: SIMD3<Float>(clamped.x, furniture.positionY, clamped.y),
+            position: SIMD3<Float>(clamped.x, max(0.0, furniture.positionY), clamped.y),
             dimensions: SIMD3<Float>(furniture.width, furniture.height, furniture.length),
             rotationYaw: furniture.rotationYaw
         )
@@ -405,7 +405,7 @@ public final class Studio3DViewModel {
                 FurnitureCollisionProxy(
                     id: f.id,
                     category: f.category,
-                    position: SIMD3<Float>(f.positionX, f.positionY, f.positionZ),
+                    position: SIMD3<Float>(f.positionX, max(0.0, f.positionY), f.positionZ),
                     dimensions: SIMD3<Float>(f.width, f.height, f.length),
                     rotationYaw: f.rotationYaw
                 )

@@ -248,4 +248,96 @@ struct SpatialClearanceEngineTests {
         #expect(noSnap.didSnap == false)
         #expect(abs(noSnap.yaw - 0.80) < 0.001)
     }
+
+    @Test func verticalStackingAllowsTVOnTopOfConsoleAndBlocksTallWardrobeCollisions() {
+        // Media console resting on floor (positionY = 0.0, height = 0.50 -> spans [0.0, 0.50])
+        let console = FurnitureCollisionProxy(
+            id: UUID(),
+            category: "closet",
+            position: SIMD3<Float>(0, 0.0, 0),
+            dimensions: SIMD3<Float>(1.4, 0.50, 0.45),
+            rotationYaw: 0
+        )
+
+        // Television resting directly on top of console (positionY = 0.50, height = 0.65 -> spans [0.50, 1.15])
+        let tvOnConsole = FurnitureCollisionProxy(
+            id: UUID(),
+            category: "television",
+            position: SIMD3<Float>(0, 0.50, 0),
+            dimensions: SIMD3<Float>(1.2, 0.65, 0.15),
+            rotationYaw: 0
+        )
+
+        #expect(SpatialClearanceEngine.checkCollision(itemA: console, itemB: tvOnConsole) == false)
+
+        // Tall wardrobe resting on floor (positionY = 0.0, height = 2.0 -> spans [0.0, 2.0])
+        let wardrobe = FurnitureCollisionProxy(
+            id: UUID(),
+            category: "closet",
+            position: SIMD3<Float>(0, 0.0, 0),
+            dimensions: SIMD3<Float>(1.2, 2.0, 0.60),
+            rotationYaw: 0
+        )
+
+        // Wall shelf mounted at Y = 1.35m (spans [1.35, 1.70]), overlapping upper half of wardrobe
+        let wallShelf = FurnitureCollisionProxy(
+            id: UUID(),
+            category: "closet",
+            position: SIMD3<Float>(0, 1.35, 0),
+            dimensions: SIMD3<Float>(1.0, 0.35, 0.35),
+            rotationYaw: 0
+        )
+
+        #expect(SpatialClearanceEngine.checkCollision(itemA: wardrobe, itemB: wallShelf) == true)
+    }
+
+    @Test func polygonClampingBridgesDoorwayGapsAndIgnoresOpenWallFragments() {
+        // L-shaped room where the East wall has a 0.80m doorway gap from Z = -1.2 to Z = -0.4
+        let wallsWithDoorGap: [RoomPlanSnapshot.WallSegment] = [
+            .init(startX: -2.0, startZ: -2.0, endX: 3.0, endZ: -2.0),
+            .init(startX: 3.0, startZ: -2.0, endX: 3.0, endZ: -1.2), // Doorway gap [-1.2, -0.4]
+            .init(startX: 3.0, startZ: -0.4, endX: 3.0, endZ: 0.0),
+            .init(startX: 3.0, startZ: 0.0, endX: 0.0, endZ: 0.0),
+            .init(startX: 0.0, startZ: 0.0, endX: 0.0, endZ: 2.0),
+            .init(startX: 0.0, startZ: 2.0, endX: -2.0, endZ: 2.0),
+            .init(startX: -2.0, startZ: 2.0, endX: -2.0, endZ: -2.0)
+        ]
+
+        // Interior point at (1.5, -0.8) directly aligned with the doorway gap at Z = -0.8
+        // Without gap bridging, a +X ray passes through the doorway gap and falsely reports outside!
+        let interiorAlignedWithDoor = SIMD2<Float>(1.5, -0.8)
+        #expect(SpatialClearanceEngine.isPointInsidePolygon(interiorAlignedWithDoor, walls: wallsWithDoorGap) == true)
+
+        let clampedInside = SpatialClearanceEngine.clampToRoomBoundaries(
+            position: interiorAlignedWithDoor,
+            furnitureWidth: 0.6,
+            furnitureLength: 0.6,
+            rotationYaw: 0,
+            minX: -2.0,
+            maxX: 3.0,
+            minZ: -2.0,
+            maxZ: 2.0,
+            walls: wallsWithDoorGap
+        )
+        #expect(simd_distance(clampedInside, interiorAlignedWithDoor) < 0.01)
+
+        // Incomplete scan with only 2 disconnected wall segments must fallback to bounding box without teleporting
+        let openFragments: [RoomPlanSnapshot.WallSegment] = [
+            .init(startX: -2.0, startZ: -2.0, endX: 2.0, endZ: -2.0),
+            .init(startX: -2.0, startZ: 2.0, endX: 2.0, endZ: 2.0)
+        ]
+        let centerPoint = SIMD2<Float>(0.5, 0.5)
+        let clampedOpen = SpatialClearanceEngine.clampToRoomBoundaries(
+            position: centerPoint,
+            furnitureWidth: 0.6,
+            furnitureLength: 0.6,
+            rotationYaw: 0,
+            minX: -2.0,
+            maxX: 2.0,
+            minZ: -2.0,
+            maxZ: 2.0,
+            walls: openFragments
+        )
+        #expect(simd_distance(clampedOpen, centerPoint) < 0.01)
+    }
 }
