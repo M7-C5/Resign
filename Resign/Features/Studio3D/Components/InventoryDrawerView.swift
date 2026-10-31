@@ -101,7 +101,7 @@ public struct InventoryDrawerView: View {
 
                 if !archivedFurnitures.isEmpty {
                     Text("\(archivedFurnitures.count)")
-                        .font(.system(size: 10, weight: .bold))
+                        .font(.caption2.weight(.bold))
                         .foregroundStyle(.white)
                         .padding(.horizontal, 5)
                         .padding(.vertical, 2)
@@ -141,12 +141,12 @@ public struct InventoryItemCard: View {
         GeometryReader { geo in
             VStack(spacing: 4) {
                 Image(systemName: categorySystemImage(for: furniture.category))
-                    .font(.system(size: 20))
+                    .font(.title3)
                     .foregroundStyle(.primary)
                     .frame(height: 24)
 
                 Text(furniture.name)
-                    .font(.system(size: 11, weight: .semibold))
+                    .font(.caption2.weight(.semibold))
                     .foregroundStyle(.primary)
                     .lineLimit(1)
                     .truncationMode(.tail)
@@ -154,7 +154,7 @@ public struct InventoryItemCard: View {
                 let shorter = min(furniture.width, furniture.length)
                 let longer = max(furniture.width, furniture.length)
                 Text(String(format: "%.1f×%.1f m", shorter, longer))
-                    .font(.system(size: 9, weight: .regular, design: .monospaced))
+                    .font(.caption2.monospaced())
                     .foregroundStyle(.secondary)
             }
             .frame(width: 76, height: 86)
