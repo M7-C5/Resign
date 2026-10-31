@@ -56,13 +56,70 @@ public enum SpatialClearanceEngine {
         let clampedZ = validMinZ <= validMaxZ ? min(max(position.y, validMinZ), validMaxZ) : (minZ + maxZ) * 0.5
         let boxClamped = SIMD2<Float>(clampedX, clampedZ)
 
-        guard !walls.isEmpty else {
+        guard let closedWalls = closeWallPolygon(walls) else {
             return boxClamped
         }
 
         // Polygon boundary projection: prevents furniture from penetrating exterior notches
         // while allowing free traversal into the tail of L-shaped spaces and deep alcoves.
-        return projectIntoRoomPolygon(boxClamped, walls: walls, margin: max(0.15, min(extentX, extentZ)))
+        return projectIntoRoomPolygon(boxClamped, walls: closedWalls, margin: max(0.15, min(extentX, extentZ)))
+    }
+
+    /// Stitches small corner or doorway gaps (up to `maxGap` meters) between wall segments
+    /// to form a watertight closed polygon loop. Returns `nil` if the segments represent an
+    /// incomplete or open scan (< 3 walls or unbridgeable open perimeter).
+    public static func closeWallPolygon(
+        _ walls: [RoomPlanSnapshot.WallSegment],
+        maxGap: Float = 1.25
+    ) -> [RoomPlanSnapshot.WallSegment]? {
+        let validWalls = walls.filter {
+            let dx = $0.endX - $0.startX
+            let dz = $0.endZ - $0.startZ
+            return (dx * dx + dz * dz) > 1e-5
+        }
+        guard validWalls.count >= 3 else { return nil }
+
+        let endpoints: [SIMD2<Float>] = validWalls.flatMap {
+            [SIMD2<Float>($0.startX, $0.startZ), SIMD2<Float>($0.endX, $0.endZ)]
+        }
+
+        var pairs: [(u: Int, v: Int, distSq: Float)] = []
+        let maxGapSq = maxGap * maxGap
+        for u in 0..<endpoints.count {
+            for v in (u + 1)..<endpoints.count where (u / 2) != (v / 2) {
+                let dSq = simd_distance_squared(endpoints[u], endpoints[v])
+                if dSq <= maxGapSq {
+                    pairs.append((u, v, dSq))
+                }
+            }
+        }
+        pairs.sort { $0.distSq < $1.distSq }
+
+        var matched = Set<Int>()
+        var stitched = validWalls
+        for pair in pairs {
+            if !matched.contains(pair.u) && !matched.contains(pair.v) {
+                matched.insert(pair.u)
+                matched.insert(pair.v)
+                if pair.distSq > 1e-6 {
+                    let ptU = endpoints[pair.u]
+                    let ptV = endpoints[pair.v]
+                    stitched.append(
+                        RoomPlanSnapshot.WallSegment(
+                            startX: ptU.x,
+                            startZ: ptU.y,
+                            endX: ptV.x,
+                            endZ: ptV.y
+                        )
+                    )
+                }
+            }
+        }
+
+        guard matched.count == endpoints.count else {
+            return nil
+        }
+        return stitched
     }
 
     /// Evaluates whether a 2D floor position lies inside an arbitrary room polygon using ray-casting.
@@ -70,8 +127,9 @@ public enum SpatialClearanceEngine {
         _ point: SIMD2<Float>,
         walls: [RoomPlanSnapshot.WallSegment]
     ) -> Bool {
+        let effectiveWalls = closeWallPolygon(walls) ?? walls
         var inside = false
-        for wall in walls {
+        for wall in effectiveWalls {
             if (wall.startZ > point.y) != (wall.endZ > point.y) {
                 let crossingX = wall.startX + (point.y - wall.startZ)
                     * (wall.endX - wall.startX) / (wall.endZ - wall.startZ)
@@ -89,14 +147,15 @@ public enum SpatialClearanceEngine {
         walls: [RoomPlanSnapshot.WallSegment],
         margin: Float = 0.20
     ) -> SIMD2<Float> {
-        if isPointInsidePolygon(point, walls: walls) {
+        let effectiveWalls = closeWallPolygon(walls) ?? walls
+        if isPointInsidePolygon(point, walls: effectiveWalls) {
             return point
         }
 
         var bestCandidate = point
         var minDistance: Float = .greatestFiniteMagnitude
 
-        for wall in walls {
+        for wall in effectiveWalls {
             let dx = wall.endX - wall.startX
             let dz = wall.endZ - wall.startZ
             let segLenSq = dx * dx + dz * dz
@@ -112,7 +171,7 @@ public enum SpatialClearanceEngine {
 
             for sign: Float in [-1.0, 1.0] {
                 let cand = SIMD2<Float>(projX + sign * nx * margin, projZ + sign * nz * margin)
-                if isPointInsidePolygon(cand, walls: walls) {
+                if isPointInsidePolygon(cand, walls: effectiveWalls) {
                     let d = simd_distance(point, cand)
                     if d < minDistance {
                         minDistance = d
@@ -182,11 +241,11 @@ public enum SpatialClearanceEngine {
     ) -> Bool {
         guard itemA.id != itemB.id else { return false }
 
-        // 1. Vertical interval check (allows vertical stacking like TV on console)
-        let topA = itemA.position.y + itemA.dimensions.y * 0.5
-        let botA = itemA.position.y - itemA.dimensions.y * 0.5
-        let topB = itemB.position.y + itemB.dimensions.y * 0.5
-        let botB = itemB.position.y - itemB.dimensions.y * 0.5
+        // 1. Vertical interval check (position.y is the base Y of the furniture)
+        let botA = itemA.position.y
+        let topA = itemA.position.y + itemA.dimensions.y
+        let botB = itemB.position.y
+        let topB = itemB.position.y + itemB.dimensions.y
 
         let verticalOverlap = min(topA, topB) - max(botA, botB)
         guard verticalOverlap > 0.05 else { return false }
