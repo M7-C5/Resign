@@ -8,8 +8,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- feat(studio3d): support full envelope traversal and polygon clamping in irregular rooms (b96242e)
-- feat(spatial): deduplicate chair components, filter wall artifacts, and add table clearance (4dbb614)
+- feat(lighting): adapt lighting setup and simulation workspaces across iPad and iPhone (b09fe9b)
+- feat(lighting): add neutral layout-only room preview until lighting simulation is enabled (0396239)
+- feat(spatial): support aperture-aware ceiling outlines and interior wall partitions (6f4c0b7)
+- feat(studio3d): support full envelope traversal and polygon clamping in irregular rooms (8347c23)
+- feat(spatial): deduplicate chair components, filter wall artifacts, and add table clearance (c7c2905)
 - feat(studio-3d): implement inventory system and interactive drag-to-archive (5af0572)
 - feat(studio-3d): add viewport presets snapping menu to studio controls (91d942a)
 - feat(studio-3d): implement dynamic wall cutaway engine and smooth orbit interpolation (6fe2132)
@@ -43,8 +46,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - feat(testing): add in-memory ModelContainer fixture and SwiftData unit tests (b4daaff)
 
 ### Changed
-- refactor(studio): decompose 3D studio view hierarchy and enforce HIG touch targets and dynamic type (d3c7245)
-- refactor(scan): enforce main-actor capture lifecycle, static SwiftData fetch, and dollhouse viewport decomposition (39dde27)
+- refactor(navigation): remove standalone post-scan compass screen from room creation flow (2289b47)
+- refactor(studio): decompose 3D studio view hierarchy and enforce HIG touch targets and dynamic type (47da4a6)
+- refactor(scan): enforce main-actor capture lifecycle, static SwiftData fetch, and dollhouse viewport decomposition (89e3800)
 - refactor(agents): renumber domain rule sequence and correct tool triage references (59f6549)
 - refactor(agents): deduplicate design audit checklists and streamline feature lifecycle in project directives (353fe53)
 - refactor(dashboard): integrate SwiftData models and decompose layout components (edbbe38)
@@ -53,10 +57,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - refactor(arch): scaffold vertical feature-slice architecture with skeleton modules (3419a7d)
 
 ### Fixed
-- fix(studio): configure scanned room window lighting and prevent mock furniture seeding in empty scans (6a3a6d8)
-- fix(spatial): align vertical collision intervals to floor base and close doorway gaps in polygon clamping (4904d78)
-- fix(persistence): resolve scanned room USDZ URLs across sandbox relocations and clean up deleted room directories (0869ade)
-- fix(spatial): normalize furniture coordinates at ingestion and suppress baked meshes (41ddc60)
+- fix(studio): configure scanned room window lighting and prevent mock furniture seeding in empty scans (7bd48bd)
+- fix(spatial): align vertical collision intervals to floor base and close doorway gaps in polygon clamping (3d1d948)
+- fix(persistence): resolve scanned room USDZ URLs across sandbox relocations and clean up deleted room directories (2932d24)
+- fix(spatial): normalize furniture coordinates at ingestion and suppress baked meshes (9078568)
 - fix(spatial): ensure longer dimension is length on dimension display and room mapping (e1a7adf)
 - fix(studio3d): normalize scanned room square orientation and center origin (759dc11)
 - fix(spatial): project opposing walls along pair normal and eliminate artificial skin inset (8052c40)
@@ -83,6 +87,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - fix(lighting-simulation): shape natural light to the window (5fbb493)
 
 ### Documentation
+- docs(adr): record adaptive lighting workspace, ceiling outline, and compass removal decisions (bf557e3)
+- docs(changelog): update automated release notes (02b6294)
 - docs(adr): document studio 3d inventory and drag archival in adr 0028 (8f7f08d)
 - docs(adr): record scanned room square orientation and centered origin normalization (e1161c9)
 - docs(adr): document viewport snapping and dynamic wall cutaways in adr 0026 (6a6449e)
@@ -116,8 +122,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - docs: add agentic playbook, architecture blueprint, and changelog (178cddb)
 
 ### Tooling & Maintenance
-- chore(release): update changelog for spatial coordinate alignment and irregular room navigation (508b1a6)
-- build(ci): add line buffering to verification test pipe (a02c863)
+- chore(release): update changelog for spatial coordinate alignment and irregular room navigation (3454409)
+- build(ci): add line buffering to verification test pipe (7ab3944)
 - chore(release): update changelog for 3d studio inventory system (e957708)
 - test(studio-3d): verify furniture archival, restoration, and collision exclusion (0943801)
 - chore(release): update changelog for dimension display length fix (ffe034d)
