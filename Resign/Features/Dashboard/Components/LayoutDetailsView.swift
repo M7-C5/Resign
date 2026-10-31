@@ -32,7 +32,7 @@ public struct LayoutDetailsView: View {
                 if room.layouts.isEmpty {
                     VStack(spacing: 12) {
                         Image(systemName: "square.split.2x2")
-                            .font(.system(size: 40))
+                            .font(.largeTitle)
                             .foregroundStyle(.secondary)
                             .padding(.top, 40)
 
@@ -95,7 +95,7 @@ public struct LayoutDetailsView: View {
                                     layoutToDelete = layout
                                 } label: {
                                     Image(systemName: "trash")
-                                        .font(.system(size: 18))
+                                        .font(.headline)
                                         .foregroundStyle(.white)
                                         .frame(width: 44, height: 44)
                                         .background(Color.red, in: Circle())
@@ -124,6 +124,22 @@ public struct LayoutDetailsView: View {
                             .foregroundStyle(.white)
                         }
                         .padding(.top, 8)
+
+                        NavigationLink {
+                            SpatialJourneyFlowView(room: room, initialLayout: selected)
+                        } label: {
+                            HStack(spacing: 8) {
+                                Image(systemName: "sparkles")
+                                    .font(.headline)
+                                Text("AI Spatial Diagnostics & Suggestions")
+                                    .font(.subheadline.weight(.semibold))
+                            }
+                            .frame(maxWidth: .infinity)
+                            .frame(minHeight: 44)
+                            .background(Color.accentColor.opacity(0.14), in: RoundedRectangle(cornerRadius: 14))
+                            .foregroundStyle(Color.accentColor)
+                        }
+                        .padding(.top, 4)
 
                         NavigationLink {
                             LightingSetupView(layout: selected)
@@ -268,6 +284,12 @@ public struct LayoutDetailsView: View {
         switch layoutTitle {
         case "Original":
             return "Original Layout"
+        case LayoutOptimizerEngine.circadianName:
+            return "Natural Daylight & Ergonomics"
+        case LayoutOptimizerEngine.openFlowName:
+            return "Maximized Circulation Corridors"
+        case LayoutOptimizerEngine.sanctuaryName:
+            return "Shielded Rest & Command Position"
         case "Option 1":
             return "Balanced and Spacious"
         case "Option 2":

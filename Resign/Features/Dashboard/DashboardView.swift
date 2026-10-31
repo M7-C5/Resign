@@ -159,7 +159,7 @@ public struct DashboardView: View {
                     isShowingRoomCreation = true
                 } label: {
                     Image(systemName: "plus")
-                        .font(.system(size: 24, weight: .semibold))
+                        .font(.title2.weight(.semibold))
                         .frame(width: 52, height: 52)
                 }
                 .buttonStyle(.borderedProminent)
@@ -209,7 +209,7 @@ public struct DashboardView: View {
                         Spacer()
 
                         Image(systemName: "arrow.right.circle.fill")
-                            .font(.system(size: 26))
+                            .font(.title2)
                             .foregroundStyle(.white)
                     }
 
@@ -295,7 +295,7 @@ public struct DashboardView: View {
             if scannedRooms.isEmpty {
                 VStack(spacing: 12) {
                     Image(systemName: "camera.metering.matrix")
-                        .font(.system(size: 34))
+                        .font(.largeTitle)
                         .foregroundStyle(.secondary)
 
                     Text("No Scanned Rooms Yet")
