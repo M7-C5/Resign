@@ -40,6 +40,12 @@ This directory documents key architectural decisions for **Resign** using the [M
 - [ADR 0034: Aperture-Aware Scanned Ceiling Outline](0034-aperture-aware-ceiling-outline.md)
 - [ADR 0035: Separate Ceiling Perimeter Reconstruction from Interior Wall Partitions](0035-ceiling-perimeter-and-interior-walls.md)
 - [ADR 0036: Remove Standalone Compass from Post-Scan Flow](0036-remove-standalone-compass.md)
+- [ADR 0037: Panero & Zelnik Spatial Clearance Engine and AI Diagnostic Pipeline](0037-panero-zelnik-spatial-diagnostics-and-ai-pipeline.md)
+- [ADR 0038: Dynamic USDZ Room Parsing via ModelIO (`MDLAsset`)](0038-dynamic-usdz-room-parsing-via-modelio.md)
+- [ADR 0039: Apple Foundation Models On-Device Spatial Diagnostics (`@Generable`)](0039-apple-foundation-models-on-device-diagnostics.md)
+- [ADR 0040: Structured Room Preferences and Grounded Layout Insights](0040-structured-room-preferences-and-grounded-layout-insights.md)
+- [ADR 0041: Dynamic Parametric Spatial Solver and Architectural Perimeter Zoning](0041-dynamic-parametric-spatial-solver-and-perimeter-zoning.md)
+- [ADR 0042: Foundation Model Tool Calling and Validated Layout Solver](0042-foundation-model-tool-calling-and-validated-layout-solver.md)
 
 ## How to Create a New ADR
 1. Copy [template.md](template.md) to `docs/adr/NNNN-title-in-kebab-case.md`.
