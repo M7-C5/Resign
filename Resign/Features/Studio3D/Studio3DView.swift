@@ -5,9 +5,11 @@ import SwiftData
 public struct Studio3DView: View {
     private let layoutID: UUID?
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @State private var viewModel = Studio3DViewModel()
     @State private var controller = RoomSceneController()
     @State private var snapFeedbackTrigger = false
+    @State private var usesInlineLightingPanel = false
     @Query(sort: \Layout.updatedAt, order: .reverse) private var layouts: [Layout]
 
     public init(layoutID: UUID? = nil) {
@@ -44,17 +46,49 @@ public struct Studio3DView: View {
     public var body: some View {
         @Bindable var viewModel = viewModel
 
-        ZStack(alignment: .topTrailing) {
-            viewportLayer
-                .padding(.bottom, viewModel.isLightingPresented ? LightingSimulationSheet.collapsedHeight + 20 : 0)
+        GeometryReader { geometry in
+            let workspace = LightingWorkspaceLayout(
+                size: geometry.size,
+                accessibilityText: dynamicTypeSize.isAccessibilitySize
+            )
+            HStack(spacing: 0) {
+                ZStack(alignment: .topTrailing) {
+                    if layoutID != nil, selectedLayout == nil {
+                        ContentUnavailableView("Layout Not Found", systemImage: "cube")
+                    } else {
+                        viewportLayer
+                            .padding(.bottom, workspace.simulationBottomInset(isEditing: viewModel.isLightingPresented))
+                    }
 
-            topTrailingControls
-                .padding()
+                    topTrailingControls
+                        .padding()
 
-            bottomControlsBar
+                    bottomControlsBar
+                        .padding(.bottom, workspace.simulationBottomInset(isEditing: viewModel.isLightingPresented))
+                }
+                .frame(maxWidth: .infinity)
+
+                if workspace.usesSidePanel && viewModel.isLightingPresented {
+                    LightingSimulationControls(
+                        settings: $viewModel.lightingDraft,
+                        onCancel: { viewModel.discardLightingEditing() },
+                        onConfirm: { viewModel.confirmLightingEditing() }
+                    )
+                    .frame(width: workspace.panelWidth)
+                    .background(.regularMaterial)
+                }
+            }
+            .onChange(of: workspace.usesSidePanel, initial: true) { _, usesSidePanel in
+                usesInlineLightingPanel = usesSidePanel
+            }
         }
-        .sheet(isPresented: $viewModel.isLightingPresented, onDismiss: {
-            viewModel.sheetDidDismiss()
+        .sheet(isPresented: Binding(
+            get: { viewModel.isLightingPresented && !usesInlineLightingPanel },
+            set: { presented in
+                if !presented && !usesInlineLightingPanel { viewModel.discardLightingEditing() }
+            }
+        ), onDismiss: {
+            if !usesInlineLightingPanel { viewModel.sheetDidDismiss() }
         }) {
             LightingSimulationSheet(
                 settings: $viewModel.lightingDraft,
@@ -152,7 +186,7 @@ public struct Studio3DView: View {
     }
 
     private var topTrailingControls: some View {
-        HStack(spacing: 12) {
+        HStack(alignment: .top, spacing: 12) {
             Menu {
                 ForEach(ViewportPreset.allCases) { preset in
                     if preset == .dollhouse {
@@ -173,16 +207,42 @@ public struct Studio3DView: View {
             }
             .accessibilityLabel("Viewport Presets")
 
+            simulationButtons
+        }
+    }
+
+    private var simulationButtons: some View {
+        VStack(alignment: .trailing, spacing: 8) {
             Button {
-                viewModel.beginLightingEditing()
+                viewModel.toggleLightingSimulation()
             } label: {
-                Image(systemName: "lightbulb")
-                    .font(.body)
-                    .foregroundStyle(.primary)
+                Image(systemName: viewModel.isSimulationEnabled ? "lightbulb.fill" : "lightbulb")
+                    .font(.body.weight(.semibold))
+                    .foregroundStyle(viewModel.isSimulationEnabled ? Color.white : Color.primary)
                     .frame(width: 44, height: 44)
-                    .background(.regularMaterial, in: Circle())
+                    .background {
+                        Circle().fill(viewModel.isSimulationEnabled ? Color.blue : Color(.secondarySystemBackground))
+                    }
             }
-            .accessibilityLabel("Lighting Simulation")
+            .buttonStyle(.plain)
+            .accessibilityLabel("Light Simulation")
+            .accessibilityValue(viewModel.isSimulationEnabled ? "On" : "Off")
+            .accessibilityHint(viewModel.isSimulationEnabled ? "Turn off simulation and return to a neutral layout" : "Turn on lighting simulation")
+            .disabled(layoutID != nil && selectedLayout == nil)
+
+            if viewModel.isSimulationEnabled {
+                Button {
+                    viewModel.beginLightingEditing()
+                } label: {
+                    Image(systemName: "slider.horizontal.3")
+                        .font(.body)
+                        .foregroundStyle(.primary)
+                        .frame(width: 44, height: 44)
+                        .background(.regularMaterial, in: Circle())
+                }
+                .accessibilityLabel("Configure lighting simulation")
+                .disabled(viewModel.isLightingPresented)
+            }
         }
     }
 
