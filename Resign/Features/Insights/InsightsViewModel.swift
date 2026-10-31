@@ -7,6 +7,7 @@
 
 import Foundation
 import Observation
+import SwiftData
 
 @MainActor
 @Observable
@@ -172,6 +173,18 @@ public final class InsightsViewModel {
 
     public func selectLayout(_ layout: Layout) {
         self.selectedLayout = layout
+    }
+
+    public func applySelectedLayout(context: ModelContext? = nil) {
+        guard let selected = selectedLayout else { return }
+        self.activeLayout = selected
+        if let room = currentRoom {
+            if !room.layouts.contains(where: { $0.id == selected.id }) {
+                room.layouts.append(selected)
+            }
+            room.updatedAt = Date()
+            try? context?.save()
+        }
     }
 
     public func clearHighlights() {
