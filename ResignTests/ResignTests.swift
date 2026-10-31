@@ -433,10 +433,10 @@ struct LayoutLightingSimulationIntegrationTests {
     }
 
     @Test @MainActor func fixtureExposurePreservesLumenRatiosAndSwitches() throws {
-        let saved = Light(brightness: 1080, colorTemp: 4000)
+        let saved = Light(brightness: 600, colorTemp: 4000)
         let first = RoomLightingFixture(light: saved)
         let second = RoomLightingFixture(name: "Twice as bright", position: [1, 2.6, 0],
-                                         brightness: 2160, colorTemperatureKelvin: 4000)
+                                         brightness: 1200, colorTemperatureKelvin: 4000)
         let dark = RoomLightingFixture(name: "Zero output", position: [-1, 2.6, 0],
                                        brightness: 0, colorTemperatureKelvin: 4000)
         let rig = RoomLightingRig(fixtures: [first, second, dark])
@@ -452,7 +452,7 @@ struct LayoutLightingSimulationIntegrationTests {
         #expect(fill.light.intensity >= spot.light.intensity * 0.4)
         #expect(fill.position.y < spot.position.y)
         #expect(!zero.isEnabled && zero.light.intensity == 0)
-        #expect(saved.brightness == 1080 && saved.colorTemp == 4000)
+        #expect(saved.brightness == 600 && saved.colorTemp == 4000)
         rig.apply(LightingSimulationSettings(artificialLightsOn: false, minuteOfDay: 0))
         #expect(!spot.isEnabled && spot.light.intensity == 0)
         #expect(!fill.isEnabled && fill.light.intensity == 0)
@@ -460,55 +460,8 @@ struct LayoutLightingSimulationIntegrationTests {
 
 }
 
-@Suite("Room north orientation")
+@Suite("Saved room bearings")
 struct RoomNorthOrientationTests {
-    @Test func northLockRequiresTwoContinuousSecondsWithinTolerance() {
-        let start = Date(timeIntervalSince1970: 1_000)
-        var calibration = NorthAlignmentCalibration()
-
-        let firstUpdate = calibration.update(headingDegrees: 5, at: start)
-        #expect(!firstUpdate)
-        #expect(calibration.progress(at: start.addingTimeInterval(1)) == 0.5)
-        let earlySample = calibration.update(headingDegrees: 5, at: start.addingTimeInterval(1.9))
-        #expect(!earlySample)
-        let locked = calibration.update(headingDegrees: 5, at: start.addingTimeInterval(2))
-        #expect(locked)
-        #expect(calibration.isLocked)
-    }
-
-    @Test func leavingNorthWindowResetsTheHoldAndWrapsAtZeroDegrees() {
-        let start = Date(timeIntervalSince1970: 2_000)
-        var calibration = NorthAlignmentCalibration()
-
-        let northSample = calibration.update(headingDegrees: 359, at: start)
-        #expect(!northSample)
-        let offNorthSample = calibration.update(headingDegrees: 18, at: start.addingTimeInterval(1))
-        #expect(!offNorthSample)
-        #expect(calibration.progress(at: start.addingTimeInterval(1)) == 0)
-        let newNorthSample = calibration.update(headingDegrees: 1, at: start.addingTimeInterval(2))
-        #expect(!newNorthSample)
-        let relocked = calibration.update(headingDegrees: 1, at: start.addingTimeInterval(4))
-        #expect(relocked)
-    }
-
-    @Test func poorHeadingAccuracyCannotStartTheNorthHold() {
-        let start = Date(timeIntervalSince1970: 3_000)
-        var calibration = NorthAlignmentCalibration()
-
-        let unreliable = calibration.update(headingDegrees: 0, accuracyDegrees: 12, at: start)
-        #expect(!unreliable)
-        #expect(calibration.progress(at: start.addingTimeInterval(1)) == 0)
-
-        let reliable = calibration.update(headingDegrees: 0, accuracyDegrees: 4, at: start.addingTimeInterval(1))
-        #expect(!reliable)
-        let locksAfterReliableHold = calibration.update(
-            headingDegrees: 0,
-            accuracyDegrees: 4,
-            at: start.addingTimeInterval(3)
-        )
-        #expect(locksAfterReliableHold)
-    }
-
     @Test func planArrowBearingMapsToClockwiseRoomHeading() {
         #expect(NorthAlignmentCalibration.roomHeadingDegrees(northArrowPlanRotationDegrees: 0) == 0)
         #expect(NorthAlignmentCalibration.roomHeadingDegrees(northArrowPlanRotationDegrees: 90) == 270)
@@ -524,7 +477,7 @@ struct LightingSimulationModalTests {
         model.beginLightingEditing()
         model.lightingDraft.artificialLightsOn = true
         model.lightingDraft.minuteOfDay = 1140
-        #expect(model.lightingSettings == LightingSimulationSettings())
+        #expect(model.lightingSettings == LightingSimulationSettings(previewMode: .layoutOnly))
         model.confirmLightingEditing()
         #expect(!model.isLightingPresented)
         model.beginLightingEditing()
@@ -551,6 +504,7 @@ struct LightingSimulationModalTests {
         let model = Studio3DViewModel()
         #expect(!model.lightingSettings.artificialLightsOn)
         #expect(model.lightingSettings.timeLabel == "12.00")
+        #expect(!model.isSimulationEnabled)
         #expect(!model.isLightingPresented)
     }
 
@@ -985,17 +939,118 @@ struct CeilingGridScanBoundsTests {
 
 @Suite("Adaptive ceiling placement")
 struct AdaptiveCeilingPlacementTests {
+    @Test func capturedIPadPerimeterRemainsUsableWithDanglingInteriorWall() {
+        typealias Wall = RoomPlanSnapshot.WallSegment
+        // Geometry reproduced from the failing device scan; final segment is an interior branch.
+        let walls = [
+            Wall(startX: -3.7050776, startZ: -2.5738444, endX: 3.571476, endZ: -2.5738442),
+            Wall(startX: 4.028597, startZ: 2.0562587, endX: -2.4675984, endZ: 3.09143),
+            Wall(startX: -2.4675984, startZ: 3.09143, endX: -2.6528327, endZ: 1.9289935),
+            Wall(startX: -2.652833, startZ: 1.9289933, endX: -3.3920336, endZ: 2.046785),
+            Wall(startX: 3.571476, startZ: -2.5738442, endX: 4.028597, endZ: 2.056259),
+            Wall(startX: -3.3920336, startZ: 2.0467846, endX: -3.9106367, endZ: -1.2077016),
+            Wall(startX: -3.6894364, startZ: -1.2429498, endX: -3.7050784, endZ: -2.5738444),
+            Wall(startX: -3.9106367, startZ: -1.2077014, endX: -3.6894364, endZ: -1.2429498),
+            Wall(startX: -3.6894362, startZ: -1.2429497, endX: 1.184261, endZ: -2.0195749)
+        ]
+        let bounds = RoomPlanBounds(snapshot: nil, fallbackWidth: 8, fallbackLength: 6)
+        let grid = CeilingLightPlacementGrid(bounds: bounds, walls: walls)
+        #expect(grid.hasUsableBoundary)
+        #expect(grid.points.contains([0.5, 0.5]))
+        let partitionMidpoint = bounds.unitCoordinates(x: -1.2525876, z: -1.6312623)
+        #expect(!grid.allowsPlacement(at: partitionMidpoint))
+        // Removing an actual perimeter side must still reject the scan.
+        #expect(!CeilingLightPlacementGrid(bounds: bounds, walls: Array(walls.dropFirst())).hasUsableBoundary)
+        let reversed = walls.reversed().map {
+            Wall(startX: $0.endX, startZ: $0.endZ, endX: $0.startX, endZ: $0.startZ)
+        }
+        #expect(CeilingLightPlacementGrid(bounds: bounds, walls: reversed).hasUsableBoundary)
+    }
+
+    @Test func interiorBranchChainDoesNotBreakPerimeterOrAllowLightsOnPartitions() {
+        typealias Wall = RoomPlanSnapshot.WallSegment
+        let walls = [Wall(startX: -2, startZ: -2, endX: 2, endZ: -2),
+                     Wall(startX: 2, startZ: -2, endX: 2, endZ: 2),
+                     Wall(startX: 2, startZ: 2, endX: -2, endZ: 2),
+                     Wall(startX: -2, startZ: 2, endX: -2, endZ: -2),
+                     Wall(startX: -2, startZ: -2, endX: -1, endZ: -1),
+                     Wall(startX: -1, startZ: -1, endX: 0, endZ: -1)]
+        let bounds = RoomPlanBounds(snapshot: nil, fallbackWidth: 4, fallbackLength: 4)
+        let grid = CeilingLightPlacementGrid(bounds: bounds, walls: walls)
+        #expect(grid.hasUsableBoundary)
+        #expect(grid.points.contains([0.5, 0.5]))
+        #expect(!grid.allowsPlacement(at: bounds.unitCoordinates(x: -0.5, z: -1)))
+        #expect(!grid.allowsPlacement(at: bounds.unitCoordinates(x: -1.5, z: -1.5)))
+        let island = [Wall(startX: -0.5, startZ: -0.5, endX: 0.5, endZ: -0.5),
+                      Wall(startX: 0.5, startZ: -0.5, endX: 0.5, endZ: 0.5),
+                      Wall(startX: 0.5, startZ: 0.5, endX: -0.5, endZ: 0.5),
+                      Wall(startX: -0.5, startZ: 0.5, endX: -0.5, endZ: -0.5)]
+        let incompleteOuter = Array(walls.prefix(3)) + island
+        #expect(!CeilingLightPlacementGrid(bounds: bounds, walls: incompleteOuter).hasUsableBoundary)
+    }
+
+
+    @Test func capturedDoorClosesOnlyItsMatchingWallGap() {
+        typealias Wall = RoomPlanSnapshot.WallSegment
+        let walls = [Wall(startX: -2, startZ: -2, endX: -0.5, endZ: -2),
+                     Wall(startX: 0.5, startZ: -2, endX: 2, endZ: -2),
+                     Wall(startX: 2, startZ: -2, endX: 2, endZ: 2),
+                     Wall(startX: 2, startZ: 2, endX: -2, endZ: 2),
+                     Wall(startX: -2, startZ: 2, endX: -2, endZ: -2)]
+        let bounds = RoomPlanBounds(snapshot: nil, fallbackWidth: 4, fallbackLength: 4)
+        let door = CeilingLightPlacementGrid.Opening(center: [0, -2], width: 1)
+        let repaired = CeilingLightPlacementGrid(bounds: bounds, walls: walls, openings: [door])
+        #expect(repaired.hasUsableBoundary)
+        #expect(repaired.points.contains([0.5, 0.5]))
+        #expect(!repaired.allowsPlacement(at: [0.5, 0.01]))
+        #expect(!CeilingLightPlacementGrid(bounds: bounds, walls: walls).hasUsableBoundary)
+        let misplaced = CeilingLightPlacementGrid.Opening(center: [0, 0], width: 1)
+        #expect(!CeilingLightPlacementGrid(bounds: bounds, walls: walls, openings: [misplaced]).hasUsableBoundary)
+        let undersized = CeilingLightPlacementGrid.Opening(center: [0, -2], width: 0.3)
+        #expect(!CeilingLightPlacementGrid(bounds: bounds, walls: walls, openings: [undersized]).hasUsableBoundary)
+        #expect(!CeilingLightPlacementGrid(bounds: bounds, walls: Array(walls.dropLast()), openings: [door]).hasUsableBoundary)
+        // Matching must be independent of capture order, endpoint direction, and room axes.
+        let rotated = walls.reversed().map {
+            Wall(startX: -$0.endZ, startZ: $0.endX, endX: -$0.startZ, endZ: $0.startX)
+        }
+        let rotatedDoor = CeilingLightPlacementGrid.Opening(center: [2, 0], width: 1)
+        #expect(CeilingLightPlacementGrid(bounds: bounds, walls: rotated, openings: [rotatedDoor]).points.contains([0.5, 0.5]))
+    }
+
+    @Test func zeroLengthCaptureArtifactsDoNotInvalidateClosedPerimeter() {
+        typealias Wall = RoomPlanSnapshot.WallSegment
+        let walls = [Wall(startX: -2, startZ: -2, endX: 2, endZ: -2),
+                     Wall(startX: 2, startZ: -2, endX: 2, endZ: 2),
+                     Wall(startX: 2, startZ: 2, endX: -2, endZ: 2),
+                     Wall(startX: -2, startZ: 2, endX: -2, endZ: -2),
+                     Wall(startX: 0, startZ: 0, endX: 0, endZ: 0)]
+        let bounds = RoomPlanBounds(snapshot: nil, fallbackWidth: 4, fallbackLength: 4)
+        #expect(CeilingLightPlacementGrid(bounds: bounds, walls: walls).points.contains([0.5, 0.5]))
+    }
+
     @Test func elongatedRoomsHaveBalancedSpacingAndDifferentCounts() {
         let bounds = RoomPlanBounds(snapshot: nil, fallbackWidth: 8, fallbackLength: 2)
         let grid = CeilingLightPlacementGrid(bounds: bounds, walls: [])
-        #expect(grid.columns == 9 && grid.rows == 2)
-        #expect(grid.points.count == 18)
+        #expect(grid.columns == 13 && grid.rows == 3)
+        #expect(grid.points.count == 39)
         #expect(abs(bounds.width / Float(grid.columns) - bounds.length / Float(grid.rows)) < 0.15)
         let limited = CeilingLightPlacementGrid(bounds: bounds, walls: [], maxColumns: 6, maxRows: 2)
         #expect(limited.columns <= 6 && limited.rows <= 2)
         let portrait = CeilingLightPlacementGrid(
             bounds: RoomPlanBounds(snapshot: nil, fallbackWidth: 2, fallbackLength: 8), walls: [])
         #expect(portrait.rows == grid.columns && portrait.columns == grid.rows)
+    }
+
+    @Test func roomCenterIsOfferedEvenWhenDisplayLimitsRequireEvenCounts() {
+        let bounds = RoomPlanBounds(snapshot: nil, fallbackWidth: 5, fallbackLength: 4)
+        for limits in [(8, 6), (6, 4), (1, 1)] {
+            let grid = CeilingLightPlacementGrid(bounds: bounds, walls: [],
+                                                maxColumns: limits.0, maxRows: limits.1)
+            #expect(grid.points.filter { $0 == SIMD2<Float>(0.5, 0.5) }.count == 1)
+            #expect(Set(grid.points).count == grid.points.count)
+        }
+        let roomy = CeilingLightPlacementGrid(bounds: bounds, walls: [])
+        #expect(roomy.points.count > 35)
     }
 
     @Test func concaveBoundaryExcludesEmptyPartOfLayout() {
@@ -1007,10 +1062,91 @@ struct AdaptiveCeilingPlacementTests {
         }
         let bounds = RoomPlanBounds(snapshot: nil, fallbackWidth: 6, fallbackLength: 6)
         let grid = CeilingLightPlacementGrid(bounds: bounds, walls: walls)
-        #expect(grid.points.count == 24)
+        #expect(grid.points.count == 45)
         #expect(!grid.points.contains { $0.x > 1.0 / 3 && $0.y > 1.0 / 3 })
+        #expect(!grid.points.contains([0.5, 0.5])) // The bounds center lies outside this L-shaped room.
         let incomplete = CeilingLightPlacementGrid(bounds: bounds, walls: Array(walls.dropLast()))
-        #expect(incomplete.points.count == 49) // Open scans use explicit rectangular fallback.
+        #expect(incomplete.points.isEmpty) // Never offer outside positions for an unclosed scan.
+        #expect(!incomplete.hasUsableBoundary)
+    }
+
+    @Test func smallScanGapsAreJoinedWithoutFillingConcaveCutout() {
+        let vertices: [SIMD2<Float>] = [[-3,-3], [3,-3], [3,-1], [-1,-1], [-1,3], [-3,3]]
+        let walls = vertices.indices.map { index in
+            let a = vertices[index] + SIMD2<Float>(0.04, 0.03)
+            let b = vertices[(index + 1) % vertices.count] - SIMD2<Float>(0.04, 0.03)
+            return RoomPlanSnapshot.WallSegment(startX: a.x, startZ: a.y, endX: b.x, endZ: b.y)
+        }
+        let bounds = RoomPlanBounds(snapshot: nil, fallbackWidth: 6, fallbackLength: 6)
+        let grid = CeilingLightPlacementGrid(bounds: bounds, walls: walls)
+        #expect(grid.hasUsableBoundary && !grid.points.isEmpty)
+        #expect(!grid.allowsPlacement(at: SIMD2<Float>(0.8, 0.8)))
+        for point in grid.points {
+            let x = bounds.minX + point.x * bounds.width
+            let z = bounds.minZ + point.y * bounds.length
+            #expect(x < -1.15 || z < -1.15)
+        }
+    }
+
+    @Test func slantedWallsExcludePointsOnAndBeyondWallFaces() {
+        let vertices: [SIMD2<Float>] = [[0,-2], [2,0], [0,2], [-2,0]]
+        let walls = vertices.indices.map { index in
+            let a = vertices[index]
+            let b = vertices[(index + 1) % vertices.count]
+            return RoomPlanSnapshot.WallSegment(startX: a.x, startZ: a.y, endX: b.x, endZ: b.y)
+        }
+        let bounds = RoomPlanBounds(snapshot: nil, fallbackWidth: 4, fallbackLength: 4)
+        let grid = CeilingLightPlacementGrid(bounds: bounds, walls: walls, wallClearance: 0.2)
+        #expect(grid.hasUsableBoundary && !grid.points.isEmpty)
+        #expect(!grid.allowsPlacement(at: [0.75, 0.25])) // Exactly on a diagonal wall.
+        #expect(!grid.allowsPlacement(at: [0.95, 0.95]))
+        for point in grid.points {
+            let x = bounds.minX + point.x * bounds.width
+            let z = bounds.minZ + point.y * bounds.length
+            #expect(abs(x) + abs(z) < 2 - 0.2 * Float(2).squareRoot())
+        }
+        let open = CeilingLightPlacementGrid(bounds: bounds, walls: Array(walls.dropLast()))
+        #expect(open.points.isEmpty && !open.allowsPlacement(at: [0.5, 0.5]))
+    }
+
+    @Test func scannedOutlineAcceptsDuplicateAndOverlappingWallFragments() {
+        typealias Wall = RoomPlanSnapshot.WallSegment
+        let walls = [Wall(startX: -2, startZ: -2, endX: 0.2, endZ: -2),
+                     Wall(startX: -0.2, startZ: -2, endX: 2, endZ: -2),
+                     Wall(startX: 2, startZ: -2, endX: 2, endZ: 2),
+                     Wall(startX: 2, startZ: 2, endX: -2, endZ: 2),
+                     Wall(startX: -2, startZ: 2, endX: -2, endZ: -2)]
+        let bounds = RoomPlanBounds(snapshot: nil, fallbackWidth: 4, fallbackLength: 4)
+        let grid = CeilingLightPlacementGrid(bounds: bounds, walls: walls + [walls[2]])
+        #expect(grid.hasUsableBoundary && grid.points.contains([0.5, 0.5]))
+        #expect(grid.points.allSatisfy { $0.x > 0 && $0.x < 1 && $0.y > 0 && $0.y < 1 })
+    }
+
+    @Test func nearbyAlcoveCornersKeepTheirOwnEndpointPairs() {
+        let vertices: [SIMD2<Float>] = [[-2,-2], [2,-2], [2,2], [0.2,2],
+                                      [0.2,1], [0,1], [0,2], [-2,2]]
+        let walls = vertices.indices.map { index in
+            let a = vertices[index], b = vertices[(index + 1) % vertices.count]
+            return RoomPlanSnapshot.WallSegment(startX: a.x, startZ: a.y, endX: b.x, endZ: b.y)
+        }
+        let bounds = RoomPlanBounds(snapshot: nil, fallbackWidth: 4, fallbackLength: 4)
+        let grid = CeilingLightPlacementGrid(bounds: bounds, walls: Array(walls.reversed()))
+        #expect(grid.hasUsableBoundary && !grid.points.isEmpty)
+        #expect(!grid.allowsPlacement(at: bounds.unitCoordinates(x: 0.1, z: 1.5)))
+    }
+
+    @Test func scanCornerGapsUseWallIntersectionsWithoutInventingMissingWalls() {
+        typealias Wall = RoomPlanSnapshot.WallSegment
+        let walls = [Wall(startX: -1.7, startZ: -2, endX: 1.7, endZ: -2),
+                     Wall(startX: 2, startZ: -1.7, endX: 2, endZ: 1.7),
+                     Wall(startX: 1.7, startZ: 2, endX: -1.7, endZ: 2),
+                     Wall(startX: -2, startZ: 1.7, endX: -2, endZ: -1.7)]
+        let bounds = RoomPlanBounds(snapshot: nil, fallbackWidth: 4, fallbackLength: 4)
+        let grid = CeilingLightPlacementGrid(bounds: bounds, walls: walls)
+        #expect(grid.hasUsableBoundary && grid.points.contains([0.5, 0.5]))
+        #expect(!grid.allowsPlacement(at: [0.99, 0.5]))
+        let incomplete = CeilingLightPlacementGrid(bounds: bounds, walls: Array(walls.dropLast()))
+        #expect(!incomplete.hasUsableBoundary && incomplete.points.isEmpty)
     }
 
     @Test @MainActor func fractionalPlacementSurvivesSaveAndSimulation() throws {
