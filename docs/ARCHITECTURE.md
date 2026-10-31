@@ -196,7 +196,6 @@ Resign/
 ├── Features/                          // Vertical Feature Slices (V + VM)
 │   ├── Dashboard/                     // DashboardView, DashboardViewModel
 │   ├── RoomScan/                      // RoomScanView, RoomScanViewModel
-│   ├── Orientation/                   // OrientationView, OrientationViewModel
 │   ├── LightingSetup/                 // LightingSetupView, LightingSetupViewModel
 │   ├── Insights/                      // InsightsView, InsightsViewModel
 │   ├── Studio3D/                      // Studio3DView, Studio3DViewModel
