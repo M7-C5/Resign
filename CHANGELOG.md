@@ -8,9 +8,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- feat(lighting): adapt lighting setup and simulation workspaces across iPad and iPhone (b09fe9b)
-- feat(lighting): add neutral layout-only room preview until lighting simulation is enabled (0396239)
-- feat(spatial): support aperture-aware ceiling outlines and interior wall partitions (6f4c0b7)
+- feat(insights): integrate Foundation Models spatial diagnostics, tool calling, and 3D suggestion flow (cee4713)
+- feat(services): add dynamic ModelIO USDZ room parser and persistence loader (46d508e)
+- feat(solver): add constraint-driven parametric layout optimizer and grounded insight engine (d17aa11)
+- feat(spatial): implement Panero and Zelnik anthropometric clearance rules and violation models (75e1f08)
+- feat(lighting): adapt lighting setup and simulation workspaces across iPad and iPhone (0590660)
+- feat(lighting): add neutral layout-only room preview until lighting simulation is enabled (1f92bc7)
+- feat(spatial): support aperture-aware ceiling outlines and interior wall partitions (9bc5e3e)
 - feat(studio3d): support full envelope traversal and polygon clamping in irregular rooms (8347c23)
 - feat(spatial): deduplicate chair components, filter wall artifacts, and add table clearance (c7c2905)
 - feat(studio-3d): implement inventory system and interactive drag-to-archive (5af0572)
@@ -46,7 +50,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - feat(testing): add in-memory ModelContainer fixture and SwiftData unit tests (b4daaff)
 
 ### Changed
-- refactor(navigation): remove standalone post-scan compass screen from room creation flow (2289b47)
+- refactor(navigation): remove standalone post-scan compass screen from room creation flow (df6c5f1)
 - refactor(studio): decompose 3D studio view hierarchy and enforce HIG touch targets and dynamic type (47da4a6)
 - refactor(scan): enforce main-actor capture lifecycle, static SwiftData fetch, and dollhouse viewport decomposition (89e3800)
 - refactor(agents): renumber domain rule sequence and correct tool triage references (59f6549)
@@ -87,7 +91,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - fix(lighting-simulation): shape natural light to the window (5fbb493)
 
 ### Documentation
-- docs(adr): record adaptive lighting workspace, ceiling outline, and compass removal decisions (bf557e3)
+- docs(adr): document anthropometric clearance engine, parametric solver, and on-device AI diagnostics (1f76005)
+- docs(changelog): update automated release notes (28d278e)
+- docs(adr): record adaptive lighting workspace, ceiling outline, and compass removal decisions (a7e5680)
 - docs(changelog): update automated release notes (02b6294)
 - docs(adr): document studio 3d inventory and drag archival in adr 0028 (8f7f08d)
 - docs(adr): record scanned room square orientation and centered origin normalization (e1161c9)
