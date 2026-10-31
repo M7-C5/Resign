@@ -7,6 +7,7 @@
 
 import SwiftUI
 import RealityKit
+import UIKit
 import simd
 import CoreGraphics
 
@@ -136,7 +137,7 @@ public struct Studio3DSuggestionView: View {
                         ForEach(violationSummaries, id: \.ruleId) { summary in
                             HStack(spacing: 7) {
                                 Text(summary.ruleId)
-                                    .font(.system(size: 9, weight: .bold))
+                                    .font(.caption2.weight(.bold))
                                     .foregroundStyle(.white)
                                     .padding(.horizontal, 5)
                                     .padding(.vertical, 2)
@@ -253,10 +254,11 @@ public struct Studio3DSuggestionView: View {
                 Image(systemName: icon)
                     .font(.subheadline)
                 Text(title)
-                    .font(.system(size: 10, weight: .semibold))
+                    .font(.caption2.weight(.semibold))
             }
             .padding(.horizontal, 8)
             .padding(.vertical, 6)
+            .frame(minHeight: 44)
             .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 10))
         }
         .foregroundStyle(.primary)
@@ -503,6 +505,39 @@ public struct Studio3DSuggestionView: View {
     private func syncFurniturePositions(on root: Entity, animated: Bool) {
         guard let layout = viewModel.currentLayout else { return }
 
+        let isBundledMockRoom = root.findEntity(named: "Bed") != nil && root.findEntity(named: "Desk") != nil
+        if !isBundledMockRoom {
+            hideStaticScannedFurnitureMeshes(in: root)
+            let containerName = "DynamicScannedFurniture"
+            let container: Entity
+            if let existing = root.children.first(where: { $0.name == containerName }) {
+                container = existing
+            } else {
+                let created = Entity()
+                created.name = containerName
+                root.addChild(created)
+                container = created
+            }
+
+            let activeItems = layout.furnitures.filter { !$0.isArchived }
+            let activeNames = Set(activeItems.map { "Furniture_\($0.id.uuidString)" })
+            for child in Array(container.children) where !activeNames.contains(child.name) {
+                child.removeFromParent()
+            }
+
+            for item in activeItems {
+                let entityName = "Furniture_\(item.id.uuidString)"
+                if let existing = container.children.first(where: { $0.name == entityName }) {
+                    existing.position = SIMD3<Float>(item.positionX, item.positionY, item.positionZ)
+                    existing.orientation = simd_quatf(angle: item.rotationYaw, axis: [0, 1, 0])
+                } else {
+                    let entity = FurnitureEntityFactory.createEntity(for: item)
+                    container.addChild(entity)
+                }
+            }
+            return
+        }
+
         for item in layout.furnitures where !item.isArchived {
             guard let entity = findFurnitureEntity(for: item, in: root) else { continue }
 
@@ -522,6 +557,31 @@ public struct Studio3DSuggestionView: View {
             entity.orientation = targetRot
             entity.position = targetTranslation
         }
+    }
+
+    private func hideStaticScannedFurnitureMeshes(in root: Entity) {
+        let structuralPrefixes = ["wall", "floor", "ceiling", "opening", "door", "window", "room", "arch"]
+        let furnitureTokens = [
+            "object", "chair", "table", "desk", "bed", "sofa", "couch",
+            "storage", "cabinet", "shelf", "shelving", "television", "tv",
+            "stool", "washer", "dryer", "refrigerator", "fridge", "oven",
+            "stove", "dishwasher", "sink", "toilet", "bathtub", "fireplace", "stairs"
+        ]
+        func walk(_ entity: Entity) {
+            if entity.name == "DynamicScannedFurniture" || entity.name.hasPrefix(Self.overlayPrefix) {
+                return
+            }
+            let lower = entity.name.lowercased()
+            let isStructural = structuralPrefixes.contains { lower.hasPrefix($0) || lower.contains($0) }
+            if !isStructural && furnitureTokens.contains(where: { lower.contains($0) }) {
+                entity.isEnabled = false
+                return
+            }
+            for child in entity.children {
+                walk(child)
+            }
+        }
+        walk(root)
     }
 
     /// Matches a furniture domain object to its corresponding 3D USDZ mesh inside the room.
@@ -572,5 +632,37 @@ public struct Studio3DSuggestionView: View {
         }
 
         return nil
+    }
+}
+
+// MARK: - Rule-Specific Color Theme
+
+public extension ViolationMarker {
+    /// Distinct, harmonious accent color for each spatial clearance rule.
+    var uiColor: UIColor {
+        switch ruleId {
+        case "OPT", "FLOW":
+            return UIColor(red: 0.18, green: 0.82, blue: 0.65, alpha: 1.0)
+        case PaneroZelnikRule.walkwayCritical:
+            return UIColor(red: 0.95, green: 0.28, blue: 0.30, alpha: 1.0)
+        case PaneroZelnikRule.walkwayRecommended:
+            return UIColor(red: 0.98, green: 0.62, blue: 0.15, alpha: 1.0)
+        case PaneroZelnikRule.deskRearClearance:
+            return UIColor(red: 0.15, green: 0.55, blue: 0.98, alpha: 1.0)
+        case PaneroZelnikRule.bedOperationalZone:
+            return UIColor(red: 0.18, green: 0.78, blue: 0.44, alpha: 1.0)
+        case PaneroZelnikRule.bedStorageZone:
+            return UIColor(red: 0.15, green: 0.72, blue: 0.82, alpha: 1.0)
+        case PaneroZelnikRule.doorSwingUnobstructed:
+            return UIColor(red: 0.68, green: 0.32, blue: 0.95, alpha: 1.0)
+        default:
+            return severity == .critical
+                ? UIColor(red: 0.95, green: 0.28, blue: 0.30, alpha: 1.0)
+                : UIColor(red: 0.98, green: 0.62, blue: 0.15, alpha: 1.0)
+        }
+    }
+
+    var swiftUIColor: Color {
+        Color(uiColor: uiColor)
     }
 }

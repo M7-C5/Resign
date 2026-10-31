@@ -15,14 +15,23 @@ public enum SpatialJourneyStep: Hashable {
 }
 
 public struct SpatialJourneyFlowView: View {
+    @Environment(\.dismiss) private var dismiss
+    @Environment(\.modelContext) private var modelContext
+
     @State public var viewModel = InsightsViewModel()
     @State public var studioViewModel = Studio3DViewModel()
     @State public var currentStep: SpatialJourneyStep = .preferences
     @State public var environmentPreset: Int = 0
 
+    public var targetRoom: Room?
+    public var initialLayout: Layout?
+
     @Query private var rooms: [Room]
 
-    public init() {}
+    public init(room: Room? = nil, initialLayout: Layout? = nil) {
+        self.targetRoom = room
+        self.initialLayout = initialLayout
+    }
 
     public var body: some View {
         ZStack {
@@ -33,6 +42,7 @@ public struct SpatialJourneyFlowView: View {
                 PreferencePageView(
                     viewModel: viewModel,
                     environmentPreset: $environmentPreset,
+                    showsEnvironmentSwitcher: targetRoom == nil,
                     onEnvironmentPresetChanged: { newPreset in
                         switchEnvironmentPreset(to: newPreset)
                     },
@@ -40,6 +50,9 @@ public struct SpatialJourneyFlowView: View {
                         Task {
                             await proceedToDiagnostics()
                         }
+                    },
+                    onBack: {
+                        dismiss()
                     }
                 )
                 .transition(.asymmetric(
@@ -77,9 +90,8 @@ public struct SpatialJourneyFlowView: View {
                         }
                     },
                     onApply: {
-                        if let selected = viewModel.selectedLayout {
-                            viewModel.activeLayout = selected
-                        }
+                        viewModel.applySelectedLayout(context: modelContext)
+                        dismiss()
                     },
                     onStartOver: {
                         withAnimation(.easeInOut(duration: 0.3)) {
@@ -94,6 +106,8 @@ public struct SpatialJourneyFlowView: View {
             }
         }
         .animation(.spring(response: 0.35, dampingFraction: 0.85), value: currentStep)
+        .navigationBarBackButtonHidden(true)
+        .toolbar(.hidden, for: .navigationBar)
         .task {
             ensureRoomLoaded()
         }
@@ -127,7 +141,9 @@ public struct SpatialJourneyFlowView: View {
 
     private func ensureRoomLoaded() {
         guard viewModel.currentRoom == nil else { return }
-        if environmentPreset == 0, let usdzRoom = try? RoomRepository.loadMockRoomFromUSDZ() {
+        if let targetRoom {
+            viewModel.loadRoom(targetRoom, initialLayout: initialLayout)
+        } else if environmentPreset == 0, let usdzRoom = try? RoomRepository.loadMockRoomFromUSDZ() {
             viewModel.loadRoom(usdzRoom)
         } else if let first = rooms.first {
             viewModel.loadRoom(first)

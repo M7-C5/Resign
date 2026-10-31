@@ -35,6 +35,10 @@ public struct YourLayoutResultView: View {
         return String(format: "%.1f m", room.length)
     }
 
+    private var resolvedRoomUSDZURL: URL? {
+        (viewModel.activeLayout ?? viewModel.currentRoom?.layouts.first)?.resolvedUSDZURL
+    }
+
     public var body: some View {
         VStack(spacing: 0) {
             // Header Bar
@@ -46,7 +50,10 @@ public struct YourLayoutResultView: View {
                     // Top: Interactive 3D Studio Canvas with Dimension Overlays
                     VStack(alignment: .leading, spacing: 8) {
                         ZStack(alignment: .top) {
-                            Studio3DSuggestionView(viewModel: studioViewModel)
+                            Studio3DSuggestionView(
+                                viewModel: studioViewModel,
+                                usdzURL: resolvedRoomUSDZURL ?? USDZRoomLoader.findBundledMockRoomURL()
+                            )
                                 .frame(maxWidth: .infinity)
                                 .frame(height: 310)
                                 .clipShape(RoundedRectangle(cornerRadius: 20))
@@ -61,7 +68,7 @@ public struct YourLayoutResultView: View {
 
                         HStack {
                             Label("Interactive 3D: Drag to orbit, pinch to zoom", systemImage: "hand.draw")
-                                .font(.system(size: 11))
+                                .font(.caption2)
                                 .foregroundStyle(.secondary)
                             Spacer()
                             if !studioViewModel.highlightedFurnitureIDs.isEmpty {
@@ -69,8 +76,10 @@ public struct YourLayoutResultView: View {
                                     viewModel.clearHighlights()
                                     studioViewModel.clearHighlights()
                                 }
-                                .font(.system(size: 11, weight: .semibold))
+                                .font(.caption2.weight(.semibold))
                                 .foregroundStyle(.blue)
+                                .frame(minHeight: 44)
+                                .contentShape(Rectangle())
                             }
                         }
                         .padding(.horizontal, 4)
@@ -96,7 +105,7 @@ public struct YourLayoutResultView: View {
                         HStack(spacing: 8) {
                             Image(systemName: "sparkles")
                             Text("See Layout Suggestions")
-                                .font(.system(size: 16, weight: .semibold))
+                                .font(.headline)
                         }
                         .foregroundStyle(.white)
                         .frame(maxWidth: .infinity)
@@ -130,11 +139,11 @@ public struct YourLayoutResultView: View {
             // Width Dimension (Left Top Diagonal)
             HStack(spacing: 4) {
                 Image(systemName: "arrow.left")
-                    .font(.system(size: 10, weight: .bold))
+                    .font(.caption2.weight(.bold))
                 Text(roomWidthText)
-                    .font(.system(size: 12, weight: .bold))
+                    .font(.caption.weight(.bold))
                 Image(systemName: "arrow.right")
-                    .font(.system(size: 10, weight: .bold))
+                    .font(.caption2.weight(.bold))
             }
             .foregroundStyle(.secondary)
             .padding(.horizontal, 10)
@@ -148,11 +157,11 @@ public struct YourLayoutResultView: View {
             // Length Dimension (Right Top Diagonal)
             HStack(spacing: 4) {
                 Image(systemName: "arrow.left")
-                    .font(.system(size: 10, weight: .bold))
+                    .font(.caption2.weight(.bold))
                 Text(roomLengthText)
-                    .font(.system(size: 12, weight: .bold))
+                    .font(.caption.weight(.bold))
                 Image(systemName: "arrow.right")
-                    .font(.system(size: 10, weight: .bold))
+                    .font(.caption2.weight(.bold))
             }
             .foregroundStyle(.secondary)
             .padding(.horizontal, 10)
@@ -173,11 +182,11 @@ public struct YourLayoutResultView: View {
             HStack {
                 VStack(alignment: .leading, spacing: 3) {
                     Text("Clearance Analysis")
-                        .font(.system(size: 18, weight: .bold))
+                        .font(.headline)
                         .foregroundStyle(.primary)
 
                     Text(viewModel.detectedViolations.isEmpty ? "All standard clearance tolerances satisfied." : "Measured violations against Panero & Zelnik standards.")
-                        .font(.system(size: 13))
+                        .font(.footnote)
                         .foregroundStyle(.secondary)
                 }
 
@@ -185,7 +194,7 @@ public struct YourLayoutResultView: View {
 
                 if !viewModel.detectedViolations.isEmpty {
                     Text("\(viewModel.detectedViolations.count) Issues")
-                        .font(.system(size: 12, weight: .bold))
+                        .font(.caption.weight(.bold))
                         .padding(.horizontal, 10)
                         .padding(.vertical, 4)
                         .background(Color.orange.opacity(0.15), in: Capsule())
@@ -230,17 +239,17 @@ public struct YourLayoutResultView: View {
     private func reviewRow(iconName: String, iconColor: Color, title: String, detail: String) -> some View {
         HStack(alignment: .top, spacing: 12) {
             Image(systemName: iconName)
-                .font(.system(size: 20))
+                .font(.title3)
                 .foregroundStyle(iconColor)
                 .frame(width: 24, height: 24)
 
             VStack(alignment: .leading, spacing: 3) {
                 Text(title)
-                    .font(.system(size: 14, weight: .bold))
+                    .font(.subheadline.weight(.bold))
                     .foregroundStyle(.primary)
 
                 Text(detail)
-                    .font(.system(size: 12))
+                    .font(.caption)
                     .foregroundStyle(.secondary)
                     .lineLimit(2)
             }
@@ -269,21 +278,22 @@ public struct YourLayoutResultView: View {
                 onBack()
             } label: {
                 Image(systemName: "chevron.left")
-                    .font(.system(size: 16, weight: .semibold))
+                    .font(.headline)
                     .foregroundStyle(.primary)
-                    .frame(width: 36, height: 36)
+                    .frame(minWidth: 44, minHeight: 44)
                     .contentShape(Rectangle())
             }
+            .accessibilityLabel("Back")
 
             Spacer()
 
             Text("Your Layout")
-                .font(.system(size: 16, weight: .bold))
+                .font(.headline)
                 .foregroundStyle(.primary)
 
             Spacer()
 
-            Spacer().frame(width: 36)
+            Spacer().frame(width: 44)
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 8)

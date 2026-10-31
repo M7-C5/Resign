@@ -2,8 +2,7 @@ import Observation
 import SwiftData
 import simd
 import Foundation
-import UIKit
-import SwiftUI
+import CoreGraphics
 
 /// A floor-level operational clearance highlight for furniture involved in a spatial violation.
 public struct ViolationMarker: Identifiable, Hashable, Sendable {
@@ -716,44 +715,5 @@ public final class Studio3DViewModel {
         } else {
             highlightedFurnitureIDs.insert(id)
         }
-    }
-}
-
-// MARK: - Rule-Specific Color Theme
-
-public extension ViolationMarker {
-    /// Distinct, harmonious accent color for each spatial clearance rule.
-    var uiColor: UIColor {
-        switch ruleId {
-        case "OPT", "FLOW":
-            // Vibrant Spring Emerald / Cyan for optimal flow & clearance
-            return UIColor(red: 0.18, green: 0.82, blue: 0.65, alpha: 1.0)
-        case PaneroZelnikRule.walkwayCritical:
-            // R1: Crisp Coral Red
-            return UIColor(red: 0.95, green: 0.28, blue: 0.30, alpha: 1.0)
-        case PaneroZelnikRule.walkwayRecommended:
-            // R2: Warm Amber / Gold
-            return UIColor(red: 0.98, green: 0.62, blue: 0.15, alpha: 1.0)
-        case PaneroZelnikRule.deskRearClearance:
-            // R3: Electric Cobalt / Sky Blue
-            return UIColor(red: 0.15, green: 0.55, blue: 0.98, alpha: 1.0)
-        case PaneroZelnikRule.bedOperationalZone:
-            // R4: Spring Mint Green
-            return UIColor(red: 0.18, green: 0.78, blue: 0.44, alpha: 1.0)
-        case PaneroZelnikRule.bedStorageZone:
-            // R5: Ocean Cyan / Teal
-            return UIColor(red: 0.15, green: 0.72, blue: 0.82, alpha: 1.0)
-        case PaneroZelnikRule.doorSwingUnobstructed:
-            // R6: Royal Violet / Purple
-            return UIColor(red: 0.68, green: 0.32, blue: 0.95, alpha: 1.0)
-        default:
-            return severity == .critical
-                ? UIColor(red: 0.95, green: 0.28, blue: 0.30, alpha: 1.0)
-                : UIColor(red: 0.98, green: 0.62, blue: 0.15, alpha: 1.0)
-        }
-    }
-
-    var swiftUIColor: Color {
-        Color(uiColor: uiColor)
     }
 }

@@ -10,6 +10,7 @@ import SwiftUI
 public struct PreferencePageView: View {
     @Bindable public var viewModel: InsightsViewModel
     @Binding public var environmentPreset: Int
+    public var showsEnvironmentSwitcher: Bool
     public var onEnvironmentPresetChanged: ((Int) -> Void)?
     public var onContinue: () -> Void
     public var onBack: (() -> Void)?
@@ -19,12 +20,14 @@ public struct PreferencePageView: View {
     public init(
         viewModel: InsightsViewModel,
         environmentPreset: Binding<Int> = .constant(0),
+        showsEnvironmentSwitcher: Bool = true,
         onEnvironmentPresetChanged: ((Int) -> Void)? = nil,
         onContinue: @escaping () -> Void,
         onBack: (() -> Void)? = nil
     ) {
         self.viewModel = viewModel
         self._environmentPreset = environmentPreset
+        self.showsEnvironmentSwitcher = showsEnvironmentSwitcher
         self.onEnvironmentPresetChanged = onEnvironmentPresetChanged
         self.onContinue = onContinue
         self.onBack = onBack
@@ -41,56 +44,58 @@ public struct PreferencePageView: View {
 
             ScrollView(showsIndicators: false) {
                 VStack(alignment: .leading, spacing: 22) {
-                    // Test Room Environment Switcher Card
-                    VStack(alignment: .leading, spacing: 10) {
-                        HStack {
-                            Label("Test Room Environment", systemImage: "cube.transparent")
-                                .font(.system(size: 13, weight: .semibold))
-                                .foregroundStyle(.secondary)
-                            Spacer()
-                            if let room = viewModel.currentRoom {
-                                Text("\(String(format: "%.1f", room.width))m × \(String(format: "%.1f", room.length))m")
-                                    .font(.system(size: 12, weight: .bold))
-                                    .padding(.horizontal, 8)
-                                    .padding(.vertical, 3)
-                                    .background(Color(.secondarySystemFill), in: Capsule())
-                            }
-                        }
-
-                        Picker("Test Room", selection: $environmentPreset) {
-                            Text("USDZ Mock Room").tag(0)
-                            Text("Clashes Demo Room").tag(1)
-                        }
-                        .pickerStyle(.segmented)
-                        .onChange(of: environmentPreset) { _, newValue in
-                            onEnvironmentPresetChanged?(newValue)
-                        }
-
-                        if let room = viewModel.currentRoom, let layout = viewModel.activeLayout ?? room.layouts.first {
-                            HStack(spacing: 12) {
-                                Label("\(layout.furnitures.count) Furnishings", systemImage: "sofa.fill")
-                                    .font(.system(size: 11, weight: .medium))
-                                    .foregroundStyle(.secondary)
-                                Text("•").foregroundStyle(.tertiary)
-                                Label("\(room.openings.count) Openings", systemImage: "door.left.hand.open")
-                                    .font(.system(size: 11, weight: .medium))
+                    if showsEnvironmentSwitcher {
+                        // Test Room Environment Switcher Card
+                        VStack(alignment: .leading, spacing: 10) {
+                            HStack {
+                                Label("Test Room Environment", systemImage: "cube.transparent")
+                                    .font(.footnote.weight(.semibold))
                                     .foregroundStyle(.secondary)
                                 Spacer()
+                                if let room = viewModel.currentRoom {
+                                    Text("\(String(format: "%.1f", room.width))m × \(String(format: "%.1f", room.length))m")
+                                        .font(.caption.weight(.bold))
+                                        .padding(.horizontal, 8)
+                                        .padding(.vertical, 3)
+                                        .background(Color(.secondarySystemFill), in: Capsule())
+                                }
                             }
-                            .padding(.top, 2)
+
+                            Picker("Test Room", selection: $environmentPreset) {
+                                Text("USDZ Mock Room").tag(0)
+                                Text("Clashes Demo Room").tag(1)
+                            }
+                            .pickerStyle(.segmented)
+                            .onChange(of: environmentPreset) { _, newValue in
+                                onEnvironmentPresetChanged?(newValue)
+                            }
+
+                            if let room = viewModel.currentRoom, let layout = viewModel.activeLayout ?? room.layouts.first {
+                                HStack(spacing: 12) {
+                                    Label("\(layout.furnitures.count) Furnishings", systemImage: "sofa.fill")
+                                        .font(.caption2.weight(.medium))
+                                        .foregroundStyle(.secondary)
+                                    Text("•").foregroundStyle(.tertiary)
+                                    Label("\(room.openings.count) Openings", systemImage: "door.left.hand.open")
+                                        .font(.caption2.weight(.medium))
+                                        .foregroundStyle(.secondary)
+                                    Spacer()
+                                }
+                                .padding(.top, 2)
+                            }
                         }
+                        .padding(14)
+                        .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 16))
                     }
-                    .padding(14)
-                    .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 16))
 
                     // Heading & Subtitle
                     VStack(alignment: .leading, spacing: 8) {
                         Text("What’s Not Working in Your Room?")
-                            .font(.system(size: 22, weight: .bold))
+                            .font(.title2.weight(.bold))
                             .foregroundStyle(.primary)
 
                         Text("Tell us what feels difficult or frustrating about your space. Choose the problems that sound familiar, describe them in your own words, or both.")
-                            .font(.system(size: 14))
+                            .font(.subheadline)
                             .foregroundStyle(.secondary)
                             .lineSpacing(3)
                     }
@@ -100,7 +105,7 @@ public struct PreferencePageView: View {
                     VStack(alignment: .leading, spacing: 12) {
                         HStack {
                             Text("Suggested keywords")
-                                .font(.system(size: 14, weight: .medium))
+                                .font(.subheadline.weight(.medium))
                                 .foregroundStyle(.primary)
 
                             Spacer()
@@ -111,8 +116,10 @@ public struct PreferencePageView: View {
                                 }
                             } label: {
                                 Text(showAllKeywords ? "See less" : "See more")
-                                    .font(.system(size: 13, weight: .regular))
+                                    .font(.footnote)
                                     .foregroundStyle(.secondary)
+                                    .frame(minHeight: 44)
+                                    .contentShape(Rectangle())
                             }
                         }
 
@@ -126,10 +133,11 @@ public struct PreferencePageView: View {
                                     }
                                 } label: {
                                     Text(keyword.title)
-                                        .font(.system(size: 13, weight: isSelected ? .semibold : .regular))
+                                        .font(.footnote.weight(isSelected ? .semibold : .regular))
                                         .foregroundStyle(isSelected ? .white : Color(.label))
                                         .padding(.horizontal, 16)
                                         .padding(.vertical, 10)
+                                        .frame(minHeight: 44)
                                         .background(
                                             Capsule()
                                                 .fill(isSelected ? Color(white: 0.38) : Color(.systemGray6))
@@ -143,7 +151,7 @@ public struct PreferencePageView: View {
                     // Describe in Your Own Words
                     VStack(alignment: .leading, spacing: 8) {
                         Text("Describe in your own words (optional)")
-                            .font(.system(size: 14, weight: .medium))
+                            .font(.subheadline.weight(.medium))
                             .foregroundStyle(.primary)
 
                         ZStack(alignment: .topLeading) {
@@ -156,14 +164,14 @@ public struct PreferencePageView: View {
 
                             if viewModel.userPreference.isEmpty {
                                 Text("My desk feels too cramped, and I need more space to move around.")
-                                    .font(.system(size: 14))
+                                    .font(.subheadline)
                                     .foregroundStyle(.tertiary)
                                     .padding(14)
                                     .allowsHitTesting(false)
                             }
 
                             TextEditor(text: $viewModel.userPreference)
-                                .font(.system(size: 14))
+                                .font(.subheadline)
                                 .scrollContentBackground(.hidden)
                                 .padding(10)
                                 .frame(minHeight: 110)
@@ -173,7 +181,7 @@ public struct PreferencePageView: View {
                         HStack {
                             Spacer()
                             Text("\(viewModel.userPreference.count)/\(RoomPreference.maxFreeTextLength)")
-                                .font(.system(size: 12))
+                                .font(.caption)
                                 .foregroundStyle(.secondary)
                         }
                     }
@@ -193,7 +201,7 @@ public struct PreferencePageView: View {
                                 .tint(.white)
                         }
                         Text(viewModel.isAnalyzing ? "Analyzing Room..." : "Continue")
-                            .font(.system(size: 16, weight: .semibold))
+                            .font(.headline)
                             .foregroundStyle(.white)
                     }
                     .frame(maxWidth: .infinity)
@@ -216,24 +224,25 @@ public struct PreferencePageView: View {
                     onBack()
                 } label: {
                     Image(systemName: "chevron.left")
-                        .font(.system(size: 16, weight: .semibold))
+                        .font(.headline)
                         .foregroundStyle(.primary)
-                        .frame(width: 36, height: 36)
+                        .frame(minWidth: 44, minHeight: 44)
                         .contentShape(Rectangle())
                 }
+                .accessibilityLabel("Back")
             } else {
-                Spacer().frame(width: 36)
+                Spacer().frame(width: 44)
             }
 
             Spacer()
 
             Text("Your Preferences")
-                .font(.system(size: 16, weight: .bold))
+                .font(.headline)
                 .foregroundStyle(.primary)
 
             Spacer()
 
-            Spacer().frame(width: 36)
+            Spacer().frame(width: 44)
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 8)
