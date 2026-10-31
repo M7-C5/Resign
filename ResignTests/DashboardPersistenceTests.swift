@@ -149,4 +149,33 @@ struct DashboardPersistenceTests {
         #expect(allRooms.count == 1)
         #expect(room2.layouts.first?.furnitures.count == 5)
     }
+
+    @Test @MainActor func resolvedUSDZURLRebindsAfterSandboxContainerRelocationAndDeletesRoomDirectory() throws {
+        let container = try ModelContainer.createInMemoryContainer()
+        let context = container.mainContext
+        let viewModel = DashboardViewModel()
+
+        let room = Room(name: "Relocated Scan Room")
+        let layout = Layout(name: "Original Scan")
+        // Simulate a stale sandbox container UUID path from a previous app install/build
+        layout.usdzURL = URL(fileURLWithPath: "/var/mobile/Containers/Data/Application/OLD-SANDBOX-UUID/Documents/Rooms/\(room.id)/Room.usdz")
+        room.layouts.append(layout)
+        context.insert(room)
+        try context.save()
+
+        let docsDir = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+        let roomDir = docsDir.appendingPathComponent("Rooms/\(room.id)", isDirectory: true)
+        try FileManager.default.createDirectory(at: roomDir, withIntermediateDirectories: true)
+        let liveFileURL = roomDir.appendingPathComponent("Room.usdz")
+        try Data("mock-usdz".utf8).write(to: liveFileURL)
+
+        // resolvedUSDZURL must dynamically locate the file in the current container's Documents directory
+        let resolved = try #require(layout.resolvedUSDZURL)
+        #expect(resolved.standardizedFileURL == liveFileURL.standardizedFileURL)
+        #expect(FileManager.default.fileExists(atPath: resolved.path))
+
+        // Deleting the room must also remove its Rooms/<room.id> directory from disk
+        viewModel.deleteRoom(room, context: context)
+        #expect(!FileManager.default.fileExists(atPath: roomDir.path))
+    }
 }
