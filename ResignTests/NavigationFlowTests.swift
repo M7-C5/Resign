@@ -19,16 +19,14 @@ struct NavigationFlowTests {
         let routeResult1 = RoomCreationRoute.result(roomId: roomId1)
         let routeResult1Copy = RoomCreationRoute.result(roomId: roomId1)
         let routeResult2 = RoomCreationRoute.result(roomId: roomId2)
-        let routeOrientation = RoomCreationRoute.orientation(layoutID: layoutId1)
         let routeLighting = RoomCreationRoute.lightingSetup(layoutID: layoutId1)
 
         #expect(routeResult1 == routeResult1Copy)
         #expect(routeResult1 != routeResult2)
         #expect(routeResult1 != routeLighting)
-        #expect(routeOrientation != routeLighting)
 
-        let set: Set<RoomCreationRoute> = [routeResult1, routeResult1Copy, routeResult2, routeOrientation, routeLighting]
-        #expect(set.count == 4)
+        let set: Set<RoomCreationRoute> = [routeResult1, routeResult1Copy, routeResult2, routeLighting]
+        #expect(set.count == 3)
     }
 
     @Test func navigationPathTransitions() {
@@ -41,25 +39,17 @@ struct NavigationFlowTests {
         #expect(path.count == 1)
         #expect(path.last == .result(roomId: roomId))
 
-        // 2. Review advances to north alignment for the scanned layout.
-        path.append(.orientation(layoutID: layoutId))
-        #expect(path.count == 2)
-        #expect(path.last == .orientation(layoutID: layoutId))
-
-        // 3. Saving north opens lighting for the same layout.
+        // Review opens lighting directly for this layout.
         path.append(.lightingSetup(layoutID: layoutId))
-        #expect(path.count == 3)
+        #expect(path.count == 2)
         #expect(path.last == .lightingSetup(layoutID: layoutId))
 
-        // 4. Back from lighting returns to orientation, then scan review.
-        path.removeLast()
-        #expect(path.count == 2)
-        #expect(path.last == .orientation(layoutID: layoutId))
+        // Back from lighting returns directly to the scan review.
         path.removeLast()
         #expect(path.count == 1)
         #expect(path.last == .result(roomId: roomId))
 
-        // 5. User scans again -> resets stack to root
+        // User scans again -> resets stack to root
         path.removeAll()
         #expect(path.isEmpty)
     }
