@@ -50,6 +50,9 @@ public struct DashboardView: View {
                         // Hard-coded Room-2 3D Studio Card
                         room2StudioCard
 
+                        // AI Spatial Insights & Suggestions Card
+                        aiInsightsCard
+
                         // Scanned Rooms Section
                         scannedRoomsSection
                     }
@@ -133,6 +136,15 @@ public struct DashboardView: View {
             .navigationTitle("My Layout")
             .navigationBarTitleDisplayMode(.large)
             .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    NavigationLink {
+                        SpatialJourneyFlowView()
+                    } label: {
+                        Image(systemName: "sparkles")
+                    }
+                    .accessibilityLabel("AI Spatial Diagnostics and Suggestions")
+                }
+
                 ToolbarItem(placement: .topBarTrailing) {
                     NavigationLink {
                         Studio3DView(layoutID: room2Layout?.id)
@@ -222,6 +234,42 @@ public struct DashboardView: View {
             .shadow(color: .black.opacity(0.12), radius: 8, x: 0, y: 4)
         }
         .accessibilityLabel("Open Room-2 in 3D Studio")
+    }
+
+    private var aiInsightsCard: some View {
+        NavigationLink {
+            SpatialJourneyFlowView()
+        } label: {
+            HStack(spacing: 14) {
+                ZStack {
+                    Circle()
+                        .fill(Color.accentColor.opacity(0.15))
+                        .frame(width: 44, height: 44)
+                    Image(systemName: "sparkles")
+                        .font(.headline)
+                        .foregroundStyle(Color.accentColor)
+                }
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("AI Spatial Insights & Layouts")
+                        .font(.headline)
+                        .foregroundStyle(.primary)
+                    Text("Diagnose clearances & discover optimized layouts")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
+                Spacer()
+
+                Image(systemName: "chevron.right")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.tertiary)
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 14)
+            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16))
+        }
+        .accessibilityLabel("AI Spatial Insights and Layouts")
     }
 
     @ViewBuilder
