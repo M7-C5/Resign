@@ -120,7 +120,7 @@ struct RoomSimulationLayout: Hashable, Sendable {
     init(layout: Layout) {
         let room = layout.room
         id = layout.id
-        modelURL = layout.usdzURL
+        modelURL = layout.resolvedUSDZURL
         width = max(0.5, room?.width ?? 5)
         length = max(0.5, room?.length ?? 4.2)
         height = max(0.5, room?.height ?? 2.6)
@@ -159,9 +159,7 @@ struct RoomSimulationLayout: Hashable, Sendable {
 
     func outwardNormal(at point: SIMD3<Float>) -> SIMD3<Float> {
         let walls = wallSegments
-        if !walls.isEmpty {
-            let p = SIMD2<Float>(point.x, point.z)
-            let nearest = walls.min { wallDistance(p, $0) < wallDistance(p, $1) }!
+        if let nearest = walls.min(by: { wallDistance(SIMD2<Float>(point.x, point.z), $0) < wallDistance(SIMD2<Float>(point.x, point.z), $1) }) {
             let tangent = SIMD2<Float>(nearest.endX - nearest.startX, nearest.endZ - nearest.startZ)
             if simd_length(tangent) > 0.001 {
                 var normal = simd_normalize(SIMD3<Float>(tangent.y, 0, -tangent.x))

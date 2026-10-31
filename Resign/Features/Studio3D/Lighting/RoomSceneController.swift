@@ -107,10 +107,14 @@ final class RoomSceneController {
     }
 
     func setRoomAndLayout(room: Room?, layout: Layout?) {
+        let didChange = self.room?.id != room?.id || self.layout?.id != layout?.id
         self.room = room
         self.layout = layout
         let span = max(room?.width ?? 4.0, room?.length ?? 4.0)
         distance = min(20, max(5, span * 1.6))
+        if didChange, (loadState == .loaded || loadState == .failed) {
+            Task { await reload() }
+        }
     }
 
     private(set) weak var arView: ARView?
@@ -147,7 +151,7 @@ final class RoomSceneController {
             }
 
             let url: URL
-            if let layout, let usdzURL = layout.usdzURL, FileManager.default.fileExists(atPath: usdzURL.path) {
+            if let layout, let usdzURL = layout.resolvedUSDZURL {
                 url = usdzURL
             } else if layout != nil, let room2URL = Bundle.main.url(forResource: "Room-2", withExtension: "usdz") {
                 // High-fidelity colored mock room reference environment for layouts
@@ -270,13 +274,14 @@ final class RoomSceneController {
                 self.roomHorizontalBounds = (interiorMinX, interiorMaxX, interiorMinZ, interiorMaxZ)
             }
 
+            let bounds = self.roomHorizontalBounds ?? (interiorMinX, interiorMaxX, interiorMinZ, interiorMaxZ)
             // Center camera target on the true geometric room center (0, 0.8, 0)
             self.cameraTarget = SIMD3<Float>(
-                (interiorMinX + interiorMaxX) * 0.5,
+                (bounds.minX + bounds.maxX) * 0.5,
                 self.floorLevel + 0.8,
-                (interiorMinZ + interiorMaxZ) * 0.5
+                (bounds.minZ + bounds.maxZ) * 0.5
             )
-            let span = max(interiorMaxX - interiorMinX, interiorMaxZ - interiorMinZ)
+            let span = max(bounds.maxX - bounds.minX, bounds.maxZ - bounds.minZ)
             self.distance = min(18, max(5, span * 1.6))
             updateCamera()
             updateWallCutaways()
@@ -284,9 +289,23 @@ final class RoomSceneController {
             // Populate sanitized furniture from layout or synthesize mock layout furniture
             populateFurnitures()
 
-            let opening = findWindow(in: loaded)
-            if let opening {
+            let activeLayout = self.layout ?? self.room?.layouts.first
+            if let activeLayout, (self.room != nil || activeLayout.room != nil) {
+                let simSource = RoomSimulationLayout(layout: activeLayout)
+                if !simSource.windows.isEmpty {
+                    let roomHeight = self.room?.height ?? activeLayout.room?.height ?? 2.8
+                    rig.configure(openings: simSource.windows, roomCenter: [0, roomHeight * 0.65, 0])
+                    resolvedWindowAzimuths = simSource.windowAzimuths
+                } else if snap != nil {
+                    rig.configure(openings: [], roomCenter: [0, 1.8, 0])
+                    resolvedWindowAzimuths = []
+                } else if let opening = findWindow(in: loaded) {
+                    rig.configure(opening: opening)
+                    resolvedWindowAzimuths = [Double(atan2(opening.outwardNormal.x, -opening.outwardNormal.z)) * 180 / .pi]
+                }
+            } else if let opening = findWindow(in: loaded) {
                 rig.configure(opening: opening)
+                resolvedWindowAzimuths = [Double(atan2(opening.outwardNormal.x, -opening.outwardNormal.z)) * 180 / .pi]
             }
             loadState = .loaded
         } catch is CancellationError {
@@ -562,8 +581,13 @@ final class RoomSceneController {
     // MARK: - Furniture Management
 
     private func populateFurnitures() {
+        let snap = (room?.planSnapshotData ?? layout?.room?.planSnapshotData).flatMap {
+            try? JSONDecoder().decode(RoomPlanSnapshot.self, from: $0)
+        }
+
         guard let layout, !layout.furnitures.isEmpty else {
-            // Seed authentic furniture into mock room environment grounded at floorLevel
+            // Only seed mock furniture into a mock room reference environment (never into a real scanned room)
+            guard snap == nil else { return }
             let mockItems = createMockFurnitureItems(at: floorLevel)
             for item in mockItems {
                 let entity = FurnitureEntityFactory.createEntity(for: item)
@@ -572,10 +596,6 @@ final class RoomSceneController {
                 self.layout?.furnitures.append(item)
             }
             return
-        }
-
-        let snap = (room?.planSnapshotData ?? layout.room?.planSnapshotData).flatMap {
-            try? JSONDecoder().decode(RoomPlanSnapshot.self, from: $0)
         }
 
         for furniture in layout.furnitures where !furniture.isArchived {
@@ -906,7 +926,7 @@ final class RoomSceneController {
     /// otherwise a fixture mesh wrapped around a light source blocks all of its light.
     private func castsShadow(named name: String) -> Bool {
         let lowered = name.lowercased()
-        let nonCasters = ["glass", "light", "lamp", "fixture", "bulb"]
+        let nonCasters = ["glass", "window", "door", "light", "lamp", "fixture", "bulb"]
         return !nonCasters.contains { lowered.contains($0) }
     }
 }

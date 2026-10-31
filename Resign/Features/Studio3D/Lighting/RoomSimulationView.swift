@@ -41,7 +41,8 @@ struct RoomSimulationView: View {
 
                     VStack(spacing: 16) {
                         Image(systemName: "exclamationmark.triangle.fill")
-                            .font(.system(size: 48))
+                            .font(.largeTitle)
+                            .imageScale(.large)
                             .foregroundStyle(.orange)
 
                         Text("Unable to Load Scanned Room")
@@ -419,12 +420,6 @@ private struct RoomRenderSurface: UIViewRepresentable {
         context.coordinator.onRotateFurniture = onRotateFurniture
         context.coordinator.onArchiveHover = onArchiveHover
         context.coordinator.onArchiveDrop = onArchiveDrop
-        if let bounds = controller.roomHorizontalBounds {
-            onBoundsResolved?(bounds)
-        }
-        if !controller.roomWallSegments.isEmpty {
-            onWallSegmentsResolved?(controller.roomWallSegments)
-        }
     }
 
     static func dismantleUIView(_ view: ARView, coordinator: Coordinator) {
