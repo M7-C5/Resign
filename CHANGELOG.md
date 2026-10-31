@@ -43,6 +43,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - feat(testing): add in-memory ModelContainer fixture and SwiftData unit tests (b4daaff)
 
 ### Changed
+- refactor(studio): decompose 3D studio view hierarchy and enforce HIG touch targets and dynamic type (d3c7245)
+- refactor(scan): enforce main-actor capture lifecycle, static SwiftData fetch, and dollhouse viewport decomposition (39dde27)
 - refactor(agents): renumber domain rule sequence and correct tool triage references (59f6549)
 - refactor(agents): deduplicate design audit checklists and streamline feature lifecycle in project directives (353fe53)
 - refactor(dashboard): integrate SwiftData models and decompose layout components (edbbe38)
@@ -51,6 +53,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - refactor(arch): scaffold vertical feature-slice architecture with skeleton modules (3419a7d)
 
 ### Fixed
+- fix(studio): configure scanned room window lighting and prevent mock furniture seeding in empty scans (6a3a6d8)
+- fix(spatial): align vertical collision intervals to floor base and close doorway gaps in polygon clamping (4904d78)
+- fix(persistence): resolve scanned room USDZ URLs across sandbox relocations and clean up deleted room directories (0869ade)
 - fix(spatial): normalize furniture coordinates at ingestion and suppress baked meshes (41ddc60)
 - fix(spatial): ensure longer dimension is length on dimension display and room mapping (e1a7adf)
 - fix(studio3d): normalize scanned room square orientation and center origin (759dc11)
@@ -111,6 +116,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - docs: add agentic playbook, architecture blueprint, and changelog (178cddb)
 
 ### Tooling & Maintenance
+- chore(release): update changelog for spatial coordinate alignment and irregular room navigation (508b1a6)
 - build(ci): add line buffering to verification test pipe (a02c863)
 - chore(release): update changelog for 3d studio inventory system (e957708)
 - test(studio-3d): verify furniture archival, restoration, and collision exclusion (0943801)
