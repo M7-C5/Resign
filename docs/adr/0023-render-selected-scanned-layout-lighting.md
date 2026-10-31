@@ -31,7 +31,7 @@ The Add Light Source screen uses the scanned plan. Its five rows and columns div
 
 Adaptive candidate counts and position persistence are defined in [ADR 0024](0024-adaptive-ceiling-light-placement.md), which supersedes the fixed five-row/five-column placement lattice while preserving existing saved positions.
 
-Artificial-light exposure is a render-only approximation: apply an 8× gain to nominal fixture lumens and a 50% unshadowed fill below the ceiling to compensate visually for missing indirect illumination. Preview fixtures use the same nominal 1,080-lumen reference as the editor. This does not change saved brightness, fixture locations, daylight intensity, or master/individual switch behavior, and is not a photometric calibration.
+Artificial-light exposure is a render-only approximation: apply a 24× gain to nominal fixture lumens and a 75% unshadowed fill below the ceiling to compensate visually for missing indirect illumination. Tune low-output visibility against a 600-lumen saved fixture while preserving proportional output. Preview fixtures use the same nominal 1,080-lumen default as the editor. This does not change saved brightness, fixture locations, daylight intensity, or master/individual switch behavior, and is not a photometric calibration.
 
 ## Consequences
 

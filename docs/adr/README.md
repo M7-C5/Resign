@@ -35,6 +35,11 @@ This directory documents key architectural decisions for **Resign** using the [M
 - [ADR 0029: Scanned Room Furniture Coordinate Normalization and Static Mesh Suppression](0029-scanned-room-furniture-coordinate-normalization.md)
 - [ADR 0030: Scanned Chair Component Merging, Airborne Artifact Filtering, and Procedural Under-Table Clearance](0030-scanned-chair-merging-and-airborne-artifact-filtering.md)
 - [ADR 0031: Non-Rectangular Room Polygon Boundary Clamping and Full Envelope Traversal](0031-non-rectangular-room-polygon-boundary-clamping.md)
+- [ADR 0032: Adaptive iPad and iPhone Lighting Workspaces](0032-adaptive-lighting-workspaces.md)
+- [ADR 0033: Layout-Only Room Preview Until Light Simulation Is Enabled](0033-layout-only-room-preview.md)
+- [ADR 0034: Aperture-Aware Scanned Ceiling Outline](0034-aperture-aware-ceiling-outline.md)
+- [ADR 0035: Separate Ceiling Perimeter Reconstruction from Interior Wall Partitions](0035-ceiling-perimeter-and-interior-walls.md)
+- [ADR 0036: Remove Standalone Compass from Post-Scan Flow](0036-remove-standalone-compass.md)
 
 ## How to Create a New ADR
 1. Copy [template.md](template.md) to `docs/adr/NNNN-title-in-kebab-case.md`.
