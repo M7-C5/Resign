@@ -30,27 +30,14 @@ public struct RoomCreationFlowView: View {
                         onScanAgain: {
                             path.removeAll()
                         },
-                        onContinueToOrientation: { layout in
-                            path.append(.orientation(layoutID: layout.id))
+                        onContinueToLighting: { layout in
+                            path.append(.lightingSetup(layoutID: layout.id))
                         },
                         onFinish: {
                             dismiss()
                         }
                     )
                     .navigationBarBackButtonHidden(true)
-
-                case .orientation(let layoutID):
-                    OrientationContainerView(
-                        layoutID: layoutID,
-                        onSave: {
-                            path.append(.lightingSetup(layoutID: layoutID))
-                        },
-                        onBack: {
-                            if !path.isEmpty {
-                                path.removeLast()
-                            }
-                        }
-                    )
 
                 case .lightingSetup(let layoutID):
                     LightingSetupContainerView(
@@ -128,64 +115,6 @@ struct LightingSetupContainerView: View {
             for room in rooms {
                 if let match = room.layouts.first(where: { $0.id == targetId }) {
                     self.layout = match
-                    self.hasLoaded = true
-                    return
-                }
-            }
-        }
-
-        self.hasLoaded = true
-    }
-}
-
-/// Loads the scanned layout and its owning room before north alignment.
-struct OrientationContainerView: View {
-    let layoutID: UUID
-    let onSave: () -> Void
-    let onBack: () -> Void
-
-    @Environment(\.modelContext) private var modelContext
-    @State private var layout: Layout?
-    @State private var room: Room?
-    @State private var hasLoaded = false
-
-    var body: some View {
-        Group {
-            if let layout, let room {
-                OrientationView(layout: layout, room: room, onSave: onSave, onBack: onBack)
-            } else if hasLoaded {
-                ContentUnavailableView("Room Not Found", systemImage: "location.north.circle")
-            } else {
-                ProgressView("Loading Orientation...")
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .background(Color(.systemBackground))
-            }
-        }
-        .onAppear {
-            loadOrientation()
-        }
-    }
-
-    private func loadOrientation() {
-        let targetId = layoutID
-        // 1. Direct fetch by ID
-        let descriptor = FetchDescriptor<Layout>(predicate: #Predicate<Layout> { $0.id == targetId })
-        if let direct = try? modelContext.fetch(descriptor).first {
-            self.layout = direct
-            if let directRoom = direct.room {
-                self.room = directRoom
-                self.hasLoaded = true
-                return
-            }
-        }
-
-        // 2. Search all rooms to ensure we get both room and layout
-        let roomDescriptor = FetchDescriptor<Room>()
-        if let rooms = try? modelContext.fetch(roomDescriptor) {
-            for r in rooms {
-                if let match = r.layouts.first(where: { $0.id == targetId }) {
-                    self.layout = match
-                    self.room = r
                     self.hasLoaded = true
                     return
                 }

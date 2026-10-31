@@ -13,7 +13,7 @@ import simd
 public struct RoomScanResultView: View {
     public let roomId: UUID
     public let onScanAgain: () -> Void
-    public var onContinueToOrientation: ((Layout) -> Void)?
+    public var onContinueToLighting: ((Layout) -> Void)?
     public var onFinish: (() -> Void)?
 
     @Environment(\.dismiss) private var dismiss
@@ -24,12 +24,12 @@ public struct RoomScanResultView: View {
     public init(
         roomId: UUID,
         onScanAgain: @escaping () -> Void,
-        onContinueToOrientation: ((Layout) -> Void)? = nil,
+        onContinueToLighting: ((Layout) -> Void)? = nil,
         onFinish: (() -> Void)? = nil
     ) {
         self.roomId = roomId
         self.onScanAgain = onScanAgain
-        self.onContinueToOrientation = onContinueToOrientation
+        self.onContinueToLighting = onContinueToLighting
         self.onFinish = onFinish
     }
 
@@ -159,12 +159,12 @@ public struct RoomScanResultView: View {
                 .padding(.horizontal, 20)
             }
 
-            // Primary: Calibrate north before placing lights
-            if let onContinueToOrientation {
+            // Primary: Open ceiling light placement directly
+            if let onContinueToLighting {
                 Button {
-                    onContinueToOrientation(layout)
+                    onContinueToLighting(layout)
                 } label: {
-                    Label("Set Room North", systemImage: "location.north.fill")
+                    Label("Configure Lighting", systemImage: "lightbulb.fill")
                         .font(.headline)
                         .foregroundStyle(.white)
                         .frame(maxWidth: .infinity)
