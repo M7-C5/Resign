@@ -1,7 +1,7 @@
 import Foundation
 
 /// Window-based UI policy, independent of device identity and saved lighting coordinates.
-struct LightingWorkspaceLayout {
+struct LightingWorkspaceLayout: Sendable {
     let size: CGSize
     let accessibilityText: Bool
 

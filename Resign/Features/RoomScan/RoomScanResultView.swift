@@ -159,12 +159,12 @@ public struct RoomScanResultView: View {
                 .padding(.horizontal, 20)
             }
 
-            // Primary: Continue directly to ceiling-light placement
+            // Primary: Open ceiling light placement directly
             if let onContinueToLighting {
                 Button {
                     onContinueToLighting(layout)
                 } label: {
-                    Label("Configure Lighting", systemImage: "lightbulb")
+                    Label("Configure Lighting", systemImage: "lightbulb.fill")
                         .font(.headline)
                         .foregroundStyle(.white)
                         .frame(maxWidth: .infinity)
