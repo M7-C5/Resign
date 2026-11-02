@@ -63,8 +63,8 @@ flowchart TD
    - When `RoomPlanSnapshot` is present on the room, wraps `roomShell` in `captureSpace` aligned with $-snap.yawRadians$ and translated by $inverseYaw \cdot [-snap.centerX, -floorY, -snap.centerZ]$, bringing the USDZ floor to $Y = 0.0$ and origin to $(0, 0)$.
 3. **`RoomSceneController.populateFurnitures`**:
    - Employs clustering-based camera-space detection (`dToSnapCenter < dToOrigin || positionY < -0.05`). Any unnormalized item (grounded or elevated wall shelves) is transformed into local coordinates in-place and clamped to $Y \ge 0.0$.
-4. **`OrientationView.furnitureFootprint`**:
-   - Only applies `scanPlan.localCoordinates` and `scanPlan.localYaw` if `item.positionY < -0.3`. For normalized items ($positionY \ge -0.3$), uses $(item.positionX, item.positionZ)$ directly.
+4. **`ScannedRoomPlanView.furnitureFootprint`**:
+   - Only applies `scanPlan.localCoordinates` and `scanPlan.localYaw` if `item.positionY < -0.3`. For normalized items ($positionY \ge -0.3$), uses $(item.positionX, item.positionZ)$ and `item.rotationYaw` directly. Ensures 2D floor plans render straight, centered, and aligned squarely with interior walls.
 
 ## Consequences
 
