@@ -51,6 +51,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - feat(testing): add in-memory ModelContainer fixture and SwiftData unit tests (b4daaff)
 
 ### Changed
+- refactor(ai): remove dead Swift Testing class reflection check (6a25682)
 - refactor(ai): bypass foundation models under headless test runner (61bc49c)
 - refactor(navigation): remove standalone post-scan compass screen from room creation flow (df6c5f1)
 - refactor(studio): decompose 3D studio view hierarchy and enforce HIG touch targets and dynamic type (47da4a6)
@@ -98,6 +99,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - fix(lighting-simulation): shape natural light to the window (5fbb493)
 
 ### Documentation
+- docs(changelog): update automated release notes (aef27df)
 - docs(adr): document universal furniture floor grounding and legacy migration (de883ec)
 - docs(changelog): update automated release notes (27a3c0e)
 - docs(changelog): update automated release notes (8995f8b)
