@@ -34,6 +34,13 @@ public final class FoundationModelAIDiagnosticService: AIDiagnosticServiceProtoc
         self.fallbackService = fallbackService ?? RulebookAIDiagnosticService()
     }
 
+    private static var isRunningInTestEnvironment: Bool {
+        ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil ||
+        ProcessInfo.processInfo.environment["SWIFT_TESTING"] != nil ||
+        NSClassFromString("Testing.Test") != nil ||
+        NSClassFromString("XCTestCase") != nil
+    }
+
     public func diagnose(
         room: Room,
         layout: Layout,
@@ -44,8 +51,7 @@ public final class FoundationModelAIDiagnosticService: AIDiagnosticServiceProtoc
         let activeIDs = Set(activeFurnitures.map(\.id))
 
         // Check if Apple Foundation Models are available on-device
-        let isTesting = ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
-        guard !isTesting && SystemLanguageModel.default.isAvailable else {
+        guard !Self.isRunningInTestEnvironment && SystemLanguageModel.default.isAvailable else {
             print("ℹ️ [Resign AI] SystemLanguageModel.default is disabled for testing or unavailable. Routing through RulebookAIDiagnosticService fallback.")
             return try await fallbackService.diagnose(
                 room: room,
@@ -136,7 +142,7 @@ public final class FoundationModelAIDiagnosticService: AIDiagnosticServiceProtoc
         let candidates = engine.candidates(room: room, layout: layout, violations: violations)
         guard !candidates.isEmpty else { return [] }
 
-        guard SystemLanguageModel.default.isAvailable else {
+        guard !Self.isRunningInTestEnvironment && SystemLanguageModel.default.isAvailable else {
             return await fallbackService.generateLayoutInsights(
                 room: room, layout: layout, violations: violations, preference: preference
             )
