@@ -31,7 +31,8 @@ public struct FurnitureCollisionProxy: Sendable, Equatable {
 public enum SpatialClearanceEngine {
 
     /// Clamps a furniture item's 2D floor position within explicit room bounding limits,
-    /// correctly handling scanned rooms whose origin is offset from (0, 0).
+    /// correctly handling scanned rooms whose origin is offset from (0, 0) and non-rectangular
+    /// floor plans with irregular grooves, alcoves, or L-shapes.
     public static func clampToRoomBoundaries(
         position: SIMD2<Float>,
         furnitureWidth: Float,
@@ -40,7 +41,8 @@ public enum SpatialClearanceEngine {
         minX: Float,
         maxX: Float,
         minZ: Float,
-        maxZ: Float
+        maxZ: Float,
+        walls: [RoomPlanSnapshot.WallSegment] = []
     ) -> SIMD2<Float> {
         let extentX = (abs(furnitureWidth * cos(rotationYaw)) + abs(furnitureLength * sin(rotationYaw))) * 0.5
         let extentZ = (abs(furnitureWidth * sin(rotationYaw)) + abs(furnitureLength * cos(rotationYaw))) * 0.5
@@ -52,7 +54,134 @@ public enum SpatialClearanceEngine {
 
         let clampedX = validMinX <= validMaxX ? min(max(position.x, validMinX), validMaxX) : (minX + maxX) * 0.5
         let clampedZ = validMinZ <= validMaxZ ? min(max(position.y, validMinZ), validMaxZ) : (minZ + maxZ) * 0.5
-        return SIMD2<Float>(clampedX, clampedZ)
+        let boxClamped = SIMD2<Float>(clampedX, clampedZ)
+
+        guard let closedWalls = closeWallPolygon(walls) else {
+            return boxClamped
+        }
+
+        // Polygon boundary projection: prevents furniture from penetrating exterior notches
+        // while allowing free traversal into the tail of L-shaped spaces and deep alcoves.
+        return projectIntoRoomPolygon(boxClamped, walls: closedWalls, margin: max(0.15, min(extentX, extentZ)))
+    }
+
+    /// Stitches small corner or doorway gaps (up to `maxGap` meters) between wall segments
+    /// to form a watertight closed polygon loop. Returns `nil` if the segments represent an
+    /// incomplete or open scan (< 3 walls or unbridgeable open perimeter).
+    public static func closeWallPolygon(
+        _ walls: [RoomPlanSnapshot.WallSegment],
+        maxGap: Float = 1.25
+    ) -> [RoomPlanSnapshot.WallSegment]? {
+        let validWalls = walls.filter {
+            let dx = $0.endX - $0.startX
+            let dz = $0.endZ - $0.startZ
+            return (dx * dx + dz * dz) > 1e-5
+        }
+        guard validWalls.count >= 3 else { return nil }
+
+        let endpoints: [SIMD2<Float>] = validWalls.flatMap {
+            [SIMD2<Float>($0.startX, $0.startZ), SIMD2<Float>($0.endX, $0.endZ)]
+        }
+
+        var pairs: [(u: Int, v: Int, distSq: Float)] = []
+        let maxGapSq = maxGap * maxGap
+        for u in 0..<endpoints.count {
+            for v in (u + 1)..<endpoints.count where (u / 2) != (v / 2) {
+                let dSq = simd_distance_squared(endpoints[u], endpoints[v])
+                if dSq <= maxGapSq {
+                    pairs.append((u, v, dSq))
+                }
+            }
+        }
+        pairs.sort { $0.distSq < $1.distSq }
+
+        var matched = Set<Int>()
+        var stitched = validWalls
+        for pair in pairs {
+            if !matched.contains(pair.u) && !matched.contains(pair.v) {
+                matched.insert(pair.u)
+                matched.insert(pair.v)
+                if pair.distSq > 1e-6 {
+                    let ptU = endpoints[pair.u]
+                    let ptV = endpoints[pair.v]
+                    stitched.append(
+                        RoomPlanSnapshot.WallSegment(
+                            startX: ptU.x,
+                            startZ: ptU.y,
+                            endX: ptV.x,
+                            endZ: ptV.y
+                        )
+                    )
+                }
+            }
+        }
+
+        guard matched.count == endpoints.count else {
+            return nil
+        }
+        return stitched
+    }
+
+    /// Evaluates whether a 2D floor position lies inside an arbitrary room polygon using ray-casting.
+    public static func isPointInsidePolygon(
+        _ point: SIMD2<Float>,
+        walls: [RoomPlanSnapshot.WallSegment]
+    ) -> Bool {
+        let effectiveWalls = closeWallPolygon(walls) ?? walls
+        var inside = false
+        for wall in effectiveWalls {
+            if (wall.startZ > point.y) != (wall.endZ > point.y) {
+                let crossingX = wall.startX + (point.y - wall.startZ)
+                    * (wall.endX - wall.startX) / (wall.endZ - wall.startZ)
+                if point.x < crossingX {
+                    inside.toggle()
+                }
+            }
+        }
+        return inside
+    }
+
+    /// Projects an outside candidate point to the nearest interior point inside the room polygon.
+    public static func projectIntoRoomPolygon(
+        _ point: SIMD2<Float>,
+        walls: [RoomPlanSnapshot.WallSegment],
+        margin: Float = 0.20
+    ) -> SIMD2<Float> {
+        let effectiveWalls = closeWallPolygon(walls) ?? walls
+        if isPointInsidePolygon(point, walls: effectiveWalls) {
+            return point
+        }
+
+        var bestCandidate = point
+        var minDistance: Float = .greatestFiniteMagnitude
+
+        for wall in effectiveWalls {
+            let dx = wall.endX - wall.startX
+            let dz = wall.endZ - wall.startZ
+            let segLenSq = dx * dx + dz * dz
+            guard segLenSq > 1e-5 else { continue }
+
+            let t = max(0.0, min(1.0, ((point.x - wall.startX) * dx + (point.y - wall.startZ) * dz) / segLenSq))
+            let projX = wall.startX + t * dx
+            let projZ = wall.startZ + t * dz
+
+            let lenSeg = sqrt(segLenSq)
+            let nx = -dz / lenSeg
+            let nz = dx / lenSeg
+
+            for sign: Float in [-1.0, 1.0] {
+                let cand = SIMD2<Float>(projX + sign * nx * margin, projZ + sign * nz * margin)
+                if isPointInsidePolygon(cand, walls: effectiveWalls) {
+                    let d = simd_distance(point, cand)
+                    if d < minDistance {
+                        minDistance = d
+                        bestCandidate = cand
+                    }
+                }
+            }
+        }
+
+        return bestCandidate
     }
 
     /// Clamps a furniture item's 2D floor position within room dimensions centered at (0, 0).
@@ -112,11 +241,11 @@ public enum SpatialClearanceEngine {
     ) -> Bool {
         guard itemA.id != itemB.id else { return false }
 
-        // 1. Vertical interval check (allows vertical stacking like TV on console)
-        let topA = itemA.position.y + itemA.dimensions.y * 0.5
-        let botA = itemA.position.y - itemA.dimensions.y * 0.5
-        let topB = itemB.position.y + itemB.dimensions.y * 0.5
-        let botB = itemB.position.y - itemB.dimensions.y * 0.5
+        // 1. Vertical interval check (position.y is the base Y of the furniture)
+        let botA = itemA.position.y
+        let topA = itemA.position.y + itemA.dimensions.y
+        let botB = itemB.position.y
+        let topB = itemB.position.y + itemB.dimensions.y
 
         let verticalOverlap = min(topA, topB) - max(botA, botB)
         guard verticalOverlap > 0.05 else { return false }

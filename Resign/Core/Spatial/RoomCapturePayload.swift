@@ -109,21 +109,28 @@ public struct CapturedRoomPayload: Sendable {
 }
 
 /// Scan-local projection data used to draw the captured room in a stable 2D plan.
-struct RoomPlanSnapshot: Codable, Sendable, Hashable {
-    struct WallSegment: Codable, Sendable, Hashable {
-        let startX: Float
-        let startZ: Float
-        let endX: Float
-        let endZ: Float
+public struct RoomPlanSnapshot: Codable, Sendable, Hashable {
+    public struct WallSegment: Codable, Sendable, Hashable {
+        public let startX: Float
+        public let startZ: Float
+        public let endX: Float
+        public let endZ: Float
+
+        public init(startX: Float, startZ: Float, endX: Float, endZ: Float) {
+            self.startX = startX
+            self.startZ = startZ
+            self.endX = endX
+            self.endZ = endZ
+        }
     }
 
-    let centerX: Float
-    let centerZ: Float
-    let yawRadians: Float
-    let floorLevel: Float?
-    let wallSegments: [WallSegment]
+    public let centerX: Float
+    public let centerZ: Float
+    public let yawRadians: Float
+    public let floorLevel: Float?
+    public let wallSegments: [WallSegment]
 
-    init(walls: [ScannedWallPayload], floorLevel: Float? = nil) {
+    public init(walls: [ScannedWallPayload], floorLevel: Float? = nil) {
         self.floorLevel = floorLevel
         guard let primaryWall = walls.max(by: { $0.dimensions.x < $1.dimensions.x }) else {
             centerX = 0
@@ -169,7 +176,7 @@ struct RoomPlanSnapshot: Codable, Sendable, Hashable {
         }
     }
 
-    func localCoordinates(worldX: Float, worldZ: Float) -> SIMD2<Float> {
+    public func localCoordinates(worldX: Float, worldZ: Float) -> SIMD2<Float> {
         Self.localPoint(
             SIMD2<Float>(worldX, worldZ),
             centerX: centerX,
@@ -179,7 +186,7 @@ struct RoomPlanSnapshot: Codable, Sendable, Hashable {
         )
     }
 
-    func localYaw(_ worldYaw: Float) -> Float {
+    public func localYaw(_ worldYaw: Float) -> Float {
         worldYaw - yawRadians
     }
 

@@ -17,6 +17,7 @@ public final class Studio3DViewModel {
     public var isDraggingFurniture = false
     public var isColliding = false
     public var roomHorizontalBounds: (minX: Float, maxX: Float, minZ: Float, maxZ: Float)? = nil
+    public var roomWallSegments: [RoomPlanSnapshot.WallSegment] = []
 
     // MARK: - Inventory State
     public var isInventoryOpen = false
@@ -81,7 +82,8 @@ public final class Studio3DViewModel {
                 minX: b.minX,
                 maxX: b.maxX,
                 minZ: b.minZ,
-                maxZ: b.maxZ
+                maxZ: b.maxZ,
+                walls: roomWallSegments
             )
         } else {
             let roomWidth = layout.room?.width ?? 5.0
@@ -96,10 +98,11 @@ public final class Studio3DViewModel {
             )
         }
 
+        let posY = max(0.0, furniture.positionY)
         let candidate = FurnitureCollisionProxy(
             id: furniture.id,
             category: furniture.category,
-            position: SIMD3<Float>(clamped.x, furniture.positionY, clamped.y),
+            position: SIMD3<Float>(clamped.x, posY, clamped.y),
             dimensions: SIMD3<Float>(furniture.width, furniture.height, furniture.length),
             rotationYaw: furniture.rotationYaw
         )
@@ -110,7 +113,7 @@ public final class Studio3DViewModel {
                 FurnitureCollisionProxy(
                     id: f.id,
                     category: f.category,
-                    position: SIMD3<Float>(f.positionX, f.positionY, f.positionZ),
+                    position: SIMD3<Float>(f.positionX, max(0.0, f.positionY), f.positionZ),
                     dimensions: SIMD3<Float>(f.width, f.height, f.length),
                     rotationYaw: f.rotationYaw
                 )
@@ -124,6 +127,7 @@ public final class Studio3DViewModel {
 
         // Update live visual position
         furniture.positionX = clamped.x
+        furniture.positionY = posY
         furniture.positionZ = clamped.y
 
         // 3. Only persist to SwiftData if placed in a valid, collision-free position
@@ -164,7 +168,8 @@ public final class Studio3DViewModel {
                 minX: b.minX,
                 maxX: b.maxX,
                 minZ: b.minZ,
-                maxZ: b.maxZ
+                maxZ: b.maxZ,
+                walls: roomWallSegments
             )
         } else {
             let roomWidth = layout.room?.width ?? 5.0
@@ -179,10 +184,11 @@ public final class Studio3DViewModel {
             )
         }
 
+        let posY = max(0.0, furniture.positionY)
         let candidate = FurnitureCollisionProxy(
             id: furniture.id,
             category: furniture.category,
-            position: SIMD3<Float>(clamped.x, furniture.positionY, clamped.y),
+            position: SIMD3<Float>(clamped.x, posY, clamped.y),
             dimensions: SIMD3<Float>(furniture.width, furniture.height, furniture.length),
             rotationYaw: targetYaw
         )
@@ -193,7 +199,7 @@ public final class Studio3DViewModel {
                 FurnitureCollisionProxy(
                     id: f.id,
                     category: f.category,
-                    position: SIMD3<Float>(f.positionX, f.positionY, f.positionZ),
+                    position: SIMD3<Float>(f.positionX, max(0.0, f.positionY), f.positionZ),
                     dimensions: SIMD3<Float>(f.width, f.height, f.length),
                     rotationYaw: f.rotationYaw
                 )
@@ -205,6 +211,7 @@ public final class Studio3DViewModel {
         self.isColliding = colliding
 
         furniture.positionX = clamped.x
+        furniture.positionY = posY
         furniture.positionZ = clamped.y
         furniture.rotationYaw = targetYaw
 
@@ -241,7 +248,8 @@ public final class Studio3DViewModel {
                 minX: b.minX,
                 maxX: b.maxX,
                 minZ: b.minZ,
-                maxZ: b.maxZ
+                maxZ: b.maxZ,
+                walls: roomWallSegments
             )
         } else {
             let roomWidth = layout.room?.width ?? 5.0
@@ -259,7 +267,7 @@ public final class Studio3DViewModel {
         let candidate = FurnitureCollisionProxy(
             id: furniture.id,
             category: furniture.category,
-            position: SIMD3<Float>(clamped.x, furniture.positionY, clamped.y),
+            position: SIMD3<Float>(clamped.x, max(0.0, furniture.positionY), clamped.y),
             dimensions: SIMD3<Float>(furniture.width, furniture.height, furniture.length),
             rotationYaw: nextYaw
         )
@@ -270,7 +278,7 @@ public final class Studio3DViewModel {
                 FurnitureCollisionProxy(
                     id: f.id,
                     category: f.category,
-                    position: SIMD3<Float>(f.positionX, f.positionY, f.positionZ),
+                    position: SIMD3<Float>(f.positionX, max(0.0, f.positionY), f.positionZ),
                     dimensions: SIMD3<Float>(f.width, f.height, f.length),
                     rotationYaw: f.rotationYaw
                 )
@@ -365,7 +373,8 @@ public final class Studio3DViewModel {
                 minX: b.minX,
                 maxX: b.maxX,
                 minZ: b.minZ,
-                maxZ: b.maxZ
+                maxZ: b.maxZ,
+                walls: roomWallSegments
             )
         } else {
             let roomWidth = layout.room?.width ?? 5.0
@@ -388,7 +397,7 @@ public final class Studio3DViewModel {
         let candidate = FurnitureCollisionProxy(
             id: furniture.id,
             category: furniture.category,
-            position: SIMD3<Float>(clamped.x, furniture.positionY, clamped.y),
+            position: SIMD3<Float>(clamped.x, max(0.0, furniture.positionY), clamped.y),
             dimensions: SIMD3<Float>(furniture.width, furniture.height, furniture.length),
             rotationYaw: furniture.rotationYaw
         )
@@ -398,7 +407,7 @@ public final class Studio3DViewModel {
                 FurnitureCollisionProxy(
                     id: f.id,
                     category: f.category,
-                    position: SIMD3<Float>(f.positionX, f.positionY, f.positionZ),
+                    position: SIMD3<Float>(f.positionX, max(0.0, f.positionY), f.positionZ),
                     dimensions: SIMD3<Float>(f.width, f.height, f.length),
                     rotationYaw: f.rotationYaw
                 )

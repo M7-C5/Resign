@@ -119,10 +119,17 @@ public final class RoomScanViewModel {
         state = .cancelled
     }
 
+    @MainActor
+    public func pauseScanningIfActive() {
+        guard state == .scanning else { return }
+        _captureView?.captureSession.stop(pauseARSession: true)
+    }
+
     public func isValidScan(payload: CapturedRoomPayload) -> Bool {
         !payload.walls.isEmpty && payload.roomWidth >= 0.5 && payload.roomLength >= 0.5
     }
 
+    @MainActor
     public func process(
         capturedRoom: CapturedRoom,
         modelContext: ModelContext,
@@ -137,6 +144,7 @@ public final class RoomScanViewModel {
         }
     }
 
+    @MainActor
     public func processPayload(
         _ payload: CapturedRoomPayload,
         modelContext: ModelContext,

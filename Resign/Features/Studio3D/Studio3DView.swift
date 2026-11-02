@@ -164,8 +164,17 @@ public struct Studio3DView: View {
                     viewModel.roomHorizontalBounds = bounds
                 }
             },
+            onWallSegmentsResolved: { walls in
+                viewModel.roomWallSegments = walls
+            },
             onReloadScannedRoom: {
-                Task { await controller.reload() }
+                Task { @MainActor in
+                    await controller.reload()
+                    if let bounds = controller.roomHorizontalBounds {
+                        viewModel.roomHorizontalBounds = bounds
+                    }
+                    viewModel.roomWallSegments = controller.roomWallSegments
+                }
             },
             onWindowDirectionsResolved: { directions in
                 viewModel.updateWindowDirections(directions)

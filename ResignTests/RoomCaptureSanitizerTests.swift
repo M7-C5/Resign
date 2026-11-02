@@ -3,6 +3,7 @@
 //  ResignTests
 //
 
+import Foundation
 import Testing
 import simd
 import SwiftData
@@ -351,7 +352,7 @@ struct RoomCaptureSanitizerTests {
         #expect(abs(sanitized[0].position.y - (-1.69)) < 0.001)
     }
 
-    @Test func mapperCarriesFloorLevelFromPayloadIntoSanitizedLayout() {
+    @Test func mapperNormalizesFurnitureYToFloorZeroInLayout() {
         let mapper = RoomCaptureMapper()
 
         let payload = CapturedRoomPayload(
@@ -374,7 +375,8 @@ struct RoomCaptureSanitizerTests {
         let layout = room.layouts.first
         #expect(layout != nil)
         #expect(layout?.furnitures.count == 1)
-        #expect(abs((layout?.furnitures.first?.positionY ?? 0) - (-1.69)) < 0.001)
+        // ADR 0029 invariant: persistent furniture must be grounded at floor Y = 0.0, NOT negative raw floorLevel (-1.69)
+        #expect(layout?.furnitures.first?.positionY == 0.0)
     }
 
     @Test func standingTelevisionRestsFlushOnTopOfMediaConsoleAndAlignsYaw() {
@@ -676,5 +678,242 @@ struct RoomCaptureSanitizerTests {
         // Television0 must still resolve its base elevation flush onto the top of the 0.8128m wing
         #expect(sanitized[1].category == "television")
         #expect(abs(sanitized[1].position.y - (floorLevel + 0.8128)) < 0.01)
+    }
+
+    @Test @MainActor func mapperNormalizesScannedRoomFurnitureCoordinatesToFloorZeroAndCenteredLocalOrigin() throws {
+        let walls = [
+            ScannedWallPayload(position: [3.0, 0.3, 0.0], dimensions: [4.0, 2.6, 0.1], rotationYaw: 0),
+            ScannedWallPayload(position: [3.0, 0.3, -4.0], dimensions: [4.0, 2.6, 0.1], rotationYaw: 0),
+            ScannedWallPayload(position: [1.0, 0.3, -2.0], dimensions: [4.0, 2.6, 0.1], rotationYaw: .pi / 2),
+            ScannedWallPayload(position: [5.0, 0.3, -2.0], dimensions: [4.0, 2.6, 0.1], rotationYaw: .pi / 2)
+        ]
+        // Centroid of room is at X = 3.0, Z = -2.0, floorLevel = -1.25m
+        let bedObject = ScannedObjectPayload(
+            rawCategory: "bed",
+            position: SIMD3<Float>(3.0, -1.25, -2.0),
+            dimensions: SIMD3<Float>(1.6, 1.0, 2.0),
+            rotationYaw: .pi / 2
+        )
+        let deskObject = ScannedObjectPayload(
+            rawCategory: "table",
+            position: SIMD3<Float>(4.5, -1.25, -2.0),
+            dimensions: SIMD3<Float>(1.2, 0.75, 0.6),
+            rotationYaw: .pi / 2
+        )
+
+        let payload = CapturedRoomPayload(
+            roomLength: 4.0,
+            roomWidth: 4.0,
+            roomHeight: 2.6,
+            floorLevel: -1.25,
+            walls: walls,
+            openings: [],
+            objects: [bedObject, deskObject]
+        )
+
+        let mapper = RoomCaptureMapper()
+        let room = mapper.mapToRoom(payload: payload, roomName: "Normalized Scanned Room")
+
+        #expect(room.layouts.count == 1)
+        let layout = room.layouts[0]
+        #expect(layout.furnitures.count == 2)
+
+        for furniture in layout.furnitures {
+            // Invariant: Floor-grounded furniture must have positionY == 0.0, NOT negative floorLevel (-1.25)
+            #expect(furniture.positionY == 0.0)
+            // Invariant: Horizontal coordinates must be centered around (0, 0)
+            #expect(furniture.positionX >= -2.1 && furniture.positionX <= 2.1)
+            #expect(furniture.positionZ >= -2.1 && furniture.positionZ <= 2.1)
+        }
+
+        let bed = try #require(layout.furnitures.first(where: { $0.category == "bed" }))
+        // Bed was at the room center (3.0, -2.0) in camera coordinates -> must be at (0, 0) in normalized space
+        #expect(abs(bed.positionX) < 0.05)
+        #expect(abs(bed.positionZ) < 0.05)
+    }
+
+    @Test @MainActor func roomSceneControllerMigratesLegacyNegativeYFurnitureInPlace() async throws {
+        let walls = [
+            ScannedWallPayload(position: [3.0, 0.3, 0.0], dimensions: [4.0, 2.6, 0.1], rotationYaw: 0),
+            ScannedWallPayload(position: [3.0, 0.3, -4.0], dimensions: [4.0, 2.6, 0.1], rotationYaw: 0),
+            ScannedWallPayload(position: [1.0, 0.3, -2.0], dimensions: [4.0, 2.6, 0.1], rotationYaw: .pi / 2),
+            ScannedWallPayload(position: [5.0, 0.3, -2.0], dimensions: [4.0, 2.6, 0.1], rotationYaw: .pi / 2)
+        ]
+        let room = Room(name: "Legacy Scanned Room", length: 4.0, width: 4.0, height: 2.6)
+        room.planSnapshotData = try JSONEncoder().encode(RoomPlanSnapshot(walls: walls, floorLevel: -1.25))
+
+        let legacyFurniture = Furniture(
+            name: "Legacy Bed",
+            category: "bed",
+            positionX: 3.0,
+            positionY: -1.25, // Legacy negative Y in camera tracking space
+            positionZ: -2.0,
+            rotationYaw: .pi / 2,
+            length: 2.0,
+            width: 1.6,
+            height: 1.0
+        )
+        let legacyShelf = Furniture(
+            name: "Legacy Shelf",
+            category: "storage",
+            positionX: 4.5, // in camera tracking coordinates near east wall
+            positionY: -0.05, // elevated camera Y (above -0.3m, previously skipped)
+            positionZ: -2.0,
+            rotationYaw: .pi / 2,
+            length: 0.4,
+            width: 1.2,
+            height: 0.3
+        )
+        let layout = Layout(name: "Legacy Layout")
+        layout.furnitures.append(legacyFurniture)
+        layout.furnitures.append(legacyShelf)
+        room.layouts.append(layout)
+
+        let controller = RoomSceneController(room: room, layout: layout)
+        await controller.load()
+
+        // Migration verification: furniture coordinates migrated in-place
+        #expect(legacyFurniture.positionY == 0.0)
+        #expect(abs(legacyFurniture.positionX) < 0.05)
+        #expect(abs(legacyFurniture.positionZ) < 0.05)
+
+        // Elevated shelf migration: shelf is placed inside the room and elevated
+        #expect(legacyShelf.positionY >= 1.0)
+        #expect(legacyShelf.positionX >= -2.0 && legacyShelf.positionX <= 2.0)
+        #expect(legacyShelf.positionZ >= -2.0 && legacyShelf.positionZ <= 2.0)
+
+        // Entity verification: 3D entity spawned at floor level
+        let entity = try #require(controller.furnitureEntity(for: legacyFurniture.id))
+        #expect(abs(entity.position.y) < 0.05)
+        #expect(abs(entity.position.x) < 0.05)
+        #expect(abs(entity.position.z) < 0.05)
+    }
+
+    @Test func discardsAirborneWallFloatingChairArtifacts() {
+        let sanitizer = RoomCaptureSanitizer()
+        let floorLevel: Float = -1.40
+
+        // Legitimate floor chair: bottom rests at floorLevel
+        let groundChair = ScannedObjectPayload(
+            rawCategory: "chair",
+            position: SIMD3<Float>(0.0, -0.95, 0.0), // bottom = -0.95 - 0.45 = -1.40 (floorLevel)
+            dimensions: SIMD3<Float>(0.60, 0.90, 0.60),
+            rotationYaw: 0
+        )
+
+        // Airborne wall artifact: whiteboard/acoustic panel misclassified as chair at eye level
+        let wallArtifact = ScannedObjectPayload(
+            rawCategory: "chair",
+            position: SIMD3<Float>(0.0, 0.10, 2.0), // bottom = 0.10 - 0.40 = -0.30 (1.10m above floor)
+            dimensions: SIMD3<Float>(0.60, 0.80, 0.25),
+            rotationYaw: 0
+        )
+
+        let sanitized = sanitizer.sanitize(
+            objects: [groundChair, wallArtifact],
+            roomWidth: 4.5,
+            roomLength: 7.0,
+            floorLevel: floorLevel
+        )
+
+        // Invariant: Wall artifact must be discarded; only legitimate ground chair survives
+        #expect(sanitized.count == 1)
+        #expect(sanitized.first?.category == "chair")
+        #expect(abs(sanitized[0].position.z) < 0.5)
+    }
+
+    @Test func mergesSplitChairBackrestAndSeatIntoSingleUnifiedChair() {
+        let sanitizer = RoomCaptureSanitizer()
+        let floorLevel: Float = -1.40
+
+        // Chair backrest (vertical, tall, resting near floor)
+        let backrest = ScannedObjectPayload(
+            rawCategory: "chair",
+            position: SIMD3<Float>(1.20, -0.95, 0.50), // bottom = -1.40
+            dimensions: SIMD3<Float>(0.55, 0.90, 0.25),
+            rotationYaw: .pi / 2
+        )
+
+        // Chair seat cushion (horizontal, flat, elevated near table height)
+        let seat = ScannedObjectPayload(
+            rawCategory: "chair",
+            position: SIMD3<Float>(1.20, -0.90, 0.35), // bottom = -0.90 - 0.10 = -1.00 (0.40m above floor)
+            dimensions: SIMD3<Float>(0.55, 0.20, 0.50),
+            rotationYaw: .pi / 2
+        )
+
+        let sanitized = sanitizer.sanitize(
+            objects: [backrest, seat],
+            roomWidth: 5.0,
+            roomLength: 5.0,
+            floorLevel: floorLevel
+        )
+
+        // Invariant: The two components must be merged into 1 unified chair entity
+        #expect(sanitized.count == 1)
+        let chair = sanitized[0]
+        #expect(chair.category == "chair")
+        // Invariant: Combined chair must ground flush to floorLevel
+        #expect(chair.position.y == floorLevel)
+        // Invariant: Combined height covers the full backrest height
+        #expect(chair.dimensions.y >= 0.85)
+        // Invariant: Combined depth covers the seat depth
+        #expect(chair.dimensions.z >= 0.45)
+    }
+
+    @Test func tuckedChairUnderConferenceTableNeverElevatesToTableHeight() throws {
+        let sanitizer = RoomCaptureSanitizer()
+        let floorLevel: Float = -1.40
+
+        // Conference Table: height 0.75m, floor at -1.40m, tabletop at -0.65m
+        let table = ScannedObjectPayload(
+            rawCategory: "table",
+            position: SIMD3<Float>(0.0, -1.025, 0.0), // bottom = -1.40, top = -0.65
+            dimensions: SIMD3<Float>(1.20, 0.75, 2.50),
+            rotationYaw: 0
+        )
+
+        // Chair tucked into the side of the table
+        let chair = ScannedObjectPayload(
+            rawCategory: "chair",
+            position: SIMD3<Float>(0.45, -0.95, 0.0),
+            dimensions: SIMD3<Float>(0.60, 0.90, 0.60),
+            rotationYaw: 0
+        )
+
+        let sanitized = sanitizer.sanitize(
+            objects: [table, chair],
+            roomWidth: 5.0,
+            roomLength: 5.0,
+            floorLevel: floorLevel
+        )
+
+        let chairResult = try #require(sanitized.first(where: { $0.category == "chair" }))
+        // Invariant: Chair must NEVER snap to tabletop height (-0.65m); it must ground flush at floorLevel (-1.40m)
+        #expect(chairResult.position.y == floorLevel)
+    }
+
+    @Test @MainActor func proceduralTableGeneratesOpenLegroomGeometry() {
+        let table = Furniture(
+            name: "Conference Table",
+            category: "table",
+            positionX: 0.0,
+            positionY: 0.0,
+            positionZ: 0.0,
+            rotationYaw: 0,
+            length: 2.40,
+            width: 1.20,
+            height: 0.75
+        )
+
+        let entity = FurnitureEntityFactory.createEntity(for: table)
+        let childNames = Set(entity.children.map { $0.name })
+
+        // Invariant: Procedural table must feature tabletop mesh and supporting corner legs
+        #expect(childNames.contains("TabletopMesh"))
+        #expect(childNames.contains("TableLegMesh_FL"))
+        #expect(childNames.contains("TableLegMesh_FR"))
+        #expect(childNames.contains("TableLegMesh_BL"))
+        #expect(childNames.contains("TableLegMesh_BR"))
     }
 }

@@ -128,6 +128,52 @@ public final class FurnitureEntityFactory {
             return container
         }
 
+        // Open under-table legroom for dining tables, conference tables, and work desks
+        let isTableOrDesk = furniture.category == "table" || furniture.category == "desk"
+        if isTableOrDesk && furniture.height >= 0.50 && min(furniture.width, furniture.length) >= 0.50 {
+            let topThickness = min(0.045, furniture.height * 0.08)
+            let topMesh = MeshResource.generateBox(
+                size: SIMD3<Float>(furniture.width, topThickness, furniture.length),
+                cornerRadius: 0.015
+            )
+            let tabletop = ModelEntity(mesh: topMesh, materials: [material])
+            tabletop.name = "TabletopMesh"
+            tabletop.position = SIMD3<Float>(0, furniture.height - (topThickness / 2.0), 0)
+            container.addChild(tabletop)
+
+            let legHeight = furniture.height - topThickness
+            let legThickness = min(0.065, min(furniture.width, furniture.length) * 0.08)
+            let legMesh = MeshResource.generateBox(
+                size: SIMD3<Float>(legThickness, legHeight, legThickness),
+                cornerRadius: 0.008
+            )
+
+            let offsetX = (furniture.width / 2.0) - (legThickness / 2.0) - 0.02
+            let offsetZ = (furniture.length / 2.0) - (legThickness / 2.0) - 0.02
+
+            let legFL = ModelEntity(mesh: legMesh, materials: [material])
+            legFL.name = "TableLegMesh_FL"
+            legFL.position = SIMD3<Float>(offsetX, legHeight / 2.0, offsetZ)
+            container.addChild(legFL)
+
+            let legFR = ModelEntity(mesh: legMesh, materials: [material])
+            legFR.name = "TableLegMesh_FR"
+            legFR.position = SIMD3<Float>(-offsetX, legHeight / 2.0, offsetZ)
+            container.addChild(legFR)
+
+            let legBL = ModelEntity(mesh: legMesh, materials: [material])
+            legBL.name = "TableLegMesh_BL"
+            legBL.position = SIMD3<Float>(offsetX, legHeight / 2.0, -offsetZ)
+            container.addChild(legBL)
+
+            let legBR = ModelEntity(mesh: legMesh, materials: [material])
+            legBR.name = "TableLegMesh_BR"
+            legBR.position = SIMD3<Float>(-offsetX, legHeight / 2.0, -offsetZ)
+            container.addChild(legBR)
+
+            return container
+        }
+
         let mesh = MeshResource.generateBox(
             size: SIMD3<Float>(furniture.width, furniture.height, furniture.length),
             cornerRadius: 0.02

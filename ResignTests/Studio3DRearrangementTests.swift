@@ -310,4 +310,92 @@ struct Studio3DRearrangementTests {
             }
         }
     }
+
+    @Test @MainActor func viewModelAllowsFurnitureToEnterTailOfLShapedRoom() async throws {
+        let container = try ModelContainer.createInMemoryContainer()
+        let room = Room(name: "L-Shaped Room", length: 6.0, width: 5.0, height: 2.7)
+        let layout = Layout(name: "L-Layout")
+        let chair = Furniture(
+            name: "Office Chair",
+            category: "chair",
+            positionX: -1.0,
+            positionY: 0.0,
+            positionZ: 0.0,
+            rotationYaw: 0,
+            length: 0.6,
+            width: 0.6,
+            height: 0.9
+        )
+        layout.furnitures.append(chair)
+        room.layouts.append(layout)
+        container.mainContext.insert(room)
+
+        let viewModel = Studio3DViewModel()
+        // Full envelope of L-shaped room: X [-2.0, 3.0], Z [-2.0, 2.0]
+        // Main body: X in [-2, 0], Z in [-2, 2]
+        // Tail of L: X in [0, 3], Z in [-2, 0]
+        // Notch (outside): X in [0, 3], Z in [0, 2]
+        viewModel.roomHorizontalBounds = (minX: -2.0, maxX: 3.0, minZ: -2.0, maxZ: 2.0)
+        let walls = [
+            RoomPlanSnapshot.WallSegment(startX: -2.0, startZ: -2.0, endX: 3.0, endZ: -2.0),
+            RoomPlanSnapshot.WallSegment(startX: 3.0, startZ: -2.0, endX: 3.0, endZ: 0.0),
+            RoomPlanSnapshot.WallSegment(startX: 3.0, startZ: 0.0, endX: 0.0, endZ: 0.0),
+            RoomPlanSnapshot.WallSegment(startX: 0.0, startZ: 0.0, endX: 0.0, endZ: 2.0),
+            RoomPlanSnapshot.WallSegment(startX: 0.0, startZ: 2.0, endX: -2.0, endZ: 2.0),
+            RoomPlanSnapshot.WallSegment(startX: -2.0, startZ: 2.0, endX: -2.0, endZ: -2.0)
+        ]
+        viewModel.roomWallSegments = walls
+        viewModel.selectFurniture(id: chair.id, in: layout)
+
+        // 1. Move into the tail of the L at (2.0, -1.0): MUST SUCCEED (not blocked by square!)
+        let tailDrag = viewModel.moveSelectedFurniture(
+            to: SIMD2<Float>(2.0, -1.0),
+            in: layout,
+            context: container.mainContext
+        )
+        #expect(tailDrag != nil)
+        #expect(abs(chair.positionX - 2.0) < 0.01)
+        #expect(abs(chair.positionZ - (-1.0)) < 0.01)
+
+        // 2. Drag into the exterior notch at (2.0, 1.5): MUST BE PROTECTED (projected back inside room)
+        let notchDrag = viewModel.moveSelectedFurniture(
+            to: SIMD2<Float>(2.0, 1.5),
+            in: layout,
+            context: container.mainContext
+        )
+        #expect(notchDrag != nil)
+        // Position must remain inside the room polygon, NOT inside the exterior notch
+        let isInside = SpatialClearanceEngine.isPointInsidePolygon(
+            SIMD2<Float>(chair.positionX, chair.positionZ),
+            walls: walls
+        )
+        #expect(isInside, "Furniture must not escape into the exterior notch of an L-shaped room")
+    }
+
+    @Test @MainActor func scannedRoomInLoadPathConfiguresWindowsAndNeverSeedsMockFurnitureWhenEmpty() async throws {
+        let room = Room(name: "Empty Scanned Room", length: 5.0, width: 4.0, height: 2.7)
+        let walls = [
+            ScannedWallPayload(position: [0, 1.35, -2.0], dimensions: [5.0, 2.7, 0.1], rotationYaw: 0),
+            ScannedWallPayload(position: [0, 1.35, 2.0], dimensions: [5.0, 2.7, 0.1], rotationYaw: .pi),
+            ScannedWallPayload(position: [2.5, 1.35, 0], dimensions: [4.0, 2.7, 0.1], rotationYaw: .pi / 2),
+            ScannedWallPayload(position: [-2.5, 1.35, 0], dimensions: [4.0, 2.7, 0.1], rotationYaw: -.pi / 2)
+        ]
+        room.planSnapshotData = try JSONEncoder().encode(RoomPlanSnapshot(walls: walls, floorLevel: 0.0))
+        // East-facing window at X = +2.5
+        room.openings.append(RoomOpening(type: "window", posX: 2.5, posY: 1.4, posZ: 0.0, width: 1.4, height: 1.2))
+
+        let layout = Layout(name: "Original Scan")
+        layout.usdzURL = Bundle.main.url(forResource: "Room", withExtension: "usdz")
+        room.layouts.append(layout)
+
+        let controller = RoomSceneController(room: room, layout: layout)
+        await controller.load()
+
+        #expect(controller.loadState == .loaded)
+        // Must NOT seed 5 mock bedroom furniture items into an empty scanned room
+        #expect(layout.furnitures.isEmpty)
+        // Must resolve window azimuths from room.openings even in the standard load() path
+        let azimuths = try #require(controller.resolvedWindowAzimuths)
+        #expect(azimuths.count == 1)
+    }
 }

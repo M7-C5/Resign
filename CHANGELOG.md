@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- feat(studio3d): support full envelope traversal and polygon clamping in irregular rooms (8347c23)
+- feat(spatial): deduplicate chair components, filter wall artifacts, and add table clearance (c7c2905)
 - feat(lighting): separate neutral room previews from simulation (1dfb158)
 - feat(lighting): adapt workspaces and compass for iPad (f68d2a2)
 - feat(studio-3d): implement inventory system and interactive drag-to-archive (5af0572)
@@ -45,6 +47,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - feat(testing): add in-memory ModelContainer fixture and SwiftData unit tests (b4daaff)
 
 ### Changed
+- refactor(studio): decompose 3D studio view hierarchy and enforce HIG touch targets and dynamic type (47da4a6)
+- refactor(scan): enforce main-actor capture lifecycle, static SwiftData fetch, and dollhouse viewport decomposition (89e3800)
 - refactor(orientation): remove standalone compass flow (36218da)
 - refactor(agents): renumber domain rule sequence and correct tool triage references (59f6549)
 - refactor(agents): deduplicate design audit checklists and streamline feature lifecycle in project directives (353fe53)
@@ -54,6 +58,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - refactor(arch): scaffold vertical feature-slice architecture with skeleton modules (3419a7d)
 
 ### Fixed
+- fix(studio): configure scanned room window lighting and prevent mock furniture seeding in empty scans (7bd48bd)
+- fix(spatial): align vertical collision intervals to floor base and close doorway gaps in polygon clamping (3d1d948)
+- fix(persistence): resolve scanned room USDZ URLs across sandbox relocations and clean up deleted room directories (2932d24)
+- fix(spatial): normalize furniture coordinates at ingestion and suppress baked meshes (9078568)
 - fix(lighting): recover scanned outlines with interior wall branches (bc82588)
 - fix(orientation): recover compass calibration after interruptions (d8eef7c)
 - fix(lighting): boost preview exposure for low lumen fixtures (cfc0caa)
@@ -90,6 +98,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - fix(lighting-simulation): shape natural light to the window (5fbb493)
 
 ### Documentation
+- docs(changelog): update automated release notes (02b6294)
+- docs(changelog): record compass removal and scope cleanup (b2dc3ad)
 - docs(changelog): record lighting and orientation improvements (f7566a3)
 - docs(changelog): record adaptive placement and brighter fixtures (5c872b1)
 - docs(changelog): regenerate lighting history after rebase (ceea6fa)
@@ -130,6 +140,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - docs: add agentic playbook, architecture blueprint, and changelog (178cddb)
 
 ### Tooling & Maintenance
+- chore(release): update changelog for spatial coordinate alignment and irregular room navigation (3454409)
+- build(ci): add line buffering to verification test pipe (7ab3944)
 - chore: preserve staging signing and inventory settings (b30b6f4)
 - build(ios): configure development signing for connected devices (6803f40)
 - chore(release): update changelog for 3d studio inventory system (e957708)

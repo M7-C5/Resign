@@ -31,7 +31,7 @@ public struct RoomScanOverlayView: View {
                         .fontWeight(.medium)
                         .foregroundStyle(.white)
                         .padding(.horizontal, 16)
-                        .padding(.vertical, 8)
+                        .frame(minHeight: 44)
                         .background(.ultraThinMaterial, in: Capsule())
                 }
                 .disabled(state == .processing)
@@ -45,7 +45,7 @@ public struct RoomScanOverlayView: View {
                             .fontWeight(.semibold)
                             .foregroundStyle(.white)
                             .padding(.horizontal, 18)
-                            .padding(.vertical, 8)
+                            .frame(minHeight: 44)
                             .background(Color.blue, in: Capsule())
                     }
                 }
