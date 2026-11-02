@@ -79,11 +79,11 @@ public struct LightingSetupView: View {
     // MARK: - Body
 
     public var body: some View {
-        GeometryReader { geometry in
-            VStack(spacing: 0) {
-                VStack(spacing: 6) { headerView }
-                    .frame(maxWidth: 1280)
-                    .frame(maxWidth: .infinity)
+        VStack(spacing: 0) {
+            VStack(spacing: 6) { headerView }
+                .frame(maxWidth: 1280)
+                .frame(maxWidth: .infinity)
+            GeometryReader { geometry in
                 placementWorkspace(in: geometry.size)
             }
         }
@@ -128,14 +128,19 @@ public struct LightingSetupView: View {
     private func placementWorkspace(in size: CGSize) -> some View {
         let workspace = LightingWorkspaceLayout(size: size, accessibilityText: dynamicTypeSize.isAccessibilitySize)
         if workspace.usesSidePanel {
-            HStack(alignment: .top, spacing: 16) {
-                ScrollView {
+            HStack(alignment: .center, spacing: 16) {
+                let availableWidth = max(240, size.width - workspace.panelWidth - 48)
+                let availableHeight = max(240, size.height - 32)
+                let maxGridWidth = min(availableWidth, availableHeight * roomAspectRatio)
+
+                VStack {
+                    Spacer(minLength: 0)
                     gridView
-                        .frame(maxWidth: min(size.width - workspace.panelWidth - 48,
-                                             max(240, size.height - 100) * roomAspectRatio))
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 16)
+                        .frame(maxWidth: maxGridWidth)
+                    Spacer(minLength: 0)
                 }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+
                 ScrollView {
                     VStack(spacing: 16) {
                         if !outsideDrafts.isEmpty { outsideLightsList }
@@ -148,7 +153,7 @@ public struct LightingSetupView: View {
             }
             .padding(16)
             .frame(maxWidth: 1440)
-            .frame(maxWidth: .infinity)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else {
             ScrollView {
                 VStack(spacing: 16) {
