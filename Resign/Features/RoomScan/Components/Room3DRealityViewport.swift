@@ -117,32 +117,32 @@ struct Room3DRealityViewport: View {
         let hasModeledFurniture = (roomContent.findEntity(named: "Furniture") != nil)
         guard !hasModeledFurniture else { return }
 
+        // Intelligent legacy migration: only unmigrated legacy layouts contain negative Y floor coordinates (< -0.2m)
+        let isLegacyLayout = layout.furnitures.contains(where: { $0.positionY < -0.2 })
+
         for furniture in layout.furnitures where !furniture.isArchived {
             var posX = furniture.positionX
             var posY = furniture.positionY
             var posZ = furniture.positionZ
             var yaw = furniture.rotationYaw
 
-            if let snap {
-                let dToSnapCenter = hypot(posX - snap.centerX, posZ - snap.centerZ)
-                let dToOrigin = hypot(posX, posZ)
-                let isCloserToSnapCenter = (abs(snap.centerX) > 0.2 || abs(snap.centerZ) > 0.2) && (dToSnapCenter + 0.3 < dToOrigin)
-                let isBelowFloor = posY < -0.05
-
-                if isCloserToSnapCenter || isBelowFloor {
-                    let localPos = snap.localCoordinates(worldX: posX, worldZ: posZ)
-                    posX = localPos.x
-                    posZ = localPos.y
-                    yaw = snap.localYaw(yaw)
-                    if let floorLvl = snap.floorLevel {
-                        posY = max(0.0, posY - floorLvl)
-                    } else {
-                        posY = max(0.0, posY)
-                    }
+            if isLegacyLayout, let snap {
+                let localPos = snap.localCoordinates(worldX: posX, worldZ: posZ)
+                posX = localPos.x
+                posZ = localPos.y
+                yaw = snap.localYaw(yaw)
+                if let floorLvl = snap.floorLevel {
+                    posY = max(0.0, posY - floorLvl)
+                } else {
+                    posY = max(0.0, posY)
                 }
             }
 
-            if furniture.category.lowercased() == "chair" || furniture.category.lowercased() == "sofa" {
+            // Universal Floor-Grounding Invariant:
+            // All standard floor furniture (wardrobes, media consoles, cabinets, beds, sofas, chairs, tables, desks, fireplaces)
+            // must rest flush on the floor at Y = 0.0. Only televisions and floating wall shelves may sit elevated.
+            let isElevatedCategory = furniture.category.lowercased() == "television" || furniture.name.lowercased().contains("shelf")
+            if !isElevatedCategory {
                 posY = 0.0
             } else {
                 posY = max(0.0, posY)

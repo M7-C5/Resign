@@ -383,33 +383,30 @@ final class RoomSceneController {
 
         if shell?.findEntity(named: "Furniture") == nil {
             let snap = source.scanPlan
+            let isLegacySource = source.furnishings.contains(where: { $0.position.y < -0.2 })
             for item in source.furnishings {
                 var posX = item.position.x
                 var posY = item.position.y
                 var posZ = item.position.z
                 var yaw = item.yaw
 
-                if let snap {
-                    let dToSnapCenter = hypot(posX - snap.centerX, posZ - snap.centerZ)
-                    let dToOrigin = hypot(posX, posZ)
-                    let isCloserToSnapCenter = (abs(snap.centerX) > 0.2 || abs(snap.centerZ) > 0.2) && (dToSnapCenter + 0.3 < dToOrigin)
-                    let isBelowFloor = posY < -0.05
-
-                    if isCloserToSnapCenter || isBelowFloor {
-                        let localPos = snap.localCoordinates(worldX: posX, worldZ: posZ)
-                        posX = localPos.x
-                        posZ = localPos.y
-                        yaw = snap.localYaw(yaw)
-                        if let floorLvl = snap.floorLevel {
-                            posY = max(0.0, posY - floorLvl)
-                        } else {
-                            posY = max(0.0, posY)
-                        }
+                if isLegacySource, let snap {
+                    let localPos = snap.localCoordinates(worldX: posX, worldZ: posZ)
+                    posX = localPos.x
+                    posZ = localPos.y
+                    yaw = snap.localYaw(yaw)
+                    if let floorLvl = snap.floorLevel {
+                        posY = max(0.0, posY - floorLvl)
+                    } else {
+                        posY = max(0.0, posY)
                     }
                 }
 
-                // Seating grounding invariant: chairs and sofas must always ground flush to the floor
-                if item.category.lowercased() == "chair" || item.category.lowercased() == "sofa" {
+                // Universal Floor-Grounding Invariant:
+                // All standard floor furniture (wardrobes, media consoles, cabinets, beds, sofas, chairs, tables, desks, fireplaces)
+                // must rest flush on the floor at Y = 0.0. Only televisions and floating wall shelves may sit elevated.
+                let isElevatedCategory = item.category.lowercased() == "television" || item.name.lowercased().contains("shelf")
+                if !isElevatedCategory {
                     posY = 0.0
                 } else {
                     posY = max(0.0, posY)
@@ -619,29 +616,27 @@ final class RoomSceneController {
             return
         }
 
-        for furniture in layout.furnitures where !furniture.isArchived {
-            // Intelligent legacy migration: detect if this item is in raw camera tracking coordinates
-            if let snap {
-                let dToSnapCenter = hypot(furniture.positionX - snap.centerX, furniture.positionZ - snap.centerZ)
-                let dToOrigin = hypot(furniture.positionX, furniture.positionZ)
-                let isCloserToSnapCenter = (abs(snap.centerX) > 0.2 || abs(snap.centerZ) > 0.2) && (dToSnapCenter + 0.3 < dToOrigin)
-                let isBelowFloor = furniture.positionY < -0.05
+        // Intelligent legacy migration: only unmigrated legacy layouts contain negative Y floor coordinates (< -0.2m)
+        let isLegacyLayout = layout.furnitures.contains(where: { $0.positionY < -0.2 })
 
-                if isCloserToSnapCenter || isBelowFloor {
-                    let localPos = snap.localCoordinates(worldX: furniture.positionX, worldZ: furniture.positionZ)
-                    furniture.positionX = localPos.x
-                    furniture.positionZ = localPos.y
-                    furniture.rotationYaw = snap.localYaw(furniture.rotationYaw)
-                    if let floorLvl = snap.floorLevel {
-                        furniture.positionY = max(0.0, furniture.positionY - floorLvl)
-                    } else {
-                        furniture.positionY = max(0.0, furniture.positionY)
-                    }
+        for furniture in layout.furnitures where !furniture.isArchived {
+            if isLegacyLayout, let snap {
+                let localPos = snap.localCoordinates(worldX: furniture.positionX, worldZ: furniture.positionZ)
+                furniture.positionX = localPos.x
+                furniture.positionZ = localPos.y
+                furniture.rotationYaw = snap.localYaw(furniture.rotationYaw)
+                if let floorLvl = snap.floorLevel {
+                    furniture.positionY = max(0.0, furniture.positionY - floorLvl)
+                } else {
+                    furniture.positionY = max(0.0, furniture.positionY)
                 }
             }
 
-            // Seating grounding invariant: chairs and sofas must always ground flush to the floor
-            if furniture.category.lowercased() == "chair" || furniture.category.lowercased() == "sofa" {
+            // Universal Floor-Grounding Invariant:
+            // All standard floor furniture (wardrobes, media consoles, cabinets, beds, sofas, chairs, tables, desks, fireplaces)
+            // must rest flush on the floor at Y = 0.0. Only televisions and floating wall shelves may sit elevated.
+            let isElevatedCategory = furniture.category.lowercased() == "television" || furniture.name.lowercased().contains("shelf")
+            if !isElevatedCategory {
                 furniture.positionY = 0.0
             } else {
                 furniture.positionY = max(0.0, furniture.positionY)
