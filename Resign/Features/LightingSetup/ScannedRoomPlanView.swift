@@ -134,13 +134,23 @@ struct ScannedRoomPlanView: View {
         .foregroundStyle(.primary)
     }
 
+    static func footprintCoordinates(for item: Furniture, scanPlan: RoomPlanSnapshot?) -> (position: SIMD2<Float>, yaw: Float) {
+        let isLegacy = item.positionY < -0.3
+        let localPosition: SIMD2<Float> = isLegacy
+            ? (scanPlan?.localCoordinates(worldX: item.positionX, worldZ: item.positionZ) ?? SIMD2<Float>(item.positionX, item.positionZ))
+            : SIMD2<Float>(item.positionX, item.positionZ)
+        let yaw: Float = isLegacy
+            ? (scanPlan?.localYaw(item.rotationYaw) ?? item.rotationYaw)
+            : item.rotationYaw
+        return (localPosition, yaw)
+    }
+
     @ViewBuilder
     private func furnitureFootprint(_ item: Furniture, in size: CGSize) -> some View {
         let roomWidth = CGFloat(planBounds.width)
         let roomLength = CGFloat(planBounds.length)
-        let localPosition = scanPlan?.localCoordinates(worldX: item.positionX, worldZ: item.positionZ)
-            ?? SIMD2<Float>(item.positionX, item.positionZ)
-        let point = planPoint(localX: localPosition.x, localZ: localPosition.y, in: size)
+        let coords = Self.footprintCoordinates(for: item, scanPlan: scanPlan)
+        let point = planPoint(localX: coords.position.x, localZ: coords.position.y, in: size)
         let width = min(size.width - 34, max(8, CGFloat(item.width) / roomWidth * (size.width - 34)))
         let height = min(size.height - 34, max(8, CGFloat(item.length) / roomLength * (size.height - 34)))
 
@@ -161,7 +171,7 @@ struct ScannedRoomPlanView: View {
                 }
             }
             .frame(width: width, height: height)
-            .rotationEffect(.radians(-Double(scanPlan?.localYaw(item.rotationYaw) ?? item.rotationYaw)))
+            .rotationEffect(.radians(-Double(coords.yaw)))
             .position(point)
             .allowsHitTesting(false)
             .accessibilityHidden(true)
