@@ -37,7 +37,6 @@ public final class FoundationModelAIDiagnosticService: AIDiagnosticServiceProtoc
     private static var isRunningInTestEnvironment: Bool {
         ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil ||
         ProcessInfo.processInfo.environment["SWIFT_TESTING"] != nil ||
-        NSClassFromString("Testing.Test") != nil ||
         NSClassFromString("XCTestCase") != nil
     }
 
