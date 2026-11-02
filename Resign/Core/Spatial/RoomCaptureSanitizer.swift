@@ -192,9 +192,14 @@ public final class RoomCaptureSanitizer: Sendable {
         allObjects: [ScannedObjectPayload],
         floorLevel: Float
     ) -> ElevationResolution {
-        // Only televisions and elevated storage (floating wall shelves) may sit above the floor plane.
-        // All standard floor furniture (beds, sofas, chairs, tables, desks, fireplaces) grounds to floorLevel.
-        guard category == "television" || category == "closet" else {
+        // Only televisions and small elevated storage (floating wall shelves) may sit above the floor plane.
+        // All standard floor furniture (wardrobes, cabinets, media consoles, beds, sofas, chairs, tables, desks, fireplaces)
+        // grounds strictly to floorLevel.
+        let isSmallWallShelf = (category == "closet") &&
+            obj.dimensions.y <= 0.60 &&
+            min(obj.dimensions.x, obj.dimensions.z) <= 0.45
+
+        guard category == "television" || isSmallWallShelf else {
             return ElevationResolution(baseY: floorLevel, isElevated: false, isSupportedByFurniture: false)
         }
 
@@ -206,42 +211,45 @@ public final class RoomCaptureSanitizer: Sendable {
             return ElevationResolution(baseY: floorLevel, isElevated: false, isSupportedByFurniture: false)
         }
 
-        // Check if this elevated item rests on a floor-grounded supporting surface (console, cabinet, desk, table)
-        for candidate in allObjects {
-            let candidateRaw = candidate.rawCategory.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-            guard let candidateCategory = mapCategory(raw: candidateRaw, dimensions: candidate.dimensions),
-                  candidateCategory == "closet" || candidateCategory == "table" || candidateCategory == "desk" else {
-                continue
-            }
+        // Only televisions can rest on a floor-grounded supporting surface (console, cabinet, desk, table).
+        // Floating wall shelves attach to drywall and must never stack onto desks or tables.
+        if category == "television" {
+            for candidate in allObjects {
+                let candidateRaw = candidate.rawCategory.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+                guard let candidateCategory = mapCategory(raw: candidateRaw, dimensions: candidate.dimensions),
+                      candidateCategory == "closet" || candidateCategory == "table" || candidateCategory == "desk" else {
+                    continue
+                }
 
-            // Candidate must itself be floor-grounded and console/table height (not a tall wardrobe)
-            let candidateBottomY = candidate.position.y - (candidate.dimensions.y * 0.5)
-            guard (candidateBottomY - floorLevel) <= 0.25,
-                  candidate.dimensions.y <= 1.25 else {
-                continue
-            }
+                // Candidate must itself be floor-grounded and console/table height (not a tall wardrobe)
+                let candidateBottomY = candidate.position.y - (candidate.dimensions.y * 0.5)
+                guard (candidateBottomY - floorLevel) <= 0.25,
+                      candidate.dimensions.y <= 1.25 else {
+                    continue
+                }
 
-            // Check 2D horizontal overlap (accounting for candidate's yaw orientation)
-            let cosYaw = abs(cos(candidate.rotationYaw))
-            let sinYaw = abs(sin(candidate.rotationYaw))
-            let halfExtentX = (cosYaw * candidate.dimensions.x + sinYaw * candidate.dimensions.z) * 0.5
-            let halfExtentZ = (sinYaw * candidate.dimensions.x + cosYaw * candidate.dimensions.z) * 0.5
+                // Check 2D horizontal overlap (accounting for candidate's yaw orientation)
+                let cosYaw = abs(cos(candidate.rotationYaw))
+                let sinYaw = abs(sin(candidate.rotationYaw))
+                let halfExtentX = (cosYaw * candidate.dimensions.x + sinYaw * candidate.dimensions.z) * 0.5
+                let halfExtentZ = (sinYaw * candidate.dimensions.x + cosYaw * candidate.dimensions.z) * 0.5
 
-            let dx = abs(obj.position.x - candidate.position.x)
-            let dz = abs(obj.position.z - candidate.position.z)
-            let margin: Float = 0.12
+                let dx = abs(obj.position.x - candidate.position.x)
+                let dz = abs(obj.position.z - candidate.position.z)
+                let margin: Float = 0.12
 
-            guard dx <= halfExtentX + margin, dz <= halfExtentZ + margin else {
-                continue
-            }
+                guard dx <= halfExtentX + margin, dz <= halfExtentZ + margin else {
+                    continue
+                }
 
-            let supportTopY = floorLevel + candidate.dimensions.y
-            if rawBottomY >= (floorLevel + candidate.dimensions.y * 0.4) && rawBottomY <= (supportTopY + 0.35) {
-                return ElevationResolution(
-                    baseY: supportTopY,
-                    isElevated: true,
-                    isSupportedByFurniture: true
-                )
+                let supportTopY = floorLevel + candidate.dimensions.y
+                if rawBottomY >= (floorLevel + candidate.dimensions.y * 0.4) && rawBottomY <= (supportTopY + 0.35) {
+                    return ElevationResolution(
+                        baseY: supportTopY,
+                        isElevated: true,
+                        isSupportedByFurniture: true
+                    )
+                }
             }
         }
 
