@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- feat(lighting): optimize tablet placement workspace scaling and vertical centering (a9ee128)
 - feat(dashboard): add spatial diagnostics entry point to room details and enforce Dynamic Type (d077916)
 - feat(insights): integrate Foundation Models spatial diagnostics, tool calling, and 3D suggestion flow (4e2ea21)
 - feat(services): add dynamic ModelIO USDZ room parser and persistence loader (80b386d)
@@ -51,8 +52,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - feat(testing): add in-memory ModelContainer fixture and SwiftData unit tests (b4daaff)
 
 ### Changed
-- refactor(ai): remove dead Swift Testing class reflection check (6a25682)
-- refactor(ai): bypass foundation models under headless test runner (61bc49c)
+- refactor(ai): remove dead Swift Testing class reflection check (484bc92)
+- refactor(ai): bypass foundation models under headless test runner (b0c0cef)
 - refactor(navigation): remove standalone post-scan compass screen from room creation flow (df6c5f1)
 - refactor(studio): decompose 3D studio view hierarchy and enforce HIG touch targets and dynamic type (47da4a6)
 - refactor(scan): enforce main-actor capture lifecycle, static SwiftData fetch, and dollhouse viewport decomposition (89e3800)
@@ -64,9 +65,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - refactor(arch): scaffold vertical feature-slice architecture with skeleton modules (3419a7d)
 
 ### Fixed
-- fix(scan): reject single-wall slice scans in capture quality gate (fd2adb6)
-- fix(viewport): enforce universal floor grounding and deterministic legacy migration (58ba0f2)
-- fix(spatial): ground floor storage and restrict elevation to small wall shelves (44dcd09)
+- fix(lighting): align furniture footprint coordinates and yaw in scanned room plan (399b6a2)
+- fix(scan): reject single-wall slice scans in capture quality gate (56ffac1)
+- fix(viewport): enforce universal floor grounding and deterministic legacy migration (d69d4d5)
+- fix(spatial): ground floor storage and restrict elevation to small wall shelves (2210feb)
 - fix(insights): wire scanned rooms into spatial journey, render grounded insight cards, and enforce HIG typography (c1bb30b)
 - fix(solver): preserve room asset and ceiling lights on generated layouts and persist applied selections (950e634)
 - fix(studio): configure scanned room window lighting and prevent mock furniture seeding in empty scans (7bd48bd)
@@ -99,8 +101,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - fix(lighting-simulation): shape natural light to the window (5fbb493)
 
 ### Documentation
-- docs(changelog): update automated release notes (aef27df)
-- docs(adr): document universal furniture floor grounding and legacy migration (de883ec)
+- docs(adr): update coordinate normalization decision record for room plan view (f2a390e)
+- docs(changelog): update automated release notes (ebd5dac)
+- docs(changelog): update automated release notes (614d1c9)
+- docs(adr): document universal furniture floor grounding and legacy migration (34ee010)
 - docs(changelog): update automated release notes (27a3c0e)
 - docs(changelog): update automated release notes (8995f8b)
 - docs(adr): document anthropometric clearance engine, parametric solver, and on-device AI diagnostics (2595fcf)
@@ -140,6 +144,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - docs: add agentic playbook, architecture blueprint, and changelog (178cddb)
 
 ### Tooling & Maintenance
+- test(lighting): add unit coverage for room plan footprint coordinate mapping (c3fbf45)
 - chore(release): update changelog for spatial coordinate alignment and irregular room navigation (3454409)
 - build(ci): add line buffering to verification test pipe (7ab3944)
 - chore(release): update changelog for 3d studio inventory system (e957708)
