@@ -916,4 +916,129 @@ struct RoomCaptureSanitizerTests {
         #expect(childNames.contains("TableLegMesh_BL"))
         #expect(childNames.contains("TableLegMesh_BR"))
     }
+
+    @Test func tallWardrobeNeverElevatesOrStacksOnDeskEvenWhenAboveFloorThreshold() throws {
+        let sanitizer = RoomCaptureSanitizer()
+        let floorLevel: Float = -1.40
+
+        // Desk near the corner: height 0.75m, floor at -1.40m, tabletop at -0.65m
+        let desk = ScannedObjectPayload(
+            rawCategory: "table",
+            position: SIMD3<Float>(1.20, -1.025, 1.20),
+            dimensions: SIMD3<Float>(1.00, 0.75, 0.60),
+            rotationYaw: 0
+        )
+
+        // Tall floor wardrobe (0.72m W x 1.63m L x 2.00m H):
+        // Raw LiDAR scan has bottom at -1.10m (0.30m above floorLevel), overlapping desk footprint
+        let wardrobe = ScannedObjectPayload(
+            rawCategory: "storage",
+            position: SIMD3<Float>(1.20, -0.10, 1.20), // bottom = -0.10 - 1.00 = -1.10m
+            dimensions: SIMD3<Float>(0.72, 2.00, 1.63),
+            rotationYaw: 0
+        )
+
+        let sanitized = sanitizer.sanitize(
+            objects: [desk, wardrobe],
+            roomWidth: 4.5,
+            roomLength: 4.5,
+            floorLevel: floorLevel
+        )
+
+        let wardrobeResult = try #require(sanitized.first(where: { $0.category == "closet" }))
+        // Invariant: Wardrobe must NEVER be classified as a floating shelf or stacked on top of desk
+        #expect(wardrobeResult.name == "Wardrobe")
+        #expect(wardrobeResult.position.y == floorLevel)
+    }
+
+    @Test func onlySmallShallowStorageQualifiesAsWallShelf() throws {
+        let sanitizer = RoomCaptureSanitizer()
+        let floorLevel: Float = -1.40
+
+        // Small shallow floating shelf mounted on drywall at 1.50m above floor
+        let floatingShelf = ScannedObjectPayload(
+            rawCategory: "storage",
+            position: SIMD3<Float>(-1.5, 0.25, 0.0), // bottom = 0.25 - 0.15 = 0.10 (+1.50m above floor)
+            dimensions: SIMD3<Float>(0.60, 0.30, 0.30),
+            rotationYaw: 0
+        )
+
+        // Deep floor cabinet/console with bottom detected 0.30m above floor due to kickboard gap
+        let deepCabinet = ScannedObjectPayload(
+            rawCategory: "storage",
+            position: SIMD3<Float>(1.5, -0.65, 0.0), // bottom = -0.65 - 0.45 = -1.10 (+0.30m above floor)
+            dimensions: SIMD3<Float>(1.20, 0.90, 0.60),
+            rotationYaw: 0
+        )
+
+        let sanitized = sanitizer.sanitize(
+            objects: [floatingShelf, deepCabinet],
+            roomWidth: 5.0,
+            roomLength: 5.0,
+            floorLevel: floorLevel
+        )
+
+        let shelfResult = try #require(sanitized.first(where: { $0.dimensions.y == 0.30 }))
+        #expect(shelfResult.name == "Wall Shelf")
+        #expect(shelfResult.position.y > floorLevel + 1.0)
+
+        let cabinetResult = try #require(sanitized.first(where: { $0.dimensions.y == 0.90 }))
+        #expect(cabinetResult.name == "Media Console")
+        #expect(cabinetResult.position.y == floorLevel)
+    }
+
+    @Test @MainActor func modernNormalizedLayoutWithWardrobeNearSnapCenterNeverLevitates() async throws {
+        // Room where camera origin was offset: snapshot center is at (1.5, 2.0), floor at -1.40m
+        let walls = [
+            ScannedWallPayload(position: [1.5, 0.0, 0.0], dimensions: [4.0, 2.6, 0.1], rotationYaw: 0),
+            ScannedWallPayload(position: [1.5, 0.0, 4.0], dimensions: [4.0, 2.6, 0.1], rotationYaw: 0),
+            ScannedWallPayload(position: [-0.5, 0.0, 2.0], dimensions: [4.0, 2.6, 0.1], rotationYaw: .pi / 2),
+            ScannedWallPayload(position: [3.5, 0.0, 2.0], dimensions: [4.0, 2.6, 0.1], rotationYaw: .pi / 2)
+        ]
+        let room = Room(name: "Bedroom", length: 4.22, width: 4.06, height: 3.17)
+        room.planSnapshotData = try JSONEncoder().encode(RoomPlanSnapshot(walls: walls, floorLevel: -1.40))
+
+        // Wardrobe already normalized to local coordinates (1.2, 1.8), floor Y = 0.0.
+        // It sits physically closer to snapCenter (1.5, 2.0) than origin (0, 0).
+        let wardrobe = Furniture(
+            name: "Wardrobe",
+            category: "closet",
+            positionX: 1.2,
+            positionY: 0.0,
+            positionZ: 1.8,
+            rotationYaw: 0,
+            length: 1.63,
+            width: 0.72,
+            height: 2.10
+        )
+        let bed = Furniture(
+            name: "Queen Bed",
+            category: "bed",
+            positionX: -0.8,
+            positionY: 0.0,
+            positionZ: -0.6,
+            rotationYaw: 0,
+            length: 2.08,
+            width: 1.57,
+            height: 0.90
+        )
+
+        let layout = Layout(name: "Original Scan")
+        layout.furnitures.append(wardrobe)
+        layout.furnitures.append(bed)
+        room.layouts.append(layout)
+
+        let controller = RoomSceneController(room: room, layout: layout)
+        await controller.load()
+
+        // Invariant: Wardrobe in modern scan must NEVER levitate or double-transform its coordinates
+        #expect(wardrobe.positionY == 0.0)
+        #expect(abs(wardrobe.positionX - 1.2) < 0.001)
+        #expect(abs(wardrobe.positionZ - 1.8) < 0.001)
+
+        let wardrobeEntity = try #require(controller.furnitureEntity(for: wardrobe.id))
+        #expect(wardrobeEntity.position.y == 0.0)
+        #expect(abs(wardrobeEntity.position.x - 1.2) < 0.001)
+        #expect(abs(wardrobeEntity.position.z - 1.8) < 0.001)
+    }
 }
