@@ -171,5 +171,42 @@ struct RoomScanViewModelTests {
         #expect(room.length == 5.0)
         #expect(room.width == 4.2)
     }
+
+    @Test @MainActor func singleWallScanAndNarrowSliverAreRejectedByQualityGate() {
+        let viewModel = RoomScanViewModel()
+
+        // 1-wall scan: depth collapsed into a single drywall plane sliver
+        let singleWall = ScannedWallPayload(
+            position: SIMD3<Float>(0, 1.3, 0),
+            dimensions: SIMD3<Float>(5.61, 3.56, 0.1),
+            rotationYaw: 0
+        )
+        let singleWallPayload = CapturedRoomPayload(
+            roomLength: 5.61,
+            roomWidth: 0.65,
+            roomHeight: 3.56,
+            floorLevel: -1.35,
+            walls: [singleWall],
+            openings: [],
+            objects: []
+        )
+        #expect(viewModel.isValidScan(payload: singleWallPayload) == false)
+
+        // 2-wall scan but narrow sliver (< 1.0m width)
+        let narrowWalls = [
+            ScannedWallPayload(position: [0, 1.3, -0.4], dimensions: [4.0, 2.6, 0.1], rotationYaw: 0),
+            ScannedWallPayload(position: [0, 1.3, 0.4], dimensions: [4.0, 2.6, 0.1], rotationYaw: .pi)
+        ]
+        let narrowPayload = CapturedRoomPayload(
+            roomLength: 4.0,
+            roomWidth: 0.8,
+            roomHeight: 2.6,
+            floorLevel: -1.3,
+            walls: narrowWalls,
+            openings: [],
+            objects: []
+        )
+        #expect(viewModel.isValidScan(payload: narrowPayload) == false)
+    }
 }
 

@@ -126,7 +126,7 @@ public final class RoomScanViewModel {
     }
 
     public func isValidScan(payload: CapturedRoomPayload) -> Bool {
-        !payload.walls.isEmpty && payload.roomWidth >= 0.5 && payload.roomLength >= 0.5
+        payload.walls.count >= 2 && min(payload.roomWidth, payload.roomLength) >= 1.0
     }
 
     @MainActor
@@ -155,7 +155,7 @@ public final class RoomScanViewModel {
         state = .processing
 
         guard isValidScan(payload: payload) else {
-            state = .error("Invalid scan: Not enough room geometry was captured. Please scan the room walls and floor before finishing.")
+            state = .error("Invalid scan: A complete room requires scanning at least 2 corner walls to establish depth. Please scan around a corner before finishing.")
             return
         }
 
