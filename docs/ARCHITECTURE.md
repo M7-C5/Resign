@@ -181,6 +181,24 @@ Evaluates layouts across 3 objective mathematical dimensions:
 - **Layout 2: Open Flow & Circulation**: Maximizes central continuous floor space and ensures all entry/exit corridors exceed 100 cm.
 - **Layout 3: Restful Sanctuary**: Places beds and relaxation zones in maximum shadow zones shielded from direct door sightlines and outside window drafts.
 
+### D. Panero & Zelnik Clearance Engine & AI Diagnostic Pipeline (ADR 0037)
+Connects scanned room data to deterministic clearance checks and LLM qualitative reasoning:
+1. **Rulebook Thresholds (Panero & Zelnik Standard)**:
+   - **R1 (Walkways Critical)**: $\ge 76.2\text{ cm}$ (30 inches).
+   - **R2 (Walkways Recommended)**: $\ge 91.4\text{ cm}$ (36 inches).
+   - **R3 (Desk Rear Clearance)**: $\ge 76.2\text{ cm}$ for task chair pullback and egress.
+   - **R4 (Bed Operational Zone)**: $66 - 99\text{ cm}$ for making beds and perimeter circulation.
+   - **R5 (Under-Bed Storage)**: $116 - 157\text{ cm}$ for drawer and under-bed pullout access.
+   - **R6 (Door Swing Arc)**: $100\%$ unobstructed ($0\text{ cm}$ margin allowed).
+2. **Compact Centimeter Representation**:
+   - Room bounding boxes and openings are converted to rounded centimeters and pure semantic roles (`bed`, `desk`, `chair`, `wardrobe`, `sofa`, `tv`).
+   - The LLM prompt explicitly forbids generating 3D coordinates or collision geometry.
+3. **Hallucination Gatekeeper**:
+   - `AIDiagnosticValidator` filters every returned furniture UUID against active scene items, guaranteeing 3D RealityKit stability.
+4. **Solver Settings & 3D Highlight Rings**:
+   - Solver settings (pinned items, must-haves, goal weights) drive `LayoutOptimizerEngine`.
+   - Clashing furniture UUIDs are emitted to `Studio3DViewModel.highlightedFurnitureIDs` to project visual highlight rings around conflicting items.
+
 ---
 
 ## 5. Codebase Layout & Architectural Invariants
@@ -197,8 +215,8 @@ Resign/
 │   ├── Dashboard/                     // DashboardView, DashboardViewModel
 │   ├── RoomScan/                      // RoomScanView, RoomScanViewModel
 │   ├── LightingSetup/                 // LightingSetupView, LightingSetupViewModel
-│   ├── Insights/                      // InsightsView, InsightsViewModel
-│   ├── Studio3D/                      // Studio3DView, Studio3DViewModel
+│   ├── Insights/                      // SpatialJourneyFlowView, PreferencePageView, YourLayoutResultView, LayoutSuggestionsDisplayView, InsightsView, InsightsViewModel
+│   ├── Studio3D/                      // Studio3DView, Studio3DViewModel, Studio3DSuggestionView
 │   │   └── Lighting/                  // RoomSimulationView, RoomLightingRig, scene controller
 │   └── ARWalkthrough/                 // ARWalkthroughView, ARWalkthroughViewModel
 ├── Core/                              // Horizontal Foundation (The "Brain", Zero UI)

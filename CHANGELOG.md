@@ -8,6 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- feat(dashboard): add spatial diagnostics entry point to room details and enforce Dynamic Type (d077916)
+- feat(insights): integrate Foundation Models spatial diagnostics, tool calling, and 3D suggestion flow (4e2ea21)
+- feat(services): add dynamic ModelIO USDZ room parser and persistence loader (80b386d)
+- feat(solver): add constraint-driven parametric layout optimizer and grounded insight engine (a1d8320)
+- feat(spatial): implement Panero and Zelnik anthropometric clearance rules and violation models (9dce015)
+- feat(lighting): adapt lighting setup and simulation workspaces across iPad and iPhone (0590660)
+- feat(lighting): add neutral layout-only room preview until lighting simulation is enabled (1f92bc7)
+- feat(spatial): support aperture-aware ceiling outlines and interior wall partitions (9bc5e3e)
 - feat(lighting): adapt lighting setup and simulation workspaces across iPad and iPhone (b09fe9b)
 - feat(lighting): add neutral layout-only room preview until lighting simulation is enabled (0396239)
 - feat(spatial): support aperture-aware ceiling outlines and interior wall partitions (6f4c0b7)
@@ -50,6 +58,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - feat(testing): add in-memory ModelContainer fixture and SwiftData unit tests (b4daaff)
 
 ### Changed
+- refactor(navigation): remove standalone post-scan compass screen from room creation flow (df6c5f1)
 - refactor(navigation): remove standalone post-scan compass screen from room creation flow (2289b47)
 - refactor(studio): decompose 3D studio view hierarchy and enforce HIG touch targets and dynamic type (47da4a6)
 - refactor(scan): enforce main-actor capture lifecycle, static SwiftData fetch, and dollhouse viewport decomposition (89e3800)
@@ -62,6 +71,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - refactor(arch): scaffold vertical feature-slice architecture with skeleton modules (3419a7d)
 
 ### Fixed
+- fix(insights): wire scanned rooms into spatial journey, render grounded insight cards, and enforce HIG typography (c1bb30b)
+- fix(solver): preserve room asset and ceiling lights on generated layouts and persist applied selections (950e634)
 - fix(studio): configure scanned room window lighting and prevent mock furniture seeding in empty scans (7bd48bd)
 - fix(spatial): align vertical collision intervals to floor base and close doorway gaps in polygon clamping (3d1d948)
 - fix(persistence): resolve scanned room USDZ URLs across sandbox relocations and clean up deleted room directories (2932d24)
@@ -102,6 +113,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - fix(lighting-simulation): shape natural light to the window (5fbb493)
 
 ### Documentation
+- docs(changelog): update automated release notes (27a3c0e)
+- docs(changelog): update automated release notes (8995f8b)
+- docs(adr): document anthropometric clearance engine, parametric solver, and on-device AI diagnostics (2595fcf)
+- docs(changelog): update automated release notes (28d278e)
+- docs(adr): record adaptive lighting workspace, ceiling outline, and compass removal decisions (a7e5680)
 - docs(changelog): update automated release notes (542dd22)
 - docs(adr): record adaptive lighting workspace, ceiling outline, and compass removal decisions (bf557e3)
 - docs(changelog): update automated release notes (02b6294)

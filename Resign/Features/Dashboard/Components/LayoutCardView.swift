@@ -91,7 +91,7 @@ public struct LayoutCardView: View {
                 HStack(spacing: 12) {
                     Button(action: onEdit) {
                         Image(systemName: "pencil")
-                            .font(.system(size: 18))
+                            .font(.headline)
                             .foregroundStyle(.white)
                             .frame(width: 44, height: 44)
                             .background(Color.secondary, in: Circle())
@@ -100,7 +100,7 @@ public struct LayoutCardView: View {
 
                     Button(action: onDelete) {
                         Image(systemName: "trash")
-                            .font(.system(size: 18))
+                            .font(.headline)
                             .foregroundStyle(.white)
                             .frame(width: 44, height: 44)
                             .background(Color.red, in: Circle())
