@@ -46,6 +46,7 @@ This directory documents key architectural decisions for **Resign** using the [M
 - [ADR 0040: Structured Room Preferences and Grounded Layout Insights](0040-structured-room-preferences-and-grounded-layout-insights.md)
 - [ADR 0041: Dynamic Parametric Spatial Solver and Architectural Perimeter Zoning](0041-dynamic-parametric-spatial-solver-and-perimeter-zoning.md)
 - [ADR 0042: Foundation Model Tool Calling and Validated Layout Solver](0042-foundation-model-tool-calling-and-validated-layout-solver.md)
+- [ADR 0043: Universal Furniture Floor Grounding, Strict Wall Shelf Elevation, and Deterministic Legacy Migration](0043-universal-furniture-floor-grounding-and-legacy-normalization.md)
 
 ## How to Create a New ADR
 1. Copy [template.md](template.md) to `docs/adr/NNNN-title-in-kebab-case.md`.
