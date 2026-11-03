@@ -6,11 +6,20 @@
 import Testing
 import RealityKit
 import Foundation
+import UIKit
 import simd
 @testable import Resign
 
 @Suite("Viewport Presets and Wall Cutaways")
 struct ViewportPresetsAndCutawaysTests {
+
+    @Test func allViewportPresetSymbolsAreValidInCurrentSDK() {
+        for preset in ViewportPreset.allCases {
+            let image = UIImage(systemName: preset.systemImage)
+            #expect(image != nil, "SF Symbol '\(preset.systemImage)' for preset \(preset.rawValue) is invalid or unavailable")
+        }
+        #expect(UIImage(systemName: "rotate.3d") != nil, "rotate.3d symbol is invalid or unavailable")
+    }
 
     @Test @MainActor func viewportPresetAnglesMatchArchitecturalContracts() {
         #expect(abs(ViewportPreset.top.targetPitch - 1.55) < 0.01)

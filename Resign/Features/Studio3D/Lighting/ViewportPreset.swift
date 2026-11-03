@@ -29,12 +29,12 @@ public enum ViewportPreset: String, CaseIterable, Identifiable, Sendable {
 
     public var systemImage: String {
         switch self {
-        case .top: return "square.topthird.inset.filled"
-        case .front: return "rectangle.portrait.and.arrow.forward"
-        case .back: return "rectangle.portrait.and.arrow.backward"
+        case .top: return "view.2d"
+        case .front: return "arrow.up.to.line"
+        case .back: return "arrow.down.to.line"
         case .left: return "arrow.left.to.line"
         case .right: return "arrow.right.to.line"
-        case .dollhouse: return "cube.transparent"
+        case .dollhouse: return "arrow.counterclockwise"
         }
     }
 
