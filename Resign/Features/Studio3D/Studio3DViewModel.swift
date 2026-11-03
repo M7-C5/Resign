@@ -27,6 +27,7 @@ public struct ViolationMarker: Identifiable, Hashable, Sendable {
     public var doorSwingRadius: Float
     public var doorStartAngle: Float
     public var doorSweepAngle: Float
+    public var yaw: Float
 
     public init(
         id: String,
@@ -45,7 +46,8 @@ public struct ViolationMarker: Identifiable, Hashable, Sendable {
         doorPivotZ: Float = 0,
         doorSwingRadius: Float = 0.9,
         doorStartAngle: Float = 0,
-        doorSweepAngle: Float = -Float.pi / 2.0
+        doorSweepAngle: Float = -Float.pi / 2.0,
+        yaw: Float = 0
     ) {
         self.id = id
         self.ruleId = ruleId
@@ -64,6 +66,7 @@ public struct ViolationMarker: Identifiable, Hashable, Sendable {
         self.doorSwingRadius = doorSwingRadius
         self.doorStartAngle = doorStartAngle
         self.doorSweepAngle = doorSweepAngle
+        self.yaw = yaw
     }
 }
 
@@ -650,11 +653,9 @@ public final class Studio3DViewModel {
 
     /// Sets vibrant floor clearance highlights for recommended layouts showing compliant operational zones.
     public func setRecommendationHighlights(for layout: Layout) {
-        let engine = SpatialClearanceEngine()
         var markers: [ViolationMarker] = []
 
         for item in layout.furnitures where !item.isArchived {
-            let box = engine.boundingBox(for: item)
             let buffer: Float = (item.category == "desk" || item.category == "bed") ? 0.35 : 0.20
             let marker = ViolationMarker(
                 id: "optimal-\(item.id)",
@@ -663,11 +664,12 @@ public final class Studio3DViewModel {
                 severity: .warning,
                 measuredCm: 90.0,
                 requiredCm: 76.2,
-                centerX: box.centerX,
-                centerZ: box.centerZ,
-                sizeX: box.width + buffer,
-                sizeZ: box.length + buffer,
-                clearanceRadius: max(box.width, box.length) * 0.55
+                centerX: item.positionX,
+                centerZ: item.positionZ,
+                sizeX: item.width + buffer,
+                sizeZ: item.length + buffer,
+                clearanceRadius: max(item.width, item.length) * 0.55,
+                yaw: item.rotationYaw
             )
             markers.append(marker)
         }
@@ -683,13 +685,13 @@ public final class Studio3DViewModel {
         violationMarkers = violations.flatMap { violation in
             violation.itemIds.compactMap { furniture[$0] }.map { item in
                 let box = engine.boundingBox(for: item)
-                let footprintRadius = max(box.width, box.length) * 0.5
+                let footprintRadius = max(item.width, item.length) * 0.5
                 let requiredBufferMeters = Float(violation.requiredClearanceCm / 100.0)
                 let radius = max(footprintRadius + (requiredBufferMeters * 0.45), requiredBufferMeters)
 
                 var isDoor = false
-                var pivotX: Float = box.centerX
-                var pivotZ: Float = box.centerZ
+                var pivotX: Float = item.positionX
+                var pivotZ: Float = item.positionZ
                 var swingRad: Float = requiredBufferMeters > 0 ? requiredBufferMeters : 0.90
                 var startAngle: Float = 0.0
                 var sweepAngle: Float = -Float.pi / 2.0
@@ -698,8 +700,8 @@ public final class Studio3DViewModel {
                     isDoor = true
                     // Find the door closest to this obstructing furniture item
                     let matchedDoor = doors.min(by: { d1, d2 in
-                        let dist1 = hypot(d1.posX - box.centerX, d1.posZ - box.centerZ)
-                        let dist2 = hypot(d2.posX - box.centerX, d2.posZ - box.centerZ)
+                        let dist1 = hypot(d1.posX - item.positionX, d1.posZ - item.positionZ)
+                        let dist2 = hypot(d2.posX - item.positionX, d2.posZ - item.positionZ)
                         return dist1 < dist2
                     })
 
@@ -764,17 +766,18 @@ public final class Studio3DViewModel {
                     severity: violation.severity,
                     measuredCm: violation.measuredClearanceCm,
                     requiredCm: violation.requiredClearanceCm,
-                    centerX: box.centerX,
-                    centerZ: box.centerZ,
-                    sizeX: box.width,
-                    sizeZ: box.length,
+                    centerX: item.positionX,
+                    centerZ: item.positionZ,
+                    sizeX: item.width,
+                    sizeZ: item.length,
                     clearanceRadius: radius,
                     isDoorSwing: isDoor,
                     doorPivotX: pivotX,
                     doorPivotZ: pivotZ,
                     doorSwingRadius: swingRad,
                     doorStartAngle: startAngle,
-                    doorSweepAngle: sweepAngle
+                    doorSweepAngle: sweepAngle,
+                    yaw: item.rotationYaw
                 )
             }
         }

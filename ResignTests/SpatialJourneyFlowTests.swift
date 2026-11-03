@@ -120,6 +120,78 @@ struct SpatialJourneyFlowTests {
         #expect(studioViewModel.violationMarkers.count == chosenVariant.furnitures.count)
     }
 
+    @Test @MainActor func recommendationHighlightsFollowMovedFurnitureCoordinatesAndOrientation() {
+        let itemId = UUID()
+        let originalItem = Furniture(
+            id: itemId,
+            name: "King Bed",
+            category: "bed",
+            positionX: -1.2,
+            positionY: 0.0,
+            positionZ: -1.0,
+            rotationYaw: 0.0,
+            length: 2.0,
+            width: 1.8,
+            height: 0.9
+        )
+        let originalLayout = Layout(name: "Original")
+        originalLayout.furnitures = [originalItem]
+
+        let movedItem = Furniture(
+            id: itemId,
+            name: "King Bed",
+            category: "bed",
+            positionX: 1.5,
+            positionY: 0.0,
+            positionZ: 0.8,
+            rotationYaw: Float.pi / 2.0,
+            length: 2.0,
+            width: 1.8,
+            height: 0.9
+        )
+        let movedLayout = Layout(name: "Option 1")
+        movedLayout.furnitures = [movedItem]
+
+        let studioViewModel = Studio3DViewModel()
+
+        // 1. Base layout highlights
+        studioViewModel.applyLayout(originalLayout)
+        studioViewModel.setRecommendationHighlights(for: originalLayout)
+        let originalMarker = studioViewModel.violationMarkers.first { $0.id == "optimal-\(itemId)" }
+        #expect(originalMarker != nil)
+        #expect(originalMarker?.centerX == -1.2)
+        #expect(originalMarker?.centerZ == -1.0)
+        #expect(originalMarker?.yaw == 0.0)
+
+        var originalHasher = Hasher()
+        originalHasher.combine(studioViewModel.currentLayout?.id)
+        originalHasher.combine(studioViewModel.activeLayoutVersion)
+        for marker in studioViewModel.violationMarkers {
+            originalHasher.combine(marker)
+        }
+        let originalHash = originalHasher.finalize()
+
+        // 2. Moved layout highlights (same furniture ID, moved coordinates and rotated yaw)
+        studioViewModel.applyLayout(movedLayout)
+        studioViewModel.setRecommendationHighlights(for: movedLayout)
+        let movedMarker = studioViewModel.violationMarkers.first { $0.id == "optimal-\(itemId)" }
+        #expect(movedMarker != nil)
+        #expect(movedMarker?.centerX == 1.5)
+        #expect(movedMarker?.centerZ == 0.8)
+        #expect(movedMarker?.yaw == Float.pi / 2.0)
+
+        var movedHasher = Hasher()
+        movedHasher.combine(studioViewModel.currentLayout?.id)
+        movedHasher.combine(studioViewModel.activeLayoutVersion)
+        for marker in studioViewModel.violationMarkers {
+            movedHasher.combine(marker)
+        }
+        let movedHash = movedHasher.finalize()
+
+        // 3. Hashes must differ so RealityKit overlay re-renders instead of caching the original position
+        #expect(originalHash != movedHash)
+    }
+
     @Test @MainActor func applySelectedLayoutPersistsVariantAndPreservesUSDZAndLights() async {
         let room = RoomRepository.createViolatingMockRoom()
         let baseLayout = room.layouts.first!

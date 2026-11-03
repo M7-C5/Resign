@@ -317,7 +317,13 @@ public struct Studio3DSuggestionView: View {
     /// color-coded by clearance rule so each violation is instantly distinguishable.
     private func syncViolationOverlay(on root: Entity) {
         let markers = viewModel.showViolations ? viewModel.violationMarkers : []
-        let signature = "\(Self.overlayPrefix)-\(markers.map(\.id).hashValue)"
+        var hasher = Hasher()
+        hasher.combine(viewModel.currentLayout?.id)
+        hasher.combine(viewModel.activeLayoutVersion)
+        for marker in markers {
+            hasher.combine(marker)
+        }
+        let signature = "\(Self.overlayPrefix)-\(hasher.finalize())"
 
         if markers.isEmpty == false, root.children.contains(where: { $0.name == signature }) { return }
         for child in root.children where child.name.hasPrefix(Self.overlayPrefix) {
@@ -418,42 +424,48 @@ public struct Studio3DSuggestionView: View {
                 let extentZ = marker.sizeZ + buffer
                 let strokeThickness: Float = 0.022
 
+                let zone = Entity()
+                zone.position = [marker.centerX, 0.0, marker.centerZ]
+                zone.orientation = simd_quatf(angle: marker.yaw, axis: [0, 1, 0])
+
                 // Soft rectangular interior fill
                 let fillEntity = ModelEntity(
                     mesh: .generateBox(size: [extentX, 0.002, extentZ]),
                     materials: [fillMaterial]
                 )
-                fillEntity.position = [marker.centerX, 0.005, marker.centerZ]
-                overlay.addChild(fillEntity)
+                fillEntity.position = [0, 0.005, 0]
+                zone.addChild(fillEntity)
 
                 // 4 crisp perimeter outline border edges
                 let north = ModelEntity(
                     mesh: .generateBox(size: [extentX, 0.005, strokeThickness]),
                     materials: [strokeMaterial]
                 )
-                north.position = [marker.centerX, 0.006, marker.centerZ - extentZ / 2.0]
-                overlay.addChild(north)
+                north.position = [0, 0.006, -extentZ / 2.0]
+                zone.addChild(north)
 
                 let south = ModelEntity(
                     mesh: .generateBox(size: [extentX, 0.005, strokeThickness]),
                     materials: [strokeMaterial]
                 )
-                south.position = [marker.centerX, 0.006, marker.centerZ + extentZ / 2.0]
-                overlay.addChild(south)
+                south.position = [0, 0.006, extentZ / 2.0]
+                zone.addChild(south)
 
                 let west = ModelEntity(
                     mesh: .generateBox(size: [strokeThickness, 0.005, extentZ]),
                     materials: [strokeMaterial]
                 )
-                west.position = [marker.centerX - extentX / 2.0, 0.006, marker.centerZ]
-                overlay.addChild(west)
+                west.position = [-extentX / 2.0, 0.006, 0]
+                zone.addChild(west)
 
                 let east = ModelEntity(
                     mesh: .generateBox(size: [strokeThickness, 0.005, extentZ]),
                     materials: [strokeMaterial]
                 )
-                east.position = [marker.centerX + extentX / 2.0, 0.006, marker.centerZ]
-                overlay.addChild(east)
+                east.position = [extentX / 2.0, 0.006, 0]
+                zone.addChild(east)
+
+                overlay.addChild(zone)
             }
 
             // 3. Slender vertical beacon stem connecting the floor clearance area to the floating alert pin
