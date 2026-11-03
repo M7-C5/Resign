@@ -8,6 +8,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- feat(studio-3d): implement Sims-style circular halo HUD and circular motion rotation tracking (65edca5)
+- feat(theme): establish Studio design tokens and update drawer icon styling (d34ada6)
+- feat(interaction): gate furniture floor translation behind explicit selection tap (28c28df)
+- feat(viewport): modernize architectural preset symbols and verify SDK glyph compatibility (f0ea2ab)
 - feat(lighting): optimize tablet placement workspace scaling and vertical centering (a9ee128)
 - feat(dashboard): add spatial diagnostics entry point to room details and enforce Dynamic Type (d077916)
 - feat(insights): integrate Foundation Models spatial diagnostics, tool calling, and 3D suggestion flow (4e2ea21)
@@ -101,6 +105,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - fix(lighting-simulation): shape natural light to the window (5fbb493)
 
 ### Documentation
+- docs(changelog): update automated release notes (01b1870)
 - docs(adr): update coordinate normalization decision record for room plan view (f2a390e)
 - docs(changelog): update automated release notes (ebd5dac)
 - docs(changelog): update automated release notes (614d1c9)
