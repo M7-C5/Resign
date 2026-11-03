@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+<<<<<<< HEAD
 - feat(studio-3d): implement Sims-style circular halo HUD and circular motion rotation tracking (4c74b6c)
 - feat(theme): establish Studio design tokens and update drawer icon styling (d956d18)
 - feat(interaction): gate furniture floor translation behind explicit selection tap (98eb6e4)
@@ -21,6 +22,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - feat(lighting): adapt lighting setup and simulation workspaces across iPad and iPhone (1946122)
 - feat(lighting): add neutral layout-only room preview until lighting simulation is enabled (ee14008)
 - feat(spatial): support aperture-aware ceiling outlines and interior wall partitions (ba278e7)
+=======
+- feat(lighting): optimize tablet placement workspace scaling and vertical centering (243bc15)
+- feat(dashboard): add spatial diagnostics entry point to room details and enforce Dynamic Type (d077916)
+- feat(insights): integrate Foundation Models spatial diagnostics, tool calling, and 3D suggestion flow (4e2ea21)
+- feat(services): add dynamic ModelIO USDZ room parser and persistence loader (80b386d)
+- feat(solver): add constraint-driven parametric layout optimizer and grounded insight engine (a1d8320)
+- feat(spatial): implement Panero and Zelnik anthropometric clearance rules and violation models (9dce015)
+- feat(lighting): adapt lighting setup and simulation workspaces across iPad and iPhone (0590660)
+- feat(lighting): add neutral layout-only room preview until lighting simulation is enabled (1f92bc7)
+- feat(spatial): support aperture-aware ceiling outlines and interior wall partitions (9bc5e3e)
+>>>>>>> beeb207 (docs(changelog): update automated release notes)
 - feat(studio3d): support full envelope traversal and polygon clamping in irregular rooms (8347c23)
 - feat(spatial): deduplicate chair components, filter wall artifacts, and add table clearance (c7c2905)
 - feat(studio-3d): implement inventory system and interactive drag-to-archive (5af0572)
@@ -69,6 +81,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - refactor(arch): scaffold vertical feature-slice architecture with skeleton modules (3419a7d)
 
 ### Fixed
+<<<<<<< HEAD
 - fix(studio-3d): isolate floating HUD rotation gesture bounds to button frame (602a562)
 - fix(lighting): align furniture footprint coordinates and yaw in scanned room plan (4fbe875)
 - fix(scan): reject single-wall slice scans in capture quality gate (733f8ac)
@@ -76,6 +89,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - fix(spatial): ground floor storage and restrict elevation to small wall shelves (4bd3da1)
 - fix(insights): wire scanned rooms into spatial journey, render grounded insight cards, and enforce HIG typography (b7acb87)
 - fix(solver): preserve room asset and ceiling lights on generated layouts and persist applied selections (1f7bb1f)
+=======
+- fix(studio): synchronize clearance highlight overlays and orientation with moved furniture (b0a53af)
+- fix(lighting): align furniture footprint coordinates and yaw in scanned room plan (e52e9be)
+- fix(scan): reject single-wall slice scans in capture quality gate (56ffac1)
+- fix(viewport): enforce universal floor grounding and deterministic legacy migration (d69d4d5)
+- fix(spatial): ground floor storage and restrict elevation to small wall shelves (2210feb)
+- fix(insights): wire scanned rooms into spatial journey, render grounded insight cards, and enforce HIG typography (c1bb30b)
+- fix(solver): preserve room asset and ceiling lights on generated layouts and persist applied selections (950e634)
+>>>>>>> beeb207 (docs(changelog): update automated release notes)
 - fix(studio): configure scanned room window lighting and prevent mock furniture seeding in empty scans (7bd48bd)
 - fix(spatial): align vertical collision intervals to floor base and close doorway gaps in polygon clamping (3d1d948)
 - fix(persistence): resolve scanned room USDZ URLs across sandbox relocations and clean up deleted room directories (2932d24)
@@ -106,6 +128,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - fix(lighting-simulation): shape natural light to the window (5fbb493)
 
 ### Documentation
+<<<<<<< HEAD
 - docs(adr): document Sims floating HUD architecture and compile release notes (f9ab377)
 - docs(changelog): update automated release notes (a3e2d92)
 - docs(adr): update coordinate normalization decision record for room plan view (4cb1adb)
@@ -117,6 +140,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - docs(adr): document anthropometric clearance engine, parametric solver, and on-device AI diagnostics (c1e7d0e)
 - docs(changelog): update automated release notes (e1be881)
 - docs(adr): record adaptive lighting workspace, ceiling outline, and compass removal decisions (a53761e)
+=======
+- docs(changelog): update automated release notes (9495b3d)
+- docs(adr): update coordinate normalization decision record for room plan view (12e03fd)
+- docs(changelog): update automated release notes (ebd5dac)
+- docs(changelog): update automated release notes (614d1c9)
+- docs(adr): document universal furniture floor grounding and legacy migration (34ee010)
+- docs(changelog): update automated release notes (27a3c0e)
+- docs(changelog): update automated release notes (8995f8b)
+- docs(adr): document anthropometric clearance engine, parametric solver, and on-device AI diagnostics (2595fcf)
+- docs(changelog): update automated release notes (28d278e)
+- docs(adr): record adaptive lighting workspace, ceiling outline, and compass removal decisions (a7e5680)
+>>>>>>> beeb207 (docs(changelog): update automated release notes)
 - docs(changelog): update automated release notes (02b6294)
 - docs(adr): document studio 3d inventory and drag archival in adr 0028 (8f7f08d)
 - docs(adr): record scanned room square orientation and centered origin normalization (e1161c9)
@@ -151,7 +186,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - docs: add agentic playbook, architecture blueprint, and changelog (178cddb)
 
 ### Tooling & Maintenance
+<<<<<<< HEAD
 - test(lighting): add unit coverage for room plan footprint coordinate mapping (c918f1d)
+=======
+- test(lighting): add unit coverage for room plan footprint coordinate mapping (faafea6)
+>>>>>>> beeb207 (docs(changelog): update automated release notes)
 - chore(release): update changelog for spatial coordinate alignment and irregular room navigation (3454409)
 - build(ci): add line buffering to verification test pipe (7ab3944)
 - chore(release): update changelog for 3d studio inventory system (e957708)
