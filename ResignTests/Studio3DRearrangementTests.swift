@@ -242,11 +242,17 @@ struct Studio3DRearrangementTests {
         let viewModel = Studio3DViewModel()
         viewModel.selectFurniture(id: desk.id, in: layout)
 
-        // Continuous drag to 0.75 rad (no snap)
-        let freeRotate = viewModel.rotateSelectedFurniture(to: 0.75, in: layout, context: container.mainContext)
+        // Continuous drag to 0.38 rad (halfway between 0 and 45° -> no snap)
+        let freeRotate = viewModel.rotateSelectedFurniture(to: 0.38, in: layout, context: container.mainContext)
         #expect(freeRotate != nil)
         #expect(freeRotate?.didSnap == false)
-        #expect(abs(desk.rotationYaw - 0.75) < 0.001)
+        #expect(abs(desk.rotationYaw - 0.38) < 0.001)
+
+        // Drag near 45° (0.76 rad within threshold) -> snaps to pi/4
+        let snap45Rotate = viewModel.rotateSelectedFurniture(to: 0.76, in: layout, context: container.mainContext)
+        #expect(snap45Rotate != nil)
+        #expect(snap45Rotate?.didSnap == true)
+        #expect(abs(desk.rotationYaw - (.pi / 4.0)) < 0.001)
 
         // Drag near 90° (1.52 rad within threshold) -> snaps to pi/2
         let snapRotate = viewModel.rotateSelectedFurniture(to: 1.52, in: layout, context: container.mainContext)

@@ -86,6 +86,7 @@ public final class Studio3DViewModel {
 
     // MARK: - Furniture Rearrangement State
     public var selectedFurnitureID: UUID? = nil
+    public var selectedFurnitureScreenPosition: CGPoint? = nil
     public var isDraggingFurniture = false
     public var isColliding = false
     public var roomHorizontalBounds: (minX: Float, maxX: Float, minZ: Float, maxZ: Float)? = nil
@@ -112,6 +113,9 @@ public final class Studio3DViewModel {
 
     public func selectFurniture(id: UUID?, in layout: Layout? = nil) {
         selectedFurnitureID = id
+        if id == nil {
+            selectedFurnitureScreenPosition = nil
+        }
         isColliding = false
         if let id, let layout, let furniture = layout.furnitures.first(where: { $0.id == id }) {
             lastCommittedPositions[id] = (
@@ -127,6 +131,7 @@ public final class Studio3DViewModel {
             _ = revertToLastValidPosition(id: id, in: layout, context: context)
         }
         selectedFurnitureID = nil
+        selectedFurnitureScreenPosition = nil
         isDraggingFurniture = false
         isColliding = false
     }
@@ -218,7 +223,8 @@ public final class Studio3DViewModel {
         to rawYaw: Float,
         in layout: Layout?,
         context: ModelContext?,
-        snapThreshold: Float = 0.12
+        snapThreshold: Float = 0.12,
+        step: Float = .pi / 4.0
     ) -> (position: SIMD3<Float>, yaw: Float, isColliding: Bool, didSnap: Bool)? {
         guard let selectedFurnitureID,
               let layout,
@@ -226,7 +232,7 @@ public final class Studio3DViewModel {
             return nil
         }
 
-        let snapResult = SpatialClearanceEngine.snapYaw(rawYaw: rawYaw, step: .pi / 2.0, threshold: snapThreshold)
+        let snapResult = SpatialClearanceEngine.snapYaw(rawYaw: rawYaw, step: step, threshold: snapThreshold)
         let targetYaw = snapResult.yaw
 
         let currentPos = SIMD2<Float>(furniture.positionX, furniture.positionZ)
@@ -295,6 +301,86 @@ public final class Studio3DViewModel {
         }
 
         return (candidate.position, targetYaw, colliding, snapResult.didSnap)
+    }
+
+    @discardableResult
+    public func rotateSelectedFurniture45(
+        in layout: Layout?,
+        context: ModelContext?
+    ) -> (position: SIMD3<Float>, yaw: Float, isColliding: Bool)? {
+        guard let selectedFurnitureID,
+              let layout,
+              let furniture = layout.furnitures.first(where: { $0.id == selectedFurnitureID }) else {
+            return nil
+        }
+
+        let nextYaw = SpatialClearanceEngine.stepRotation45(currentYaw: furniture.rotationYaw)
+        let currentPos = SIMD2<Float>(furniture.positionX, furniture.positionZ)
+        let clamped: SIMD2<Float>
+        if let b = roomHorizontalBounds {
+            clamped = SpatialClearanceEngine.clampToRoomBoundaries(
+                position: currentPos,
+                furnitureWidth: furniture.width,
+                furnitureLength: furniture.length,
+                rotationYaw: nextYaw,
+                minX: b.minX,
+                maxX: b.maxX,
+                minZ: b.minZ,
+                maxZ: b.maxZ,
+                walls: roomWallSegments
+            )
+        } else {
+            let roomWidth = layout.room?.width ?? 5.0
+            let roomLength = layout.room?.length ?? 5.0
+            clamped = SpatialClearanceEngine.clampToRoomBoundaries(
+                position: currentPos,
+                furnitureWidth: furniture.width,
+                furnitureLength: furniture.length,
+                rotationYaw: nextYaw,
+                roomWidth: roomWidth,
+                roomLength: roomLength
+            )
+        }
+
+        let posY = max(0.0, furniture.positionY)
+        let candidate = FurnitureCollisionProxy(
+            id: furniture.id,
+            category: furniture.category,
+            position: SIMD3<Float>(clamped.x, posY, clamped.y),
+            dimensions: SIMD3<Float>(furniture.width, furniture.height, furniture.length),
+            rotationYaw: nextYaw
+        )
+
+        let obstacles = layout.furnitures
+            .filter { $0.id != furniture.id && !$0.isArchived }
+            .map { f in
+                FurnitureCollisionProxy(
+                    id: f.id,
+                    category: f.category,
+                    position: SIMD3<Float>(f.positionX, max(0.0, f.positionY), f.positionZ),
+                    dimensions: SIMD3<Float>(f.width, f.height, f.length),
+                    rotationYaw: f.rotationYaw
+                )
+            }
+
+        let colliding = obstacles.contains { obstacle in
+            SpatialClearanceEngine.checkCollision(itemA: candidate, itemB: obstacle)
+        }
+        self.isColliding = colliding
+
+        furniture.positionX = clamped.x
+        furniture.positionY = posY
+        furniture.positionZ = clamped.y
+        furniture.rotationYaw = nextYaw
+
+        if !colliding {
+            lastCommittedPositions[furniture.id] = (candidate.position, nextYaw)
+            if let context {
+                try? context.save()
+            }
+        }
+
+        return (candidate.position, nextYaw, colliding)
     }
 
     @discardableResult
@@ -416,6 +502,7 @@ public final class Studio3DViewModel {
         furniture.isArchived = true
         if selectedFurnitureID == id {
             selectedFurnitureID = nil
+            selectedFurnitureScreenPosition = nil
             isColliding = false
             isDraggingFurniture = false
         }

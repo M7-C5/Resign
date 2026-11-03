@@ -4,6 +4,7 @@
 //
 
 import Foundation
+import CoreGraphics
 import simd
 
 public struct FurnitureCollisionProxy: Sendable, Equatable {
@@ -588,6 +589,17 @@ public struct SpatialClearanceEngine: Sendable {
         )
     }
 
+    /// Advances yaw rotation by 45 degrees (pi/4 radians) snapped to orthogonal or diagonal increments in [0, 2pi).
+    /// By default steps clockwise around the +Y axis.
+    public static func stepRotation45(currentYaw: Float, clockwise: Bool = true) -> Float {
+        let twoPi = Float.pi * 2.0
+        let normalized = (currentYaw.truncatingRemainder(dividingBy: twoPi) + twoPi).truncatingRemainder(dividingBy: twoPi)
+        let step = Float.pi / 4.0
+        let currentIndex = Int(round(normalized / step))
+        let nextIndex = clockwise ? (currentIndex - 1 + 8) % 8 : (currentIndex + 1) % 8
+        return Float(nextIndex) * step
+    }
+
     /// Advances yaw rotation by +90 degrees (pi/2 radians) snapped to orthogonal increments in [0, 2pi).
     public static func stepRotation90(currentYaw: Float) -> Float {
         let twoPi = Float.pi * 2.0
@@ -597,11 +609,11 @@ public struct SpatialClearanceEngine: Sendable {
         return Float(stepIndex % 4) * quarterPi
     }
 
-    /// Normalizes raw yaw into [0, 2pi) and snaps to the nearest increment (default 90°, pi/2)
+    /// Normalizes raw yaw into [0, 2pi) and snaps to the nearest increment (default 45°, pi/4)
     /// if within a magnetic snap threshold.
     public static func snapYaw(
         rawYaw: Float,
-        step: Float = .pi / 2.0,
+        step: Float = .pi / 4.0,
         threshold: Float = 0.12
     ) -> (yaw: Float, didSnap: Bool) {
         let twoPi = Float.pi * 2.0
@@ -614,6 +626,21 @@ public struct SpatialClearanceEngine: Sendable {
             return (snapped, true)
         }
         return (normalized, false)
+    }
+
+    /// Computes the signed angular delta (in radians) swept between two 2D points relative to a center point.
+    /// Positive values correspond to clockwise motion in screen coordinates (+X right, +Y down).
+    public static func circularAngleDelta(center: CGPoint, previous: CGPoint, current: CGPoint) -> Float {
+        let p = CGPoint(x: previous.x - center.x, y: previous.y - center.y)
+        let c = CGPoint(x: current.x - center.x, y: current.y - center.y)
+        let pLenSq = p.x * p.x + p.y * p.y
+        let cLenSq = c.x * c.x + c.y * c.y
+        if pLenSq < 16 || cLenSq < 16 {
+            return 0
+        }
+        let cross = p.x * c.y - p.y * c.x
+        let dot = p.x * c.x + p.y * c.y
+        return Float(atan2(cross, dot))
     }
 
     /// Checks whether two furniture pieces collide using 3D vertical clearance and 2D OBB SAT,
