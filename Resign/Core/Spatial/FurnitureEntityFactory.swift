@@ -45,43 +45,6 @@ public final class FurnitureEntityFactory {
         halo.isEnabled = false
         container.addChild(halo)
 
-        // Interactive Rotation Handle on the floor
-        let handleDistance = max(furniture.width, furniture.length) * 0.5 + 0.32
-        let handleContainer = Entity()
-        handleContainer.name = "FurnitureRotationHandle_\(furniture.id.uuidString)"
-        handleContainer.position = SIMD3<Float>(0, 0.003, handleDistance)
-
-        // Rotation stem connecting furniture footprint to knob
-        let stemMesh = MeshResource.generateBox(
-            size: SIMD3<Float>(0.02, 0.003, handleDistance),
-            cornerRadius: 0.001
-        )
-        let stemMaterial = SimpleMaterial(
-            color: UIColor.systemCyan.withAlphaComponent(0.6),
-            roughness: 0.2,
-            isMetallic: false
-        )
-        let stem = ModelEntity(mesh: stemMesh, materials: [stemMaterial])
-        stem.name = "RotationStem"
-        stem.position = SIMD3<Float>(0, 0, -(handleDistance * 0.5))
-        handleContainer.addChild(stem)
-
-        // Rotation knob
-        let knobMesh = MeshResource.generateCylinder(height: 0.015, radius: 0.12)
-        let knobMaterial = SimpleMaterial(
-            color: UIColor.systemCyan,
-            roughness: 0.15,
-            isMetallic: false
-        )
-        let knob = ModelEntity(mesh: knobMesh, materials: [knobMaterial])
-        knob.name = "RotationKnob"
-        handleContainer.addChild(knob)
-
-        handleContainer.components.set(CollisionComponent(shapes: [ShapeResource.generateSphere(radius: 0.20)]))
-        handleContainer.components.set(InputTargetComponent())
-        handleContainer.isEnabled = false
-        container.addChild(handleContainer)
-
         // If custom USDZ model exists at specified URL
         if let url = furniture.usdzURL, FileManager.default.fileExists(atPath: url.path) {
             if let customModel = try? Entity.load(contentsOf: url) {
@@ -195,19 +158,6 @@ public final class FurnitureEntityFactory {
                     ? UIColor.systemRed.withAlphaComponent(0.65)
                     : UIColor.systemBlue.withAlphaComponent(0.45)
                 halo.model?.materials = [SimpleMaterial(color: color, roughness: 0.2, isMetallic: false)]
-            }
-        }
-
-        if let handle = entity.children.first(where: { $0.name.hasPrefix("FurnitureRotationHandle_") }) {
-            handle.isEnabled = isSelected
-            if isSelected {
-                let color = isColliding ? UIColor.systemRed : UIColor.systemCyan
-                if let knob = handle.children.first(where: { $0.name == "RotationKnob" }) as? ModelEntity {
-                    knob.model?.materials = [SimpleMaterial(color: color, roughness: 0.15, isMetallic: false)]
-                }
-                if let stem = handle.children.first(where: { $0.name == "RotationStem" }) as? ModelEntity {
-                    stem.model?.materials = [SimpleMaterial(color: color.withAlphaComponent(0.6), roughness: 0.2, isMetallic: false)]
-                }
             }
         }
     }
