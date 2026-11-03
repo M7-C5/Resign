@@ -147,7 +147,6 @@ public final class USDZRoomLoader: Sendable {
                 let dy = b.max.y - b.min.y
                 let dz = b.max.z - b.min.z
                 let cx = (b.min.x + b.max.x) / 2.0
-                let cy = (b.min.y + b.max.y) / 2.0
                 let cz = (b.min.z + b.max.z) / 2.0
 
                 let item = Furniture(
@@ -155,7 +154,7 @@ public final class USDZRoomLoader: Sendable {
                     category: target.category,
                     texture: "default",
                     positionX: cx,
-                    positionY: cy,
+                    positionY: b.min.y,
                     positionZ: cz,
                     rotationYaw: 0.0,
                     length: dz,
