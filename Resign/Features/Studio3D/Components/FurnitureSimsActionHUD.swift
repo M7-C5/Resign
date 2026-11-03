@@ -68,17 +68,26 @@ public struct FurnitureSimsActionHUD: View {
                 actionButtonContent(systemName: "shippingbox.fill")
             }
             .buttonStyle(.plain)
+            .frame(width: 48, height: 48)
+            .contentShape(Circle())
+            .offset(
+                x: dialRadius * cos(defaultArchiveAngle),
+                y: dialRadius * sin(defaultArchiveAngle)
+            )
             .accessibilityLabel("Archive furniture to inventory")
-            .position(buttonPosition(for: defaultArchiveAngle))
 
-            // 3. Rotate Button (Draggable along rim, tracks circular angle)
+            // 3. Rotate Button (Draggable along rim, strictly catches touches on the 48x48 button)
             let activeRotateAngle = currentDragAngle ?? defaultRotateAngle
             actionButtonContent(systemName: "rotate.3d")
-                .position(buttonPosition(for: activeRotateAngle))
+                .frame(width: 48, height: 48)
                 .contentShape(Circle())
+                .offset(
+                    x: dialRadius * cos(activeRotateAngle),
+                    y: dialRadius * sin(activeRotateAngle)
+                )
                 .accessibilityLabel("Rotate 45 degrees or drag to turn circularly")
                 .gesture(
-                    DragGesture(minimumDistance: 0, coordinateSpace: .named("SimsHUDCoordinateSpace"))
+                    DragGesture(minimumDistance: 2, coordinateSpace: .named("SimsHUDCoordinateSpace"))
                         .onChanged { value in
                             handleRotateGestureChanged(value: value)
                         }
@@ -104,13 +113,6 @@ public struct FurnitureSimsActionHUD: View {
                 .foregroundStyle(Color.white)
         }
         .frame(width: 48, height: 48)
-    }
-
-    private func buttonPosition(for angle: CGFloat) -> CGPoint {
-        CGPoint(
-            x: dialRadius + dialRadius * cos(angle),
-            y: dialRadius + dialRadius * sin(angle)
-        )
     }
 
     private func handleRotateGestureChanged(value: DragGesture.Value) {
