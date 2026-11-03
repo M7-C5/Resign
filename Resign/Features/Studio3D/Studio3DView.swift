@@ -4,12 +4,14 @@ import SwiftData
 
 public struct Studio3DView: View {
     private let layoutID: UUID?
+    @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @State private var viewModel = Studio3DViewModel()
     @State private var controller = RoomSceneController()
     @State private var snapFeedbackTrigger = false
     @State private var usesInlineLightingPanel = false
+    @State private var rotateDragStartYaw: Float? = nil
     @Query(sort: \Layout.updatedAt, order: .reverse) private var layouts: [Layout]
 
     public init(layoutID: UUID? = nil) {
@@ -43,45 +45,81 @@ public struct Studio3DView: View {
         selectedLayout?.room?.compass ?? 0
     }
 
+    private var roomTitle: String {
+        selectedLayout?.room?.name ?? selectedLayout?.name ?? "3D Studio"
+    }
+
     public var body: some View {
         @Bindable var viewModel = viewModel
 
-        GeometryReader { geometry in
-            let workspace = LightingWorkspaceLayout(
-                size: geometry.size,
-                accessibilityText: dynamicTypeSize.isAccessibilitySize
-            )
-            HStack(spacing: 0) {
-                ZStack(alignment: .topTrailing) {
-                    if layoutID != nil, selectedLayout == nil {
-                        ContentUnavailableView("Layout Not Found", systemImage: "cube")
-                    } else {
-                        viewportLayer
+        VStack(spacing: 0) {
+            topNavigationHeader
+
+            GeometryReader { geometry in
+                let workspace = LightingWorkspaceLayout(
+                    size: geometry.size,
+                    accessibilityText: dynamicTypeSize.isAccessibilitySize
+                )
+                HStack(spacing: 0) {
+                    ZStack(alignment: .topTrailing) {
+                        if layoutID != nil, selectedLayout == nil {
+                            ContentUnavailableView("Layout Not Found", systemImage: "cube")
+                        } else {
+                            viewportLayer
+                                .padding(.bottom, workspace.simulationBottomInset(isEditing: viewModel.isLightingPresented))
+                        }
+
+                        if let furniture = selectedFurniture,
+                           let projected = viewModel.selectedFurnitureScreenPosition,
+                           !viewModel.isInventoryOpen {
+                            let clamped = FurnitureSimsActionHUD.clampedPosition(
+                                projected: projected,
+                                in: geometry.size
+                            )
+                            FurnitureSimsActionHUD(
+                                furniture: furniture,
+                                isColliding: viewModel.isColliding,
+                                onStepRotate: {
+                                    handleStepRotate(for: furniture)
+                                },
+                                onCircularRotate: { deltaAngle in
+                                    handleCircularRotate(for: furniture, deltaAngle: deltaAngle)
+                                },
+                                onDragRotateEnded: {
+                                    handleDragRotateEnded(for: furniture)
+                                },
+                                onArchive: {
+                                    handleArchive(for: furniture)
+                                }
+                            )
+                            .position(clamped)
+                            .transition(.scale(scale: 0.85).combined(with: .opacity))
+                            .zIndex(10)
+                        }
+
+                        bottomControlsBar
                             .padding(.bottom, workspace.simulationBottomInset(isEditing: viewModel.isLightingPresented))
                     }
+                    .frame(maxWidth: .infinity)
 
-                    topTrailingControls
-                        .padding()
-
-                    bottomControlsBar
-                        .padding(.bottom, workspace.simulationBottomInset(isEditing: viewModel.isLightingPresented))
+                    if workspace.usesSidePanel && viewModel.isLightingPresented {
+                        LightingSimulationControls(
+                            settings: $viewModel.lightingDraft,
+                            onCancel: { viewModel.discardLightingEditing() },
+                            onConfirm: { viewModel.confirmLightingEditing() }
+                        )
+                        .frame(width: workspace.panelWidth)
+                        .background(.regularMaterial)
+                    }
                 }
-                .frame(maxWidth: .infinity)
-
-                if workspace.usesSidePanel && viewModel.isLightingPresented {
-                    LightingSimulationControls(
-                        settings: $viewModel.lightingDraft,
-                        onCancel: { viewModel.discardLightingEditing() },
-                        onConfirm: { viewModel.confirmLightingEditing() }
-                    )
-                    .frame(width: workspace.panelWidth)
-                    .background(.regularMaterial)
+                .onChange(of: workspace.usesSidePanel, initial: true) { _, usesSidePanel in
+                    usesInlineLightingPanel = usesSidePanel
                 }
-            }
-            .onChange(of: workspace.usesSidePanel, initial: true) { _, usesSidePanel in
-                usesInlineLightingPanel = usesSidePanel
             }
         }
+        .background(StudioTheme.canvasBackground.ignoresSafeArea())
+        .navigationBarBackButtonHidden(true)
+        .toolbar(.hidden, for: .navigationBar)
         .sheet(isPresented: Binding(
             get: { viewModel.isLightingPresented && !usesInlineLightingPanel },
             set: { presented in
@@ -108,8 +146,6 @@ public struct Studio3DView: View {
         .onChange(of: sceneLayout?.windowAzimuths ?? [90], initial: true) { _, directions in
             viewModel.updateWindowDirections(directions)
         }
-        .navigationTitle(selectedLayout?.name ?? "3D Studio")
-        .navigationBarTitleDisplayMode(.inline)
         .sensoryFeedback(.impact(weight: .light), trigger: snapFeedbackTrigger)
     }
 
@@ -118,6 +154,7 @@ public struct Studio3DView: View {
             controller: controller,
             settings: viewModel.previewLighting,
             fixtures: lightingFixtures,
+            selectedFurnitureID: viewModel.selectedFurnitureID,
             archiveTargetCenter: viewModel.archiveTargetCenter,
             onSelectFurniture: { id in
                 withAnimation(.snappy(duration: 0.2)) {
@@ -135,18 +172,8 @@ public struct Studio3DView: View {
                     controller.setSelection(furnitureID: id, isColliding: result.isColliding)
                 }
             },
-            onRotateFurniture: { id, targetYaw in
-                if let result = viewModel.rotateSelectedFurniture(to: targetYaw, in: selectedLayout, context: modelContext) {
-                    controller.updateFurnitureTransform(
-                        id: id,
-                        position: result.position,
-                        yaw: result.yaw
-                    )
-                    controller.setSelection(furnitureID: id, isColliding: result.isColliding)
-                    if result.didSnap {
-                        snapFeedbackTrigger.toggle()
-                    }
-                }
+            onProjectSelectedFurniture: { screenPoint in
+                viewModel.selectedFurnitureScreenPosition = screenPoint
             },
             onArchiveHover: { isHovering in
                 viewModel.isHoveringArchiveTarget = isHovering
@@ -185,65 +212,111 @@ public struct Studio3DView: View {
         )
     }
 
-    private var topTrailingControls: some View {
-        HStack(alignment: .top, spacing: 12) {
-            Menu {
-                ForEach(ViewportPreset.allCases) { preset in
-                    if preset == .dollhouse {
-                        Divider()
-                    }
-                    Button {
-                        controller.snapToViewport(preset)
-                    } label: {
-                        Label(preset.title, systemImage: preset.systemImage)
-                    }
-                }
-            } label: {
-                Image(systemName: "cube.plane.bottom.right.detached")
-                    .font(.body)
-                    .foregroundStyle(.primary)
-                    .frame(width: 44, height: 44)
-                    .background(.regularMaterial, in: Circle())
-            }
-            .accessibilityLabel("Viewport Presets")
-
-            simulationButtons
-        }
-    }
-
-    private var simulationButtons: some View {
-        VStack(alignment: .trailing, spacing: 8) {
+    private var topNavigationHeader: some View {
+        HStack(alignment: .center, spacing: 12) {
+            // Leading: Back Navigation Button
             Button {
-                viewModel.toggleLightingSimulation()
+                dismiss()
             } label: {
-                Image(systemName: viewModel.isSimulationEnabled ? "lightbulb.fill" : "lightbulb")
+                Image(systemName: "chevron.left")
                     .font(.body.weight(.semibold))
-                    .foregroundStyle(viewModel.isSimulationEnabled ? Color.white : Color.primary)
+                    .foregroundStyle(StudioTheme.primaryText)
                     .frame(width: 44, height: 44)
-                    .background {
-                        Circle().fill(viewModel.isSimulationEnabled ? Color.blue : Color(.secondarySystemBackground))
-                    }
+                    .background(StudioTheme.buttonBackground, in: Circle())
+                    .overlay(Circle().stroke(StudioTheme.buttonStroke, lineWidth: 1))
+                    .shadow(color: Color.black.opacity(0.04), radius: 4, x: 0, y: 2)
             }
             .buttonStyle(.plain)
-            .accessibilityLabel("Light Simulation")
-            .accessibilityValue(viewModel.isSimulationEnabled ? "On" : "Off")
-            .accessibilityHint(viewModel.isSimulationEnabled ? "Turn off simulation and return to a neutral layout" : "Turn on lighting simulation")
-            .disabled(layoutID != nil && selectedLayout == nil)
+            .accessibilityLabel("Back")
 
-            if viewModel.isSimulationEnabled {
-                Button {
-                    viewModel.beginLightingEditing()
+            Spacer()
+
+            // Trailing Actions (POV, AR, Lighting)
+            HStack(spacing: 8) {
+                // Point of View Snap Button
+                Menu {
+                    ForEach(ViewportPreset.allCases) { preset in
+                        if preset == .dollhouse {
+                            Divider()
+                        }
+                        Button {
+                            controller.snapToViewport(preset)
+                        } label: {
+                            Label(preset.title, systemImage: preset.systemImage)
+                        }
+                    }
                 } label: {
-                    Image(systemName: "slider.horizontal.3")
+                    Image(systemName: "rotate.3d")
                         .font(.body)
-                        .foregroundStyle(.primary)
+                        .foregroundStyle(StudioTheme.primaryText)
                         .frame(width: 44, height: 44)
-                        .background(.regularMaterial, in: Circle())
+                        .background(StudioTheme.buttonBackground, in: Circle())
+                        .overlay(Circle().stroke(StudioTheme.buttonStroke, lineWidth: 1))
+                        .shadow(color: Color.black.opacity(0.04), radius: 4, x: 0, y: 2)
                 }
-                .accessibilityLabel("Configure lighting simulation")
-                .disabled(viewModel.isLightingPresented)
+                .accessibilityLabel("Point of View")
+
+                // AR Button (Placeholder for now)
+                Button {
+                    snapFeedbackTrigger.toggle()
+                } label: {
+                    Text("AR")
+                        .font(.system(size: 14, weight: .bold))
+                        .foregroundStyle(StudioTheme.primaryText)
+                        .frame(width: 44, height: 44)
+                        .background(StudioTheme.buttonBackground, in: Circle())
+                        .overlay(Circle().stroke(StudioTheme.buttonStroke, lineWidth: 1))
+                        .shadow(color: Color.black.opacity(0.04), radius: 4, x: 0, y: 2)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Augmented Reality")
+
+                // Lighting Simulation Button
+                Button {
+                    viewModel.toggleLightingSimulation()
+                } label: {
+                    Image(systemName: viewModel.isSimulationEnabled ? "lightbulb.fill" : "lightbulb")
+                        .font(.body.weight(.semibold))
+                        .foregroundStyle(viewModel.isSimulationEnabled ? Color.white : StudioTheme.primaryText)
+                        .frame(width: 44, height: 44)
+                        .background(
+                            Circle().fill(viewModel.isSimulationEnabled ? StudioTheme.primaryText : StudioTheme.buttonBackground)
+                        )
+                        .overlay(Circle().stroke(StudioTheme.buttonStroke, lineWidth: 1))
+                        .shadow(color: Color.black.opacity(0.04), radius: 4, x: 0, y: 2)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(viewModel.isSimulationEnabled ? "Disable Lighting Simulation" : "Enable Lighting Simulation")
+                .disabled(layoutID != nil && selectedLayout == nil)
+
+                if viewModel.isSimulationEnabled {
+                    Button {
+                        viewModel.beginLightingEditing()
+                    } label: {
+                        Image(systemName: "slider.horizontal.3")
+                            .font(.body.weight(.semibold))
+                            .foregroundStyle(StudioTheme.primaryText)
+                            .frame(width: 44, height: 44)
+                            .background(StudioTheme.buttonBackground, in: Circle())
+                            .overlay(Circle().stroke(StudioTheme.buttonStroke, lineWidth: 1))
+                            .shadow(color: Color.black.opacity(0.04), radius: 4, x: 0, y: 2)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Lighting Controls")
+                    .disabled(viewModel.isLightingPresented)
+                }
             }
         }
+        .overlay(
+            Text(roomTitle)
+                .font(StudioTheme.titleFont(size: 22, weight: .bold))
+                .foregroundStyle(StudioTheme.primaryText)
+                .lineLimit(1)
+                .allowsHitTesting(false)
+        )
+        .padding(.horizontal, 16)
+        .padding(.top, 8)
+        .padding(.bottom, 6)
     }
 
     private var bottomControlsBar: some View {
@@ -272,91 +345,57 @@ public struct Studio3DView: View {
                 )
 
                 Spacer(minLength: 0)
-
-                if let furniture = selectedFurniture, !viewModel.isInventoryOpen {
-                    selectionActionCard(for: furniture)
-                }
             }
             .padding(.horizontal, 16)
             .padding(.bottom, 24)
         }
     }
 
-    private func selectionActionCard(for furniture: Furniture) -> some View {
-        VStack(spacing: 6) {
-            if viewModel.isColliding {
-                HStack(spacing: 6) {
-                    Image(systemName: "exclamationmark.triangle.fill")
-                        .font(.caption2)
-                        .foregroundStyle(.red)
-                    Text("Overlapping")
-                        .font(.caption2.weight(.semibold))
-                        .foregroundStyle(.red)
-                }
-                .padding(.horizontal, 8)
-                .padding(.vertical, 3)
-                .background(Color.red.opacity(0.12), in: Capsule())
-            }
-
-            HStack(spacing: 8) {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(furniture.name)
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(.primary)
-                        .lineLimit(1)
-                    let dimW = min(furniture.width, furniture.length)
-                    let dimL = max(furniture.width, furniture.length)
-                    Text("\(String(format: "%.1f", dimW))m (W) × \(String(format: "%.1f", dimL))m (L)")
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                }
-
-                Spacer(minLength: 4)
-
-                Button {
-                    withAnimation(.spring(response: 0.35, dampingFraction: 0.75)) {
-                        let id = furniture.id
-                        viewModel.archiveFurniture(id: id, in: selectedLayout, context: modelContext)
-                        controller.archiveFurnitureEntity(id: id)
-                        snapFeedbackTrigger.toggle()
-                    }
-                } label: {
-                    Image(systemName: "archivebox")
-                        .font(.caption.weight(.bold))
-                        .foregroundStyle(.secondary)
-                        .frame(width: 44, height: 44)
-                        .background(Color(uiColor: .tertiarySystemFill), in: Circle())
-                }
-                .accessibilityLabel("Archive furniture")
-
-                Button {
-                    withAnimation(.snappy(duration: 0.2)) {
-                        let furnitureID = furniture.id
-                        let wasColliding = viewModel.isColliding
-                        viewModel.deselectFurniture(in: selectedLayout, context: modelContext)
-                        if wasColliding, let updated = selectedLayout?.furnitures.first(where: { $0.id == furnitureID }) {
-                            controller.updateFurnitureTransform(
-                                id: furnitureID,
-                                position: SIMD3<Float>(updated.positionX, updated.positionY, updated.positionZ),
-                                yaw: updated.rotationYaw
-                            )
-                        }
-                        controller.setSelection(furnitureID: nil)
-                    }
-                } label: {
-                    Image(systemName: viewModel.isColliding ? "arrow.uturn.backward" : "checkmark")
-                        .font(.caption.weight(.bold))
-                        .foregroundStyle(.white)
-                        .frame(width: 44, height: 44)
-                        .background(viewModel.isColliding ? Color.orange : Color.accentColor, in: Circle())
-                }
-                .accessibilityLabel(viewModel.isColliding ? "Revert collision" : "Done rearranging")
+    private func handleStepRotate(for furniture: Furniture) {
+        withAnimation(.spring(response: 0.28, dampingFraction: 0.7)) {
+            if let result = viewModel.rotateSelectedFurniture45(in: selectedLayout, context: modelContext) {
+                controller.updateFurnitureTransform(
+                    id: furniture.id,
+                    position: result.position,
+                    yaw: result.yaw
+                )
+                controller.setSelection(furnitureID: furniture.id, isColliding: result.isColliding)
+                snapFeedbackTrigger.toggle()
             }
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 18))
-        .transition(.move(edge: .bottom).combined(with: .opacity))
+    }
+
+    private func handleCircularRotate(for furniture: Furniture, deltaAngle: Float) {
+        let startYaw = rotateDragStartYaw ?? furniture.rotationYaw
+        if rotateDragStartYaw == nil {
+            rotateDragStartYaw = startYaw
+        }
+        // Clockwise circular motion on screen (positive deltaAngle) decreases yaw in RealityKit (+Y up)
+        let targetYaw = startYaw - deltaAngle
+        if let result = viewModel.rotateSelectedFurniture(to: targetYaw, in: selectedLayout, context: modelContext) {
+            controller.updateFurnitureTransform(
+                id: furniture.id,
+                position: result.position,
+                yaw: result.yaw
+            )
+            controller.setSelection(furnitureID: furniture.id, isColliding: result.isColliding)
+            if result.didSnap {
+                snapFeedbackTrigger.toggle()
+            }
+        }
+    }
+
+    private func handleDragRotateEnded(for furniture: Furniture) {
+        rotateDragStartYaw = nil
+    }
+
+    private func handleArchive(for furniture: Furniture) {
+        withAnimation(.spring(response: 0.35, dampingFraction: 0.75)) {
+            let id = furniture.id
+            viewModel.archiveFurniture(id: id, in: selectedLayout, context: modelContext)
+            controller.archiveFurnitureEntity(id: id)
+            snapFeedbackTrigger.toggle()
+        }
     }
 
     private func restoreFurnitureItem(_ furniture: Furniture, at screenPoint: CGPoint?) {
