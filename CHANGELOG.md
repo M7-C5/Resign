@@ -82,6 +82,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 <<<<<<< HEAD
+<<<<<<< HEAD
 - fix(studio-3d): isolate floating HUD rotation gesture bounds to button frame (602a562)
 - fix(lighting): align furniture footprint coordinates and yaw in scanned room plan (4fbe875)
 - fix(scan): reject single-wall slice scans in capture quality gate (733f8ac)
@@ -90,6 +91,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - fix(insights): wire scanned rooms into spatial journey, render grounded insight cards, and enforce HIG typography (b7acb87)
 - fix(solver): preserve room asset and ceiling lights on generated layouts and persist applied selections (1f7bb1f)
 =======
+=======
+- fix(ai): compact diagnostic prompt payload to prevent foundation model token overflow (96303ee)
+>>>>>>> 1b5fc73 (docs(changelog): update automated release notes)
 - fix(studio): synchronize clearance highlight overlays and orientation with moved furniture (b0a53af)
 - fix(lighting): align furniture footprint coordinates and yaw in scanned room plan (e52e9be)
 - fix(scan): reject single-wall slice scans in capture quality gate (56ffac1)
@@ -129,6 +133,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Documentation
 <<<<<<< HEAD
+<<<<<<< HEAD
 - docs(adr): document Sims floating HUD architecture and compile release notes (f9ab377)
 - docs(changelog): update automated release notes (a3e2d92)
 - docs(adr): update coordinate normalization decision record for room plan view (4cb1adb)
@@ -141,6 +146,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - docs(changelog): update automated release notes (e1be881)
 - docs(adr): record adaptive lighting workspace, ceiling outline, and compass removal decisions (a53761e)
 =======
+=======
+- docs(changelog): update automated release notes (beeb207)
+>>>>>>> 1b5fc73 (docs(changelog): update automated release notes)
 - docs(changelog): update automated release notes (9495b3d)
 - docs(adr): update coordinate normalization decision record for room plan view (12e03fd)
 - docs(changelog): update automated release notes (ebd5dac)
