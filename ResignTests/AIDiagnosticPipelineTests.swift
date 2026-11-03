@@ -66,6 +66,75 @@ struct AIDiagnosticPipelineTests {
         #expect(prompt.contains("Do NOT calculate 3D coordinates"), "Prompt must explicitly forbid LLM from calculating 3D collision geometry")
     }
 
+    @Test @MainActor func promptBuilderEnforcesStrictTokenBudgetUnder4096ContextLimit() {
+        let room = Room(length: 5.0, width: 6.0, height: 2.8)
+        room.openings = [
+            RoomOpening(type: "window", posX: 2.0, posY: 1.4, posZ: 0.0, width: 1.5, height: 1.2),
+            RoomOpening(type: "door", posX: -2.0, posY: 0.0, posZ: 2.5, width: 0.9, height: 2.1)
+        ]
+
+        let layout = Layout(name: "Crowded Test Layout")
+        var items: [Furniture] = []
+        for i in 1...10 {
+            items.append(Furniture(
+                name: "Furniture Item \(i)",
+                category: i % 2 == 0 ? "desk" : "chair",
+                positionX: Float(i) * 0.3 - 1.5,
+                positionY: 0.0,
+                positionZ: Float(i) * 0.2 - 1.0,
+                length: 0.8,
+                width: 0.6,
+                height: 0.75
+            ))
+        }
+        layout.furnitures = items
+
+        // Generate 12 violations (mix of critical and warning)
+        var violations: [SpatialViolation] = []
+        for i in 1...12 {
+            violations.append(SpatialViolation(
+                ruleId: "R\(i % 6 + 1)",
+                ruleTitle: "Clearance Bottleneck \(i)",
+                severity: i % 2 == 0 ? .critical : .warning,
+                measuredClearanceCm: Double(20 + i * 3),
+                requiredClearanceCm: 76.2,
+                itemIds: [items[0].id, items[1].id],
+                message: "Extremely long diagnostic violation description that previously bloated prompt context tokens and exceeded model limits."
+            ))
+        }
+
+        // Extremely long user free text that could risk prompt overflow
+        let longFreeText = String(repeating: "I want an open, spacious workspace with maximum daylight. ", count: 20)
+        let preference = RoomPreference(
+            selectedKeywords: [.notEnoughSpace, .hardToMove],
+            freeText: longFreeText
+        )
+
+        let prompt = RoomDiagnosticPromptBuilder.buildPrompt(
+            room: room,
+            layout: layout,
+            violations: violations,
+            userPreference: preference
+        )
+
+        // Verify that JSON is compact and not pretty-printed with wasteful indentation
+        #expect(!prompt.contains("{\n  \"items\""), "JSON payload must be compact without pretty-printed indentation whitespace")
+
+        // In iOS FoundationModels, 4096 context tokens corresponds to roughly 14,000-16,000 characters.
+        // Prompt budget must strictly stay well below 7,500 characters (~1,800 tokens) even for complex crowded rooms.
+        #expect(prompt.count < 7500)
+
+        // Verify that measured violations in the compact payload are capped at top 6 critical violations
+        let payload = RoomDiagnosticPromptBuilder.createPayload(
+            room: room,
+            layout: layout,
+            violations: violations,
+            userPreference: preference
+        )
+        #expect(payload.measuredViolations.count <= 6, "Payload must cap violations to top 6 critical bottlenecks")
+        #expect(payload.userPreference.freeText.count <= 280, "User free text must be capped to 280 characters")
+    }
+
     @Test func responseValidatorStripsHallucinatedFurnitureIDs() {
         let validDeskID = UUID()
         let validBedID = UUID()

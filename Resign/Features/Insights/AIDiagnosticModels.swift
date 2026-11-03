@@ -96,7 +96,7 @@ public struct CompactUserPreference: Codable, Equatable, Sendable {
         self.init(
             reportedProblems: preference.selectedKeywords.map(\.title),
             inferredProblems: preference.inferredKeywords.map(\.title),
-            freeText: preference.freeText,
+            freeText: String(preference.freeText.prefix(280)),
             suggestedGoalWeights: preference.suggestedGoalWeights
         )
     }
