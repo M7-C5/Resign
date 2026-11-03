@@ -7,6 +7,7 @@
 
 import Testing
 import ModelIO
+import RealityKit
 import Foundation
 import SwiftData
 @testable import Resign
@@ -105,8 +106,8 @@ struct ResignTests {
     @Test @MainActor func modelDefaultInitializers() {
         let room = Room()
         #expect(room.name == "Room")
-        #expect(room.length == 4.2)
-        #expect(room.width == 5.0)
+        #expect(room.length == 5.0)
+        #expect(room.width == 4.2)
 
         let opening = RoomOpening()
         #expect(opening.type == "window")
@@ -141,5 +142,1049 @@ struct ResignTests {
         #expect(chair.category == "chair")
         #expect(chair.texture == "charcoal_mesh")
         #expect(chair.rotationYaw == .pi / 4)
+    }
+}
+
+// MARK: - LightingSetup ViewModel Tests
+
+@Suite("LightingSetup ViewModel Tests")
+struct LightingSetupViewModelTests {
+
+    // MARK: Grid interaction
+
+    @Test @MainActor func tapCell_emptyCell_addsNewDraftAndSelectsIt() {
+        let vm = LightingSetupViewModel()
+        vm.tapCell(col: 2, row: 3)
+
+        #expect(vm.drafts.count == 1)
+        #expect(vm.drafts[0].gridColumn == 2)
+        #expect(vm.drafts[0].gridRow == 3)
+        #expect(vm.selectedDraftID == vm.drafts[0].id)
+    }
+
+    @Test @MainActor func tapCell_existingCell_selectsWithoutCreatingDuplicate() {
+        let vm = LightingSetupViewModel()
+        vm.tapCell(col: 1, row: 1)
+        let firstID = vm.drafts[0].id
+        vm.tapCell(col: 1, row: 1) // tap same cell again
+
+        #expect(vm.drafts.count == 1, "Should not create a second draft on the same cell")
+        #expect(vm.selectedDraftID == firstID)
+    }
+
+    @Test @MainActor func deselectLight_clearsSelectionWithoutRemovingDraft() {
+        let vm = LightingSetupViewModel()
+        vm.tapCell(col: 0, row: 0)
+        vm.deselectLight()
+
+        #expect(vm.drafts.count == 1, "Draft should still exist after deselect")
+        #expect(vm.selectedDraftID == nil)
+    }
+
+    @Test @MainActor func deleteSelectedDraft_removesDraftAndClearsSelection() {
+        let vm = LightingSetupViewModel()
+        vm.tapCell(col: 0, row: 0)
+        vm.deleteSelectedDraft()
+
+        #expect(vm.drafts.isEmpty)
+        #expect(vm.selectedDraftID == nil)
+    }
+
+    // MARK: Auto-naming
+
+    @Test @MainActor func autoNaming_incrementsCorrectlyAsDraftsAreAdded() {
+        let vm = LightingSetupViewModel()
+        vm.tapCell(col: 0, row: 0)
+        vm.tapCell(col: 1, row: 0)
+        vm.tapCell(col: 2, row: 0)
+
+        #expect(vm.drafts[0].name == "Lighting 1")
+        #expect(vm.drafts[1].name == "Lighting 2")
+        #expect(vm.drafts[2].name == "Lighting 3")
+    }
+
+    // MARK: Property mutators
+
+    @Test @MainActor func updateBrightness_mutatesSelectedDraft() {
+        let vm = LightingSetupViewModel()
+        vm.tapCell(col: 1, row: 1)
+        vm.updateBrightness(2500)
+
+        #expect(vm.selectedDraft?.brightness == 2500)
+    }
+
+    @Test @MainActor func updateColorTemp_mutatesSelectedDraft() {
+        let vm = LightingSetupViewModel()
+        vm.tapCell(col: 2, row: 2)
+        vm.updateColorTemp(4000)
+
+        #expect(vm.selectedDraft?.colorTemp == 4000)
+    }
+
+    // MARK: Persistence
+
+    @Test @MainActor func saveToLayout_persistsAllDraftsAsLightRecords() throws {
+        let container = try ModelContainer.createInMemoryContainer()
+        let context = container.mainContext
+
+        let layout = Layout(name: "Test Layout")
+        context.insert(layout)
+        try context.save()
+
+        let vm = LightingSetupViewModel()
+        vm.tapCell(col: 0, row: 0)
+        vm.tapCell(col: 2, row: 2)
+        vm.tapCell(col: 4, row: 4)
+        vm.updateBrightness(1500)  // mutate selected (4,4)
+        vm.updateColorTemp(3500)
+
+        try vm.saveToLayout(layout, context: context)
+
+        let descriptor = FetchDescriptor<Light>()
+        let lights = try context.fetch(descriptor)
+        #expect(lights.count == 3, "All three drafts should be persisted as Light records")
+
+        let coords = Set(lights.map { "\(Int($0.coordinateX)),\(Int($0.coordinateY))" })
+        #expect(coords.contains("0,0"))
+        #expect(coords.contains("2,2"))
+        #expect(coords.contains("4,4"))
+
+        // Validate the mutated light at (4,4)
+        let mutated = lights.first { Int($0.coordinateX) == 4 && Int($0.coordinateY) == 4 }
+        #expect(mutated?.brightness == 1500)
+        #expect(mutated?.colorTemp == 3500)
+        #expect(mutated?.elevationZ == 2.6, "Elevation should default to 2.6m ceiling height")
+    }
+
+    @Test @MainActor func saveToLayout_emptyDrafts_persistsZeroLights() throws {
+        let container = try ModelContainer.createInMemoryContainer()
+        let context = container.mainContext
+
+        let layout = Layout(name: "Empty Layout")
+        context.insert(layout)
+        try context.save()
+
+        let vm = LightingSetupViewModel()
+        try vm.saveToLayout(layout, context: context)
+
+        let descriptor = FetchDescriptor<Light>()
+        let lights = try context.fetch(descriptor)
+        #expect(lights.isEmpty, "No lights should be inserted if drafts was empty")
+    }
+
+    @Test @MainActor func reopenEditsSavedLightsWithoutDuplicates() throws {
+        let container = try ModelContainer.createInMemoryContainer()
+        let context = container.mainContext
+        let layout = Layout(name: "Editable ceiling")
+        context.insert(layout)
+        let first = LightingSetupViewModel()
+        first.tapCell(col: 0, row: 4)
+        first.updateBrightness(1700)
+        first.updateColorTemp(2700)
+        try first.saveToLayout(layout, context: context)
+        let savedID = try #require(layout.lights.first?.id)
+
+        let editor = LightingSetupViewModel()
+        editor.loadFromLayout(layout)
+        let draft = try #require(editor.drafts.first)
+        #expect(draft.id == savedID && draft.gridColumn == 0 && draft.gridRow == 4)
+        #expect(draft.brightness == 1700 && draft.colorTemp == 2700)
+        editor.tapCell(col: 0, row: 4)
+        editor.updateBrightness(2400)
+        editor.loadFromLayout(layout) // Reappearing must not erase an unsaved edit.
+        #expect(editor.selectedDraft?.brightness == 2400)
+        #expect(layout.lights.first?.brightness == 1700)
+        try editor.saveToLayout(layout, context: context)
+        try editor.saveToLayout(layout, context: context)
+        #expect(layout.lights.count == 1)
+        #expect(layout.lights.first?.id == savedID)
+        #expect(layout.lights.first?.brightness == 2400)
+        let reopened = LightingSetupViewModel()
+        reopened.loadFromLayout(layout)
+        #expect(reopened.drafts.first?.brightness == 2400)
+    }
+
+    @Test @MainActor func deleteAllSavedLightsDoesNotAffectAnotherLayout() throws {
+        let container = try ModelContainer.createInMemoryContainer()
+        let context = container.mainContext
+        let layout = Layout(name: "Editing")
+        let other = Layout(name: "Untouched")
+        context.insert(layout)
+        context.insert(other)
+        let saved = Light(name: "Saved", coordinateX: 4, coordinateY: 1, isOn: false)
+        layout.lights.append(saved)
+        other.lights.append(Light(name: "Other"))
+        try context.save()
+        let editor = LightingSetupViewModel()
+        editor.loadFromLayout(layout)
+        #expect(editor.drafts.first?.isOn == false)
+        editor.tapCell(col: 4, row: 1)
+        editor.deleteSelectedDraft()
+        #expect(editor.canSave)
+        #expect(layout.lights.count == 1) // Deletion stays transient until Save.
+        try editor.saveToLayout(layout, context: context)
+        #expect(layout.lights.isEmpty)
+        #expect(other.lights.count == 1)
+        #expect(try context.fetch(FetchDescriptor<Light>()).count == 1)
+    }
+
+    // MARK: Edge cases
+
+    @Test @MainActor func lightDraft_defaultInitialization_hasSensibleDefaults() {
+        let draft = LightDraft(gridColumn: 2, gridRow: 2)
+        #expect(draft.name == "Lighting")
+        #expect(draft.brightness == 1080.0)
+        #expect(draft.colorTemp == 5000)
+        #expect(draft.isOn == true)
+        #expect(draft.gridColumn == 2)
+        #expect(draft.gridRow == 2)
+    }
+
+    @Test @MainActor func deleteSelectedDraft_whenNoneSelected_doesNothing() {
+        let vm = LightingSetupViewModel()
+        vm.tapCell(col: 0, row: 0)
+        vm.deselectLight()
+
+        #expect(vm.drafts.count == 1)
+        vm.deleteSelectedDraft()
+        #expect(vm.drafts.count == 1, "Should not delete anything when no light is selected")
+    }
+
+    @Test @MainActor func updateProperties_whenNoneSelected_doesNothing() {
+        let vm = LightingSetupViewModel()
+        vm.tapCell(col: 1, row: 1)
+        vm.deselectLight()
+
+        vm.updateBrightness(2800)
+        vm.updateColorTemp(3000)
+
+        #expect(vm.drafts[0].brightness == 1080.0, "Draft brightness should remain untouched")
+        #expect(vm.drafts[0].colorTemp == 5000, "Draft colorTemp should remain untouched")
+    }
+
+    @Test @MainActor func tapCell_switchSelectionBetweenExistingLights() {
+        let vm = LightingSetupViewModel()
+        vm.tapCell(col: 0, row: 0)
+        let firstID = vm.selectedDraftID
+
+        vm.tapCell(col: 4, row: 4)
+        let secondID = vm.selectedDraftID
+
+        #expect(firstID != secondID)
+        #expect(vm.selectedDraft?.id == secondID)
+
+        // Tap back on first cell
+        vm.tapCell(col: 0, row: 0)
+        #expect(vm.selectedDraftID == firstID)
+        #expect(vm.drafts.count == 2, "Should still have exactly 2 drafts")
+    }
+}
+
+@Suite("Layout lighting simulation integration")
+struct LayoutLightingSimulationIntegrationTests {
+    @Test func savedLightMapsGridAndLightingPropertiesToRoomFixture() {
+        let light = Light(
+            name: "Desk Light",
+            coordinateX: 4,
+            coordinateY: 0,
+            elevationZ: 2.4,
+            brightness: 1_600,
+            colorTemp: 4_100,
+            isOn: false
+        )
+
+        let fixture = RoomLightingFixture(light: light)
+
+        #expect(fixture.id == light.id)
+        #expect(fixture.name == "Desk Light")
+        #expect(fixture.position == SIMD3<Float>(1.3, 2.4, -1.3))
+        #expect(fixture.brightness == 1_600)
+        #expect(fixture.colorTemperatureKelvin == 4_100)
+        #expect(!fixture.isOn)
+    }
+
+    @Test @MainActor func simulatorUsesOnlyConfiguredLayoutFixtures() throws {
+        let active = RoomLightingFixture(
+            name: "Ceiling 1",
+            position: [0.65, 2.6, -0.65],
+            brightness: 1_200,
+            colorTemperatureKelvin: 3_500
+        )
+        let inactive = RoomLightingFixture(
+            name: "Ceiling 2",
+            position: [-0.65, 2.6, 0.65],
+            brightness: 900,
+            colorTemperatureKelvin: 5_000,
+            isOn: false
+        )
+        let rig = RoomLightingRig(fixtures: [active, inactive])
+
+        rig.apply(LightingSimulationSettings(artificialLightsOn: true))
+
+        let activeSpot = try #require(rig.root.findEntity(named: "FixtureSpot0") as? SpotLight)
+        let inactiveSpot = try #require(rig.root.findEntity(named: "FixtureSpot1") as? SpotLight)
+        #expect(activeSpot.position == active.position)
+        #expect(activeSpot.isEnabled && activeSpot.light.intensity > active.brightness)
+        #expect(!inactiveSpot.isEnabled && inactiveSpot.light.intensity == 0)
+
+        let emptyRig = RoomLightingRig(fixtures: [])
+        emptyRig.apply(LightingSimulationSettings(artificialLightsOn: true))
+        #expect(emptyRig.root.findEntity(named: "FixtureSpot0") == nil)
+    }
+
+    @Test @MainActor func fixtureExposurePreservesLumenRatiosAndSwitches() throws {
+        let saved = Light(brightness: 600, colorTemp: 4000)
+        let first = RoomLightingFixture(light: saved)
+        let second = RoomLightingFixture(name: "Twice as bright", position: [1, 2.6, 0],
+                                         brightness: 1200, colorTemperatureKelvin: 4000)
+        let dark = RoomLightingFixture(name: "Zero output", position: [-1, 2.6, 0],
+                                       brightness: 0, colorTemperatureKelvin: 4000)
+        let rig = RoomLightingRig(fixtures: [first, second, dark])
+        rig.apply(LightingSimulationSettings(artificialLightsOn: true, minuteOfDay: 0))
+        let spot = try #require(rig.root.findEntity(named: "FixtureSpot0") as? SpotLight)
+        let brighter = try #require(rig.root.findEntity(named: "FixtureSpot1") as? SpotLight)
+        let fill = try #require(rig.root.findEntity(named: "FixtureFill0") as? PointLight)
+        let brighterFill = try #require(rig.root.findEntity(named: "FixtureFill1") as? PointLight)
+        let zero = try #require(rig.root.findEntity(named: "FixtureFill2") as? PointLight)
+        #expect(spot.light.intensity > saved.brightness)
+        #expect(abs(brighter.light.intensity / spot.light.intensity - 2) < 0.001)
+        #expect(abs(brighterFill.light.intensity / fill.light.intensity - 2) < 0.001)
+        #expect(fill.light.intensity >= spot.light.intensity * 0.4)
+        #expect(fill.position.y < spot.position.y)
+        #expect(!zero.isEnabled && zero.light.intensity == 0)
+        #expect(saved.brightness == 600 && saved.colorTemp == 4000)
+        rig.apply(LightingSimulationSettings(artificialLightsOn: false, minuteOfDay: 0))
+        #expect(!spot.isEnabled && spot.light.intensity == 0)
+        #expect(!fill.isEnabled && fill.light.intensity == 0)
+    }
+
+}
+
+@Suite("Saved room bearings")
+struct RoomNorthOrientationTests {
+    @Test func planArrowBearingMapsToClockwiseRoomHeading() {
+        #expect(NorthAlignmentCalibration.roomHeadingDegrees(northArrowPlanRotationDegrees: 0) == 0)
+        #expect(NorthAlignmentCalibration.roomHeadingDegrees(northArrowPlanRotationDegrees: 90) == 270)
+        #expect(NorthAlignmentCalibration.roomHeadingDegrees(northArrowPlanRotationDegrees: -90) == 90)
+        #expect(NorthAlignmentCalibration.roomHeadingDegrees(northArrowPlanRotationDegrees: 360) == 0)
+    }
+}
+
+@Suite("Lighting simulation modal")
+struct LightingSimulationModalTests {
+    @Test @MainActor func editsRemainDraftUntilConfirmed() {
+        let model = Studio3DViewModel()
+        model.beginLightingEditing()
+        model.lightingDraft.artificialLightsOn = true
+        model.lightingDraft.minuteOfDay = 1140
+        #expect(model.lightingSettings == LightingSimulationSettings(previewMode: .layoutOnly))
+        model.confirmLightingEditing()
+        #expect(!model.isLightingPresented)
+        model.beginLightingEditing()
+        #expect(model.lightingDraft.artificialLightsOn)
+        #expect(model.lightingDraft.minuteOfDay == 1140)
+    }
+
+    @Test @MainActor func discardRestoresLastConfirmedChoices() {
+        let model = Studio3DViewModel()
+        model.beginLightingEditing()
+        model.lightingDraft.minuteOfDay = 360
+        model.lightingDraft.artificialLightsOn = true
+        model.confirmLightingEditing()
+        model.beginLightingEditing()
+        model.lightingDraft.minuteOfDay = 1200
+        model.lightingDraft.artificialLightsOn = false
+        model.discardLightingEditing()
+        model.beginLightingEditing()
+        #expect(model.lightingDraft.minuteOfDay == 360)
+        #expect(model.lightingDraft.artificialLightsOn)
+    }
+
+    @Test @MainActor func newViewerStartsAtNoonWithLightsOff() {
+        let model = Studio3DViewModel()
+        #expect(!model.lightingSettings.artificialLightsOn)
+        #expect(model.lightingSettings.timeLabel == "12.00")
+        #expect(!model.isSimulationEnabled)
+        #expect(!model.isLightingPresented)
+    }
+
+    @Test @MainActor func savedRoomHeadingUpdatesNaturalLightPreviewContext() {
+        let model = Studio3DViewModel()
+        model.updateRoomHeading(270)
+
+        #expect(model.lightingSettings.solarContext.roomHeadingDegrees == 270)
+        #expect(model.lightingDraft.solarContext.roomHeadingDegrees == 270)
+    }
+
+    @Test func timeLabelsCoverDayBoundaries() {
+        #expect(LightingSimulationSettings(minuteOfDay: 0).timeLabel == "00.00")
+        #expect(LightingSimulationSettings(minuteOfDay: 1439).timeLabel == "23.59")
+    }
+}
+
+@Suite("Geographic daylight")
+struct GeographicDaylightTests {
+    @Test(arguments: [0.0, 45.0, 90.0, 135.0, 180.0, 225.0, 270.0, 315.0])
+    func windowDirectionFollowsSavedRoomBearing(heading: Double) {
+        var context = SolarSimulationContext()
+        context.roomHeadingDegrees = heading
+        let directions = ["east", "southeast", "south", "southwest", "west", "northwest", "north", "northeast"]
+        #expect(context.windowCompassDirection == directions[Int(heading / 45)])
+        #expect(context.windowBearingDegrees == (heading + 90).truncatingRemainder(dividingBy: 360))
+    }
+
+    @Test func equivalentCompassBearingsKeepWindowAndSunAligned() {
+        var settings = LightingSimulationSettings(minuteOfDay: 8 * 60)
+        settings.solarContext.roomHeadingDegrees = 180
+        let expectedRay = settings.sun.rayDirection
+        for heading in [-180.0, 540.0] {
+            settings.solarContext.roomHeadingDegrees = heading
+            #expect(settings.solarContext.windowCompassDirection == "west")
+            #expect(settings.sun.rayDirection == expectedRay)
+        }
+    }
+
+    @Test @MainActor func savedCompassChangesWindowSunExposureAfterReload() throws {
+        let container = try ModelContainer.createInMemoryContainer()
+        let room = Room(compass: NorthAlignmentCalibration.roomHeadingDegrees(northArrowPlanRotationDegrees: 180))
+        let layout = Layout(name: "West-facing room")
+        room.layouts.append(layout)
+        container.mainContext.insert(room)
+        try container.mainContext.save()
+
+        let reloadedContext = ModelContext(container)
+        let reloaded = try #require(reloadedContext.fetch(FetchDescriptor<Layout>()).first)
+        let savedRoom = try #require(reloaded.room)
+        let model = Studio3DViewModel()
+        model.updateRoomHeading(savedRoom.compass)
+        model.beginLightingEditing()
+        model.lightingDraft.minuteOfDay = 8 * 60
+        let rig = RoomLightingRig(fixtures: [])
+        rig.apply(model.previewLighting)
+        let beam = try #require(rig.root.findEntity(named: "SunBeam") as? SpotLight)
+        let sky = try #require(rig.root.findEntity(named: "SkyFill") as? SpotLight)
+        #expect(model.previewLighting.solarContext.windowCompassDirection == "west")
+        #expect(!beam.isEnabled && beam.light.intensity == 0)
+        #expect(sky.isEnabled && sky.light.intensity > 0)
+
+        model.lightingDraft.minuteOfDay = 16 * 60
+        rig.apply(model.previewLighting)
+        #expect(beam.isEnabled && beam.light.intensity > 0)
+        model.confirmLightingEditing()
+        model.beginLightingEditing()
+        model.lightingDraft.minuteOfDay = 0
+        rig.apply(model.previewLighting)
+        #expect(!beam.isEnabled && !sky.isEnabled)
+        model.discardLightingEditing()
+        #expect(model.previewLighting.solarContext.roomHeadingDegrees == savedRoom.compass)
+        rig.apply(model.previewLighting)
+        #expect(beam.isEnabled && beam.light.intensity > 0)
+    }
+
+    @Test func sunCrossesFromEastToWest() {
+        let morning = LightingSimulationSettings(minuteOfDay: 8 * 60).sun
+        let afternoon = LightingSimulationSettings(minuteOfDay: 16 * 60).sun
+        #expect(morning.rayDirection.x < 0)
+        #expect(afternoon.rayDirection.x > 0)
+        #expect(morning.daylight > 0)
+        #expect(afternoon.daylight > 0)
+        #expect(LightingSimulationSettings(minuteOfDay: 0).sun.daylight == 0)
+    }
+
+    @Test func orientationRotatesSunWithoutChangingElevation() {
+        var settings = LightingSimulationSettings(minuteOfDay: 8 * 60)
+        let original = settings.sun
+        settings.solarContext.roomHeadingDegrees = 180
+        let rotated = settings.sun
+        #expect(abs(rotated.rayDirection.x + original.rayDirection.x) < 0.0001)
+        #expect(abs(rotated.rayDirection.z + original.rayDirection.z) < 0.0001)
+        #expect(abs(rotated.elevation - original.elevation) < 0.0001)
+    }
+
+    @Test func geographicReferenceAndSeason() throws {
+        // Equator at Greenwich, near equinox: sun nearly overhead at local noon.
+        let date = try #require(ISO8601DateFormatter().date(from: "2026-03-20T12:00:00Z"))
+        let engine = SolarEphemerisEngine()
+        let noon = engine.position(at: date, latitude: 0, longitude: 0)
+        #expect(noon.elevation * 180 / .pi > 87)
+        let midnight = engine.position(at: date.addingTimeInterval(12 * 3600), latitude: 0, longitude: 0)
+        #expect(midnight.elevation < -1.5)
+        let summer = try #require(ISO8601DateFormatter().date(from: "2026-06-21T12:00:00Z"))
+        let winter = try #require(ISO8601DateFormatter().date(from: "2026-12-21T12:00:00Z"))
+        #expect(engine.position(at: summer, latitude: 70, longitude: 0).elevation > 0)
+        #expect(engine.position(at: winter, latitude: 70, longitude: 0).elevation < 0)
+    }
+
+    @Test func timeZoneResolvesCivilTimeAndLongitudeChangesSolarTime() throws {
+        let local = SolarSimulationContext()
+        var utc = local
+        utc.timeZoneIdentifier = "GMT"
+        #expect(local.date(minuteOfDay: 720) == utc.date(minuteOfDay: 300))
+        let date = try #require(ISO8601DateFormatter().date(from: "2026-03-20T08:00:00Z"))
+        let engine = SolarEphemerisEngine()
+        let greenwich = engine.position(at: date, latitude: 0, longitude: 0)
+        let east = engine.position(at: date, latitude: 0, longitude: 60)
+        #expect(east.elevation > greenwich.elevation + 0.8)
+    }
+
+    @Test @MainActor func eastWindowRejectsAfternoonSunButKeepsSkyLight() throws {
+        var tuning = RoomLightingTuning()
+        tuning.shadowsEnabled = true
+        let rig = RoomLightingRig(tuning: tuning)
+        rig.apply(LightingSimulationSettings(minuteOfDay: 8 * 60))
+        let beam = try #require(rig.root.findEntity(named: "SunBeam") as? SpotLight)
+        let sky = try #require(rig.root.findEntity(named: "SkyFill") as? SpotLight)
+        let bounce = try #require(rig.root.findEntity(named: "SkyBounce") as? PointLight)
+        #expect(beam.isEnabled && beam.light.intensity > 0)
+        #expect(beam.shadow != nil)
+        let noonSettings = LightingSimulationSettings(minuteOfDay: 12 * 60)
+        rig.apply(noonSettings)
+        #expect(!beam.isEnabled)
+        #expect(noonSettings.sun.skylight > 0.8)
+        #expect(sky.isEnabled && sky.light.intensity > 0)
+        #expect(bounce.isEnabled && bounce.light.intensity > 40_000)
+        rig.apply(LightingSimulationSettings(minuteOfDay: 16 * 60))
+        #expect(!beam.isEnabled && beam.light.intensity == 0)
+        #expect(sky.isEnabled && sky.light.intensity > 0)
+        rig.apply(LightingSimulationSettings(minuteOfDay: 0))
+        #expect(!beam.isEnabled && !sky.isEnabled)
+        rig.apply(LightingSimulationSettings(artificialLightsOn: true, minuteOfDay: 0))
+        let lamp = try #require(rig.root.findEntity(named: "FixtureSpot0") as? SpotLight)
+        #expect(lamp.light.intensity > 0)
+        #expect(!beam.isEnabled)
+    }
+
+    @Test @MainActor func previewUsesRuntimeCompatibleShadowDefaults() throws {
+        let rig = RoomLightingRig()
+        rig.apply(LightingSimulationSettings(minuteOfDay: 8 * 60))
+        let beam = try #require(rig.root.findEntity(named: "SunBeam") as? SpotLight)
+        let sky = try #require(rig.root.findEntity(named: "SkyFill") as? SpotLight)
+        let lamp = try #require(rig.root.findEntity(named: "FixtureSpot0") as? SpotLight)
+        let bounce = try #require(rig.root.findEntity(named: "SkyBounce") as? PointLight)
+        #if targetEnvironment(simulator)
+        #expect(!rig.tuning.shadowsEnabled)
+        #expect(!sky.components.has(SpotLightComponent.Shadow.self))
+        #expect(!lamp.components.has(SpotLightComponent.Shadow.self))
+        #else
+        #expect(rig.tuning.shadowsEnabled)
+        #expect(beam.shadow != nil && sky.shadow != nil && lamp.shadow != nil)
+        #endif
+        #expect(beam.components.has(SpotLightComponent.Shadow.self))
+        #expect(beam.light.innerAngleInDegrees < beam.light.outerAngleInDegrees)
+        #expect(
+            abs((beam.light.outerAngleInDegrees - beam.light.innerAngleInDegrees) / beam.light.outerAngleInDegrees - rig.tuning.beamEdgeFeather) < 0.001
+        )
+        #expect(beam.isEnabled && beam.light.intensity > 0)
+        #expect(sky.isEnabled && sky.light.intensity > 0)
+        #expect(bounce.isEnabled && bounce.light.intensity > 0)
+        #expect(bounce.position.x < sky.position.x)
+        #expect(bounce.position.y > sky.position.y)
+        #expect(!lamp.isEnabled)
+
+        rig.apply(LightingSimulationSettings(minuteOfDay: 16 * 60))
+        #expect(!beam.isEnabled)
+        #expect(sky.isEnabled && sky.light.intensity > 0)
+        #expect(bounce.isEnabled && bounce.light.intensity > 0)
+        rig.apply(LightingSimulationSettings(minuteOfDay: 0))
+        #expect(!beam.isEnabled && !sky.isEnabled)
+        #expect(!bounce.isEnabled && bounce.light.intensity == 0)
+    }
+
+    @Test @MainActor func studioUsesExplicitLightingInsteadOfDefaultEnvironment() throws {
+        let controller = RoomSceneController()
+        let lighting = try #require(controller.root.components[EnvironmentLightingConfigurationComponent.self])
+        #expect(lighting.environmentLightingWeight == 0)
+        let environment = try #require(controller.root.components[ImageBasedLightComponent.self])
+        guard case .none = environment.source else {
+            Issue.record("The studio must override the default image-based light")
+            return
+        }
+        let receiver = try #require(controller.root.components[ImageBasedLightReceiverComponent.self])
+        #expect(receiver.imageBasedLight === controller.root)
+    }
+
+    @Test @MainActor func windowAndFrameShapeDirectSunInTheLoadedRoom() async throws {
+        let controller = RoomSceneController()
+        controller.rig.apply(LightingSimulationSettings(minuteOfDay: 8 * 60))
+        await controller.load()
+        #expect(controller.loadState == .loaded)
+        let beam = try #require(controller.rig.root.findEntity(named: "SunBeam") as? SpotLight)
+        #expect(beam.components.has(SpotLightComponent.Shadow.self))
+        for name in ["Wall_East_North", "Wall_East_South", "Wall_East_Top", "Wall_East_Bottom", "Frame_Mullion"] {
+            let mesh = try #require(controller.root.findEntity(named: name))
+            #expect(mesh.isEnabled)
+            #expect(mesh.components[DynamicLightShadowComponent.self]?.castsShadow == true)
+        }
+        let glass = try #require(controller.root.findEntity(named: "Glass"))
+        #expect(glass.components[DynamicLightShadowComponent.self]?.castsShadow == false)
+    }
+
+    @Test @MainActor func sourceConeCoversTheFullWindowDiagonal() throws {
+        let rig = RoomLightingRig()
+        let opening = WindowOpening(center: [2.55, 1.45, 0], width: 1.56, height: 1.16)
+        rig.configure(opening: opening)
+        let beam = try #require(rig.root.findEntity(named: "SunBeam") as? SpotLight)
+        let halfAngle = beam.light.outerAngleInDegrees * .pi / 360
+        let coverage = tan(halfAngle) * rig.tuning.beamDistance
+        let cornerRadius = sqrt(opening.width * opening.width + opening.height * opening.height) / 2
+        #expect(coverage > cornerRadius)
+        #expect(beam.light.innerAngleInDegrees < beam.light.outerAngleInDegrees)
+    }
+
+    @Test @MainActor func movingSunFartherAwayPreservesWindowExposure() throws {
+        var nearTuning = RoomLightingTuning()
+        nearTuning.beamDistance = 3
+        var farTuning = nearTuning
+        farTuning.beamDistance = 12
+        let near = RoomLightingRig(tuning: nearTuning)
+        let far = RoomLightingRig(tuning: farTuning)
+        let settings = LightingSimulationSettings(minuteOfDay: 8 * 60)
+        near.apply(settings)
+        far.apply(settings)
+        let nearBeam = try #require(near.root.findEntity(named: "SunBeam") as? SpotLight)
+        let farBeam = try #require(far.root.findEntity(named: "SunBeam") as? SpotLight)
+        #expect(abs(farBeam.light.intensity / nearBeam.light.intensity - 16) < 0.001)
+    }
+
+    @Test @MainActor func previewCancelRestoresSunContext() {
+        let model = Studio3DViewModel()
+        let original = model.previewLighting
+        model.beginLightingEditing()
+        model.lightingDraft.solarContext.roomHeadingDegrees = 90
+        model.lightingDraft.minuteOfDay = 480
+        model.discardLightingEditing()
+        #expect(model.previewLighting == original)
+    }
+
+    @Test @MainActor func placementUsesFixedOrthographicCamera() async throws {
+        let scene = MockRoomRealityScene(topDown: true)
+        try await scene.load()
+        let camera = try #require(scene.camera.components[OrthographicCameraComponent.self])
+        #expect(camera.scale == 4.2)
+        #expect(scene.room?.findEntity(named: "Ceiling")?.isEnabled == false)
+    }
+}
+
+@Suite("Scanned layout lighting integration")
+struct ScannedLayoutLightingTests {
+    @MainActor
+    private func scannedLayout() throws -> Layout {
+        let room = Room(name: "Offset scan", length: 4, width: 6, height: 3)
+        let walls = [
+            ScannedWallPayload(position: [1, 0.3, -2], dimensions: [6, 3, 0.1], rotationYaw: .pi / 2),
+            ScannedWallPayload(position: [5, 0.3, -2], dimensions: [6, 3, 0.1], rotationYaw: .pi / 2),
+            ScannedWallPayload(position: [3, 0.3, 1], dimensions: [4, 3, 0.1], rotationYaw: 0),
+            ScannedWallPayload(position: [3, 0.3, -5], dimensions: [4, 3, 0.1], rotationYaw: 0)
+        ]
+        room.planSnapshotData = try JSONEncoder().encode(RoomPlanSnapshot(walls: walls, floorLevel: -1.2))
+        room.openings = [RoomOpening(type: "window", posX: 5, posY: 0, posZ: -2, width: 1.4, height: 1.2)]
+        let layout = Layout(name: "Selected scan", usdzURL: URL(fileURLWithPath: "/nonexistent/scan.usdz"))
+        room.layouts.append(layout)
+        layout.furnitures = [Furniture(name: "Unique Scanner Desk", category: "desk", positionX: 3,
+                                       positionY: -1.2, positionZ: -3, rotationYaw: .pi / 2,
+                                       length: 0.6, width: 1.2, height: 0.75)]
+        return layout
+    }
+
+    @Test @MainActor func scanFrameAlignsFurnitureWindowsAndFloor() throws {
+        let source = RoomSimulationLayout(layout: try scannedLayout())
+        let position = source.localPosition(source.furnishings[0].position)
+        #expect(abs(position.x - 1) < 0.001)
+        #expect(abs(position.y) < 0.001 && abs(position.z) < 0.001)
+        let window = try #require(source.windows.first)
+        #expect(abs(window.center.x) < 0.001 && abs(window.center.y - 1.2) < 0.001)
+        #expect(abs(window.center.z - 2) < 0.001)
+        #expect(abs(window.outwardNormal.z - 1) < 0.001)
+        #expect(abs(source.windowAzimuths[0] - 180) < 0.001)
+    }
+
+    @Test @MainActor func selectedScanNeverFallsBackToSampleFurniture() async throws {
+        let source = RoomSimulationLayout(layout: try scannedLayout())
+        let controller = RoomSceneController(fixtures: [], layout: source)
+        await controller.load()
+        #expect(controller.loadState == .loaded)
+        #expect(controller.root.name == "ScannedRoomRoot")
+        #expect(controller.root.findEntity(named: "Furniture_Unique Scanner Desk") != nil)
+        #expect(controller.root.findEntity(named: "ReconstructedScanShell") != nil)
+        let floor = try #require(controller.root.findEntity(named: "ScannedFloor"))
+        let bounds = floor.visualBounds(relativeTo: controller.root)
+        #expect(abs(bounds.extents.x - 6) < 0.001 && abs(bounds.extents.z - 4) < 0.001)
+        func panels(in entity: Entity) -> [Entity] {
+            (entity.name.hasPrefix("ScannedWall") ? [entity] : []) + entity.children.flatMap { panels(in: $0) }
+        }
+        func contains(_ bounds: BoundingBox, _ point: SIMD3<Float>) -> Bool {
+            point.x >= bounds.min.x && point.x <= bounds.max.x && point.y >= bounds.min.y
+                && point.y <= bounds.max.y && point.z >= bounds.min.z && point.z <= bounds.max.z
+        }
+        let opening = try #require(source.windows.first)
+        let wallBounds = panels(in: controller.root).map { $0.visualBounds(relativeTo: controller.root) }
+        #expect(!wallBounds.contains { contains($0, opening.center) })
+        #expect(wallBounds.contains { contains($0, opening.center + SIMD3<Float>(0, 1.4, 0)) })
+    }
+
+    @Test(arguments: ["Room", "Room-2"])
+    @MainActor func selectedNativeScanAssetLoadsItsOwnShell(asset: String) async throws {
+        let url = try #require(Bundle.main.url(forResource: asset, withExtension: "usdz"))
+        let room = Room(name: asset, length: 4, width: 4.2, height: 3.2)
+        let layout = Layout(name: "Native scanned layout", usdzURL: url)
+        room.layouts.append(layout)
+        layout.furnitures = [Furniture(name: "SelectedOnlyDesk", category: "desk")]
+        let controller = RoomSceneController(fixtures: [], layout: RoomSimulationLayout(layout: layout))
+        await controller.load()
+        #expect(controller.loadState == .loaded)
+        #expect(controller.root.findEntity(named: "ReconstructedScanShell") == nil)
+        #expect(controller.root.findEntity(named: "ScannedApertureWalls") != nil)
+        #expect(controller.root.findEntity(named: "Furniture_SelectedOnlyDesk") != nil)
+        let nativeObjects = try #require(controller.root.findEntity(named: "Object_grp"))
+        #expect(!nativeObjects.isEnabled)
+        let floor = try #require(controller.root.findEntity(named: "Floor_grp"))
+        #expect(abs(floor.visualBounds(relativeTo: controller.root).center.y) < 0.01)
+    }
+
+    @Test @MainActor func ceilingGridUsesActualRoomDimensions() {
+        let light = Light(coordinateX: 4, coordinateY: 0, elevationZ: 5)
+        let fixture = RoomLightingFixture(light: light, roomWidth: 6, roomLength: 4, roomHeight: 3)
+        #expect(abs(fixture.position.x - 2.4) < 0.001)
+        #expect(abs(fixture.position.z + 1.6) < 0.001)
+        #expect(abs(fixture.position.y - 2.92) < 0.001)
+    }
+
+    @Test @MainActor func savedCeilingLightsUseScannedHeight() throws {
+        let container = try ModelContainer.createInMemoryContainer()
+        let room = Room(height: 3.4)
+        let layout = Layout(name: "Tall scanned room")
+        room.layouts.append(layout)
+        container.mainContext.insert(room)
+        let model = LightingSetupViewModel()
+        model.tapCell(col: 2, row: 2)
+        try model.saveToLayout(layout, context: container.mainContext)
+        let light = try #require(layout.lights.first)
+        #expect(abs(light.elevationZ - 3.4) < 0.001)
+    }
+
+    @Test @MainActor func oppositeWindowsReceiveSunAtOppositeTimes() throws {
+        let rig = RoomLightingRig(fixtures: [])
+        rig.configure(openings: [WindowOpening(outwardNormal: [1, 0, 0]),
+                                 WindowOpening(center: [-2.5, 1.4, 0], outwardNormal: [-1, 0, 0])],
+                      roomCenter: [0, 2, 0])
+        let east = try #require(rig.root.findEntity(named: "SunBeam") as? SpotLight)
+        let west = try #require(rig.root.findEntity(named: "SunBeam1") as? SpotLight)
+        rig.apply(LightingSimulationSettings(minuteOfDay: 8 * 60))
+        #expect(east.isEnabled && !west.isEnabled)
+        rig.apply(LightingSimulationSettings(minuteOfDay: 16 * 60))
+        #expect(!east.isEnabled && west.isEnabled)
+        rig.configure(openings: [], roomCenter: [0, 2, 0])
+        rig.apply(LightingSimulationSettings(minuteOfDay: 12 * 60))
+        #expect(!east.isEnabled && east.light.intensity == 0)
+        #expect(rig.root.findEntity(named: "SunBeam1") == nil)
+        let bounce = try #require(rig.root.findEntity(named: "SkyBounce") as? PointLight)
+        #expect(!bounce.isEnabled && bounce.light.intensity == 0)
+    }
+
+    @Test @MainActor func captionsFollowDetectedFacadesAcrossDraftEdits() {
+        let model = Studio3DViewModel()
+        model.updateRoomHeading(90)
+        model.updateWindowDirections([0, 180])
+        #expect(model.previewLighting.solarContext.naturalLightDescription == "Natural light from east, west windows")
+        model.beginLightingEditing()
+        model.lightingDraft.minuteOfDay = 480
+        model.discardLightingEditing()
+        #expect(model.previewLighting.solarContext.windowLocalAzimuths == [0, 180])
+        model.updateWindowDirections([])
+        #expect(model.previewLighting.solarContext.naturalLightDescription == "No windows detected in this room")
+    }
+
+    @Test func olderPlanSnapshotsDecodeWithoutFloorMetadata() throws {
+        let original = RoomPlanSnapshot(walls: [])
+        var json = try #require(JSONSerialization.jsonObject(with: JSONEncoder().encode(original)) as? [String: Any])
+        json.removeValue(forKey: "floorLevel")
+        let decoded = try JSONDecoder().decode(RoomPlanSnapshot.self, from: JSONSerialization.data(withJSONObject: json))
+        #expect(decoded.floorLevel == nil)
+        #expect(decoded.wallSegments.isEmpty)
+    }
+}
+
+@Suite("Ceiling grid scan bounds")
+struct CeilingGridScanBoundsTests {
+    @Test @MainActor func planAndSimulationUseWallExtentsInsteadOfSummaryDimensions() throws {
+        let room = Room(length: 2, width: 2, height: 3)
+        // Captured walls enclose 8 × 4 m even if the summary/floor polygon is smaller.
+        let walls = [
+            ScannedWallPayload(position: [3, 1.5, -4], dimensions: [8, 3, 0.1], rotationYaw: 0),
+            ScannedWallPayload(position: [3, 1.5, 0], dimensions: [8, 3, 0.1], rotationYaw: 0),
+            ScannedWallPayload(position: [-1, 1.5, -2], dimensions: [4, 3, 0.1], rotationYaw: .pi / 2),
+            ScannedWallPayload(position: [7, 1.5, -2], dimensions: [4, 3, 0.1], rotationYaw: .pi / 2)
+        ]
+        room.planSnapshotData = try JSONEncoder().encode(RoomPlanSnapshot(walls: walls, floorLevel: 0))
+        let layout = Layout(name: "Wide scan")
+        room.layouts.append(layout)
+        let source = RoomSimulationLayout(layout: layout)
+        #expect(abs(source.planBounds.width - 8) < 0.001)
+        #expect(abs(source.planBounds.length - 4) < 0.001)
+        let rig = RoomLightingRig(fixtures: (0..<5).map { column in
+            RoomLightingFixture(light: Light(coordinateX: Float(column), coordinateY: 0), layout: source)
+        })
+        rig.buildIfNeeded()
+        for column in 0..<5 {
+            let bulb = try #require(rig.root.findEntity(named: "FixtureBulb\(column)"))
+            let point = source.planBounds.unitCoordinates(x: bulb.position.x, z: bulb.position.z)
+            #expect(abs(point.x - (Float(column) + 0.5) / 5) < 0.001)
+            #expect(abs(point.y - 0.1) < 0.001)
+        }
+        let corner = RoomLightingFixture(light: Light(coordinateX: 4, coordinateY: 4), layout: source)
+        #expect(abs(corner.position.x - 3.2) < 0.001)
+        #expect(abs(corner.position.z - 1.6) < 0.001)
+    }
+}
+
+@Suite("Adaptive ceiling placement")
+struct AdaptiveCeilingPlacementTests {
+    @Test func capturedIPadPerimeterRemainsUsableWithDanglingInteriorWall() {
+        typealias Wall = RoomPlanSnapshot.WallSegment
+        // Geometry reproduced from the failing device scan; final segment is an interior branch.
+        let walls = [
+            Wall(startX: -3.7050776, startZ: -2.5738444, endX: 3.571476, endZ: -2.5738442),
+            Wall(startX: 4.028597, startZ: 2.0562587, endX: -2.4675984, endZ: 3.09143),
+            Wall(startX: -2.4675984, startZ: 3.09143, endX: -2.6528327, endZ: 1.9289935),
+            Wall(startX: -2.652833, startZ: 1.9289933, endX: -3.3920336, endZ: 2.046785),
+            Wall(startX: 3.571476, startZ: -2.5738442, endX: 4.028597, endZ: 2.056259),
+            Wall(startX: -3.3920336, startZ: 2.0467846, endX: -3.9106367, endZ: -1.2077016),
+            Wall(startX: -3.6894364, startZ: -1.2429498, endX: -3.7050784, endZ: -2.5738444),
+            Wall(startX: -3.9106367, startZ: -1.2077014, endX: -3.6894364, endZ: -1.2429498),
+            Wall(startX: -3.6894362, startZ: -1.2429497, endX: 1.184261, endZ: -2.0195749)
+        ]
+        let bounds = RoomPlanBounds(snapshot: nil, fallbackWidth: 8, fallbackLength: 6)
+        let grid = CeilingLightPlacementGrid(bounds: bounds, walls: walls)
+        #expect(grid.hasUsableBoundary)
+        #expect(grid.points.contains([0.5, 0.5]))
+        let partitionMidpoint = bounds.unitCoordinates(x: -1.2525876, z: -1.6312623)
+        #expect(!grid.allowsPlacement(at: partitionMidpoint))
+        // Removing an actual perimeter side must still reject the scan.
+        #expect(!CeilingLightPlacementGrid(bounds: bounds, walls: Array(walls.dropFirst())).hasUsableBoundary)
+        let reversed = walls.reversed().map {
+            Wall(startX: $0.endX, startZ: $0.endZ, endX: $0.startX, endZ: $0.startZ)
+        }
+        #expect(CeilingLightPlacementGrid(bounds: bounds, walls: reversed).hasUsableBoundary)
+    }
+
+    @Test func interiorBranchChainDoesNotBreakPerimeterOrAllowLightsOnPartitions() {
+        typealias Wall = RoomPlanSnapshot.WallSegment
+        let walls = [Wall(startX: -2, startZ: -2, endX: 2, endZ: -2),
+                     Wall(startX: 2, startZ: -2, endX: 2, endZ: 2),
+                     Wall(startX: 2, startZ: 2, endX: -2, endZ: 2),
+                     Wall(startX: -2, startZ: 2, endX: -2, endZ: -2),
+                     Wall(startX: -2, startZ: -2, endX: -1, endZ: -1),
+                     Wall(startX: -1, startZ: -1, endX: 0, endZ: -1)]
+        let bounds = RoomPlanBounds(snapshot: nil, fallbackWidth: 4, fallbackLength: 4)
+        let grid = CeilingLightPlacementGrid(bounds: bounds, walls: walls)
+        #expect(grid.hasUsableBoundary)
+        #expect(grid.points.contains([0.5, 0.5]))
+        #expect(!grid.allowsPlacement(at: bounds.unitCoordinates(x: -0.5, z: -1)))
+        #expect(!grid.allowsPlacement(at: bounds.unitCoordinates(x: -1.5, z: -1.5)))
+        let island = [Wall(startX: -0.5, startZ: -0.5, endX: 0.5, endZ: -0.5),
+                      Wall(startX: 0.5, startZ: -0.5, endX: 0.5, endZ: 0.5),
+                      Wall(startX: 0.5, startZ: 0.5, endX: -0.5, endZ: 0.5),
+                      Wall(startX: -0.5, startZ: 0.5, endX: -0.5, endZ: -0.5)]
+        let incompleteOuter = Array(walls.prefix(3)) + island
+        #expect(!CeilingLightPlacementGrid(bounds: bounds, walls: incompleteOuter).hasUsableBoundary)
+    }
+
+
+    @Test func capturedDoorClosesOnlyItsMatchingWallGap() {
+        typealias Wall = RoomPlanSnapshot.WallSegment
+        let walls = [Wall(startX: -2, startZ: -2, endX: -0.5, endZ: -2),
+                     Wall(startX: 0.5, startZ: -2, endX: 2, endZ: -2),
+                     Wall(startX: 2, startZ: -2, endX: 2, endZ: 2),
+                     Wall(startX: 2, startZ: 2, endX: -2, endZ: 2),
+                     Wall(startX: -2, startZ: 2, endX: -2, endZ: -2)]
+        let bounds = RoomPlanBounds(snapshot: nil, fallbackWidth: 4, fallbackLength: 4)
+        let door = CeilingLightPlacementGrid.Opening(center: [0, -2], width: 1)
+        let repaired = CeilingLightPlacementGrid(bounds: bounds, walls: walls, openings: [door])
+        #expect(repaired.hasUsableBoundary)
+        #expect(repaired.points.contains([0.5, 0.5]))
+        #expect(!repaired.allowsPlacement(at: [0.5, 0.01]))
+        #expect(!CeilingLightPlacementGrid(bounds: bounds, walls: walls).hasUsableBoundary)
+        let misplaced = CeilingLightPlacementGrid.Opening(center: [0, 0], width: 1)
+        #expect(!CeilingLightPlacementGrid(bounds: bounds, walls: walls, openings: [misplaced]).hasUsableBoundary)
+        let undersized = CeilingLightPlacementGrid.Opening(center: [0, -2], width: 0.3)
+        #expect(!CeilingLightPlacementGrid(bounds: bounds, walls: walls, openings: [undersized]).hasUsableBoundary)
+        #expect(!CeilingLightPlacementGrid(bounds: bounds, walls: Array(walls.dropLast()), openings: [door]).hasUsableBoundary)
+        // Matching must be independent of capture order, endpoint direction, and room axes.
+        let rotated = walls.reversed().map {
+            Wall(startX: -$0.endZ, startZ: $0.endX, endX: -$0.startZ, endZ: $0.startX)
+        }
+        let rotatedDoor = CeilingLightPlacementGrid.Opening(center: [2, 0], width: 1)
+        #expect(CeilingLightPlacementGrid(bounds: bounds, walls: rotated, openings: [rotatedDoor]).points.contains([0.5, 0.5]))
+    }
+
+    @Test func zeroLengthCaptureArtifactsDoNotInvalidateClosedPerimeter() {
+        typealias Wall = RoomPlanSnapshot.WallSegment
+        let walls = [Wall(startX: -2, startZ: -2, endX: 2, endZ: -2),
+                     Wall(startX: 2, startZ: -2, endX: 2, endZ: 2),
+                     Wall(startX: 2, startZ: 2, endX: -2, endZ: 2),
+                     Wall(startX: -2, startZ: 2, endX: -2, endZ: -2),
+                     Wall(startX: 0, startZ: 0, endX: 0, endZ: 0)]
+        let bounds = RoomPlanBounds(snapshot: nil, fallbackWidth: 4, fallbackLength: 4)
+        #expect(CeilingLightPlacementGrid(bounds: bounds, walls: walls).points.contains([0.5, 0.5]))
+    }
+
+    @Test func elongatedRoomsHaveBalancedSpacingAndDifferentCounts() {
+        let bounds = RoomPlanBounds(snapshot: nil, fallbackWidth: 8, fallbackLength: 2)
+        let grid = CeilingLightPlacementGrid(bounds: bounds, walls: [])
+        #expect(grid.columns == 13 && grid.rows == 3)
+        #expect(grid.points.count == 39)
+        #expect(abs(bounds.width / Float(grid.columns) - bounds.length / Float(grid.rows)) < 0.15)
+        let limited = CeilingLightPlacementGrid(bounds: bounds, walls: [], maxColumns: 6, maxRows: 2)
+        #expect(limited.columns <= 6 && limited.rows <= 2)
+        let portrait = CeilingLightPlacementGrid(
+            bounds: RoomPlanBounds(snapshot: nil, fallbackWidth: 2, fallbackLength: 8), walls: [])
+        #expect(portrait.rows == grid.columns && portrait.columns == grid.rows)
+    }
+
+    @Test func roomCenterIsOfferedEvenWhenDisplayLimitsRequireEvenCounts() {
+        let bounds = RoomPlanBounds(snapshot: nil, fallbackWidth: 5, fallbackLength: 4)
+        for limits in [(8, 6), (6, 4), (1, 1)] {
+            let grid = CeilingLightPlacementGrid(bounds: bounds, walls: [],
+                                                maxColumns: limits.0, maxRows: limits.1)
+            #expect(grid.points.filter { $0 == SIMD2<Float>(0.5, 0.5) }.count == 1)
+            #expect(Set(grid.points).count == grid.points.count)
+        }
+        let roomy = CeilingLightPlacementGrid(bounds: bounds, walls: [])
+        #expect(roomy.points.count > 35)
+    }
+
+    @Test func concaveBoundaryExcludesEmptyPartOfLayout() {
+        let vertices: [SIMD2<Float>] = [[-3,-3], [3,-3], [3,-1], [-1,-1], [-1,3], [-3,3]]
+        let walls = vertices.indices.map { index in
+            let a = vertices[index]
+            let b = vertices[(index + 1) % vertices.count]
+            return RoomPlanSnapshot.WallSegment(startX: a.x, startZ: a.y, endX: b.x, endZ: b.y)
+        }
+        let bounds = RoomPlanBounds(snapshot: nil, fallbackWidth: 6, fallbackLength: 6)
+        let grid = CeilingLightPlacementGrid(bounds: bounds, walls: walls)
+        #expect(grid.points.count == 45)
+        #expect(!grid.points.contains { $0.x > 1.0 / 3 && $0.y > 1.0 / 3 })
+        #expect(!grid.points.contains([0.5, 0.5])) // The bounds center lies outside this L-shaped room.
+        let incomplete = CeilingLightPlacementGrid(bounds: bounds, walls: Array(walls.dropLast()))
+        #expect(incomplete.points.isEmpty) // Never offer outside positions for an unclosed scan.
+        #expect(!incomplete.hasUsableBoundary)
+    }
+
+    @Test func smallScanGapsAreJoinedWithoutFillingConcaveCutout() {
+        let vertices: [SIMD2<Float>] = [[-3,-3], [3,-3], [3,-1], [-1,-1], [-1,3], [-3,3]]
+        let walls = vertices.indices.map { index in
+            let a = vertices[index] + SIMD2<Float>(0.04, 0.03)
+            let b = vertices[(index + 1) % vertices.count] - SIMD2<Float>(0.04, 0.03)
+            return RoomPlanSnapshot.WallSegment(startX: a.x, startZ: a.y, endX: b.x, endZ: b.y)
+        }
+        let bounds = RoomPlanBounds(snapshot: nil, fallbackWidth: 6, fallbackLength: 6)
+        let grid = CeilingLightPlacementGrid(bounds: bounds, walls: walls)
+        #expect(grid.hasUsableBoundary && !grid.points.isEmpty)
+        #expect(!grid.allowsPlacement(at: SIMD2<Float>(0.8, 0.8)))
+        for point in grid.points {
+            let x = bounds.minX + point.x * bounds.width
+            let z = bounds.minZ + point.y * bounds.length
+            #expect(x < -1.15 || z < -1.15)
+        }
+    }
+
+    @Test func slantedWallsExcludePointsOnAndBeyondWallFaces() {
+        let vertices: [SIMD2<Float>] = [[0,-2], [2,0], [0,2], [-2,0]]
+        let walls = vertices.indices.map { index in
+            let a = vertices[index]
+            let b = vertices[(index + 1) % vertices.count]
+            return RoomPlanSnapshot.WallSegment(startX: a.x, startZ: a.y, endX: b.x, endZ: b.y)
+        }
+        let bounds = RoomPlanBounds(snapshot: nil, fallbackWidth: 4, fallbackLength: 4)
+        let grid = CeilingLightPlacementGrid(bounds: bounds, walls: walls, wallClearance: 0.2)
+        #expect(grid.hasUsableBoundary && !grid.points.isEmpty)
+        #expect(!grid.allowsPlacement(at: [0.75, 0.25])) // Exactly on a diagonal wall.
+        #expect(!grid.allowsPlacement(at: [0.95, 0.95]))
+        for point in grid.points {
+            let x = bounds.minX + point.x * bounds.width
+            let z = bounds.minZ + point.y * bounds.length
+            #expect(abs(x) + abs(z) < 2 - 0.2 * Float(2).squareRoot())
+        }
+        let open = CeilingLightPlacementGrid(bounds: bounds, walls: Array(walls.dropLast()))
+        #expect(open.points.isEmpty && !open.allowsPlacement(at: [0.5, 0.5]))
+    }
+
+    @Test func scannedOutlineAcceptsDuplicateAndOverlappingWallFragments() {
+        typealias Wall = RoomPlanSnapshot.WallSegment
+        let walls = [Wall(startX: -2, startZ: -2, endX: 0.2, endZ: -2),
+                     Wall(startX: -0.2, startZ: -2, endX: 2, endZ: -2),
+                     Wall(startX: 2, startZ: -2, endX: 2, endZ: 2),
+                     Wall(startX: 2, startZ: 2, endX: -2, endZ: 2),
+                     Wall(startX: -2, startZ: 2, endX: -2, endZ: -2)]
+        let bounds = RoomPlanBounds(snapshot: nil, fallbackWidth: 4, fallbackLength: 4)
+        let grid = CeilingLightPlacementGrid(bounds: bounds, walls: walls + [walls[2]])
+        #expect(grid.hasUsableBoundary && grid.points.contains([0.5, 0.5]))
+        #expect(grid.points.allSatisfy { $0.x > 0 && $0.x < 1 && $0.y > 0 && $0.y < 1 })
+    }
+
+    @Test func nearbyAlcoveCornersKeepTheirOwnEndpointPairs() {
+        let vertices: [SIMD2<Float>] = [[-2,-2], [2,-2], [2,2], [0.2,2],
+                                      [0.2,1], [0,1], [0,2], [-2,2]]
+        let walls = vertices.indices.map { index in
+            let a = vertices[index], b = vertices[(index + 1) % vertices.count]
+            return RoomPlanSnapshot.WallSegment(startX: a.x, startZ: a.y, endX: b.x, endZ: b.y)
+        }
+        let bounds = RoomPlanBounds(snapshot: nil, fallbackWidth: 4, fallbackLength: 4)
+        let grid = CeilingLightPlacementGrid(bounds: bounds, walls: Array(walls.reversed()))
+        #expect(grid.hasUsableBoundary && !grid.points.isEmpty)
+        #expect(!grid.allowsPlacement(at: bounds.unitCoordinates(x: 0.1, z: 1.5)))
+    }
+
+    @Test func scanCornerGapsUseWallIntersectionsWithoutInventingMissingWalls() {
+        typealias Wall = RoomPlanSnapshot.WallSegment
+        let walls = [Wall(startX: -1.7, startZ: -2, endX: 1.7, endZ: -2),
+                     Wall(startX: 2, startZ: -1.7, endX: 2, endZ: 1.7),
+                     Wall(startX: 1.7, startZ: 2, endX: -1.7, endZ: 2),
+                     Wall(startX: -2, startZ: 1.7, endX: -2, endZ: -1.7)]
+        let bounds = RoomPlanBounds(snapshot: nil, fallbackWidth: 4, fallbackLength: 4)
+        let grid = CeilingLightPlacementGrid(bounds: bounds, walls: walls)
+        #expect(grid.hasUsableBoundary && grid.points.contains([0.5, 0.5]))
+        #expect(!grid.allowsPlacement(at: [0.99, 0.5]))
+        let incomplete = CeilingLightPlacementGrid(bounds: bounds, walls: Array(walls.dropLast()))
+        #expect(!incomplete.hasUsableBoundary && incomplete.points.isEmpty)
+    }
+
+    @Test @MainActor func fractionalPlacementSurvivesSaveAndSimulation() throws {
+        let container = try ModelContainer.createInMemoryContainer()
+        let room = Room(length: 2, width: 8)
+        let layout = Layout(name: "Long room")
+        room.layouts.append(layout)
+        container.mainContext.insert(room)
+        let editor = LightingSetupViewModel()
+        editor.loadFromLayout(layout)
+        let point = SIMD2<Float>(0.0625, 0.25)
+        editor.tapPosition(point)
+        editor.tapPosition(point)
+        #expect(editor.drafts.count == 1)
+        try editor.saveToLayout(layout, context: container.mainContext)
+        let saved = try #require(layout.lights.first)
+        #expect(abs(saved.coordinateX + 0.1875) < 0.0001)
+        let fixture = RoomLightingFixture(light: saved, layout: RoomSimulationLayout(layout: layout))
+        #expect(abs(fixture.position.x + 3.5) < 0.0001)
+        #expect(abs(fixture.position.z + 0.5) < 0.0001)
+        let reopened = LightingSetupViewModel()
+        reopened.loadFromLayout(layout)
+        #expect(reopened.drafts.first?.unitPosition == point)
+        try reopened.saveToLayout(layout, context: container.mainContext)
+        #expect(saved.id == layout.lights.first?.id)
+        #expect(abs(saved.coordinateX + 0.1875) < 0.0001)
+    }
+
+    @Test @MainActor func legacyPositionsStayFixedAcrossAdaptiveGridChanges() throws {
+        let container = try ModelContainer.createInMemoryContainer()
+        let layout = Layout(name: "Legacy")
+        container.mainContext.insert(layout)
+        layout.lights.append(Light(coordinateX: 4, coordinateY: 0))
+        let editor = LightingSetupViewModel()
+        editor.loadFromLayout(layout)
+        #expect(editor.drafts.first?.unitPosition == SIMD2<Float>(0.9, 0.1))
+        try editor.saveToLayout(layout, context: container.mainContext)
+        #expect(layout.lights.first?.coordinateX == 4)
+        #expect(layout.lights.first?.coordinateY == 0)
     }
 }

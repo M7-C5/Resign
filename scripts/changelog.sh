@@ -5,10 +5,12 @@ CHANGELOG_FILE="CHANGELOG.md"
 
 echo "Inspecting git commits for Conventional Commits..."
 
-FEAT=$(git log --pretty=format:"- %s (%h)" --grep="^feat" -n 30 2>/dev/null || true)
-FIX=$(git log --pretty=format:"- %s (%h)" --grep="^fix" -n 30 2>/dev/null || true)
-DOCS=$(git log --pretty=format:"- %s (%h)" --grep="^docs" -n 30 2>/dev/null || true)
-CHORE=$(git log --pretty=format:"- %s (%h)" --grep="^chore\|^build\|^test" -n 30 2>/dev/null || true)
+FEAT=$(git log --no-merges --pretty=format:"- %s (%h)" --grep="^feat" 2>/dev/null || true)
+CHANGED=$(git log --no-merges --pretty=format:"- %s (%h)" --grep="^refactor" 2>/dev/null || true)
+FIX=$(git log --no-merges --pretty=format:"- %s (%h)" --grep="^fix" 2>/dev/null || true)
+PERFORMANCE=$(git log --no-merges --pretty=format:"- %s (%h)" --grep="^perf" 2>/dev/null || true)
+DOCS=$(git log --no-merges --pretty=format:"- %s (%h)" --grep="^docs" 2>/dev/null || true)
+CHORE=$(git log --no-merges --pretty=format:"- %s (%h)" --grep="^chore\|^build\|^test" 2>/dev/null || true)
 
 cat <<EOF > "$CHANGELOG_FILE"
 # Changelog
@@ -28,9 +30,21 @@ if [ -n "$FEAT" ]; then
     echo "" >> "$CHANGELOG_FILE"
 fi
 
+if [ -n "$CHANGED" ]; then
+    echo "### Changed" >> "$CHANGELOG_FILE"
+    echo "$CHANGED" >> "$CHANGELOG_FILE"
+    echo "" >> "$CHANGELOG_FILE"
+fi
+
 if [ -n "$FIX" ]; then
     echo "### Fixed" >> "$CHANGELOG_FILE"
     echo "$FIX" >> "$CHANGELOG_FILE"
+    echo "" >> "$CHANGELOG_FILE"
+fi
+
+if [ -n "$PERFORMANCE" ]; then
+    echo "### Performance" >> "$CHANGELOG_FILE"
+    echo "$PERFORMANCE" >> "$CHANGELOG_FILE"
     echo "" >> "$CHANGELOG_FILE"
 fi
 

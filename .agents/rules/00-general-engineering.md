@@ -9,7 +9,7 @@ This document establishes the fundamental engineering rules for autonomous and p
 - **No Raw File Paths in Commits / Logs**: Never hardcode file paths (e.g. `scripts/foo.py`, `Bar.swift`) in commit messages or changelog entries. Describe domain concepts and component names.
 - **Relative Repository Paths Only**: In all repository documentation and markdown files, never write machine-specific absolute file paths (`/Users/...` or `file:///...`). Always use relative paths from the project root (e.g. `docs/ARCHITECTURE.md`).
 - **Non-Artifact Documentation**: All implemented features and systems must be documented within permanent repository files (`README.md` or `docs/*.md`) for persistent team viewing.
-- **ADR Mandate**: Any architectural contract, spatial standard, or systemic pattern requires a dedicated ADR in `docs/adr/`.
+- **ADR Mandate**: Any architectural contract, spatial standard, or systemic pattern requires a dedicated ADR in `docs/adr/` (routine bug fixes and cosmetic adjustments bypass ADRs).
 - **Automated Changelog Tooling**: Always use `./scripts/changelog.sh` to update `CHANGELOG.md`; never hand-edit the changelog.
 - **Documentation Preservation**: Preserve existing docstrings, licenses, comments, and architectural markers.
 

@@ -108,3 +108,9 @@ HALT TEST MODIFICATIONS. Do not modify the test assertions to make the suite pas
 ```markdown
 STOP. You are touching unrelated files. Discard changes to everything except [target file], run `git status`, and run `./scripts/verify.sh`.
 ```
+
+### Canvas Poster Board crash recovery
+
+If preview repeatedly reports Poster Board crashes, inspect the triggered stack and the simulator UUID before changing app rendering. The observed iPhone Duo iOS 27.1 crash stopped in `PRPosterDescriptor _initWithPath:` during wallpaper datastore setup. Shutting down the affected Canvas simulator and moving only its `PRBPosterExtensionDataStore` and `com.apple.PosterKit` application-support directories to a backup allowed the wallpaper state to regenerate and the preview to render again. Preserve backups; do not erase all simulator data as a first step.
+
+A separate Canvas compiler failure instrumented the custom UIColor convenience initializer with invalid `__designTimeSelection` expressions. The room preview now uses the same fixed RGB background directly, avoiding that initializer in the preview source file.

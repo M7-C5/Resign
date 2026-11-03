@@ -10,8 +10,8 @@ import SwiftData
 public final class Light {
     public var id: UUID = UUID()
     public var name: String = "Light"
-    public var coordinateX: Float = 2.0    // 5x5 ceiling grid coordinate (0.0 - 4.0)
-    public var coordinateY: Float = 2.0    // 5x5 ceiling grid coordinate (0.0 - 4.0)
+    public var coordinateX: Float = 2.0    // Encoded plan X: normalized * 5 - 0.5 (legacy grid 0...4)
+    public var coordinateY: Float = 2.0    // Encoded plan Z: normalized * 5 - 0.5 (legacy grid 0...4)
     public var elevationZ: Float = 2.6
     public var brightness: Float = 800.0   // Lumens (0 - 2000)
     public var colorTemp: Int = 3000       // Kelvin (2200 - 6500)

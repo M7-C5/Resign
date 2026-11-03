@@ -1,5 +1,0 @@
-{
-  "PreToolUse": {
-    "command": ".agents/scripts/pre-tool-safety.sh"
-  }
-}
