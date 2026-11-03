@@ -8,6 +8,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- feat(lighting): optimize tablet placement workspace scaling and vertical centering (e514481)
+- feat(dashboard): add spatial diagnostics entry point to room details and enforce Dynamic Type (9c5a383)
+- feat(insights): integrate Foundation Models spatial diagnostics, tool calling, and 3D suggestion flow (551b018)
+- feat(services): add dynamic ModelIO USDZ room parser and persistence loader (a199a2c)
+- feat(solver): add constraint-driven parametric layout optimizer and grounded insight engine (c2101fe)
+- feat(spatial): implement Panero and Zelnik anthropometric clearance rules and violation models (f7b41f4)
+- feat(lighting): adapt lighting setup and simulation workspaces across iPad and iPhone (1946122)
+- feat(lighting): add neutral layout-only room preview until lighting simulation is enabled (ee14008)
+- feat(spatial): support aperture-aware ceiling outlines and interior wall partitions (ba278e7)
 - feat(lighting): optimize tablet placement workspace scaling and vertical centering (243bc15)
 - feat(dashboard): add spatial diagnostics entry point to room details and enforce Dynamic Type (d077916)
 - feat(insights): integrate Foundation Models spatial diagnostics, tool calling, and 3D suggestion flow (4e2ea21)
@@ -59,6 +68,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - feat(testing): add in-memory ModelContainer fixture and SwiftData unit tests (b4daaff)
 
 ### Changed
+- refactor(ai): remove dead Swift Testing class reflection check (96e8afd)
+- refactor(ai): bypass foundation models under headless test runner (0592ba9)
+- refactor(navigation): remove standalone post-scan compass screen from room creation flow (6fc77ee)
 - refactor(ai): remove dead Swift Testing class reflection check (484bc92)
 - refactor(ai): bypass foundation models under headless test runner (b0c0cef)
 - refactor(navigation): remove standalone post-scan compass screen from room creation flow (df6c5f1)
@@ -74,6 +86,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - refactor(arch): scaffold vertical feature-slice architecture with skeleton modules (3419a7d)
 
 ### Fixed
+- fix(lighting): align furniture footprint coordinates and yaw in scanned room plan (4fbe875)
+- fix(scan): reject single-wall slice scans in capture quality gate (733f8ac)
+- fix(viewport): enforce universal floor grounding and deterministic legacy migration (8ae9178)
+- fix(spatial): ground floor storage and restrict elevation to small wall shelves (4bd3da1)
+- fix(insights): wire scanned rooms into spatial journey, render grounded insight cards, and enforce HIG typography (b7acb87)
+- fix(solver): preserve room asset and ceiling lights on generated layouts and persist applied selections (1f7bb1f)
 - fix(lighting): align furniture footprint coordinates and yaw in scanned room plan (e52e9be)
 - fix(scan): reject single-wall slice scans in capture quality gate (56ffac1)
 - fix(viewport): enforce universal floor grounding and deterministic legacy migration (d69d4d5)
@@ -120,6 +138,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - fix(lighting-simulation): shape natural light to the window (5fbb493)
 
 ### Documentation
+- docs(changelog): update automated release notes (a3e2d92)
+- docs(adr): update coordinate normalization decision record for room plan view (4cb1adb)
+- docs(changelog): update automated release notes (689a36f)
+- docs(changelog): update automated release notes (3ae7d1e)
+- docs(adr): document universal furniture floor grounding and legacy migration (bd52a02)
+- docs(changelog): update automated release notes (31a9cd7)
+- docs(changelog): update automated release notes (5606f54)
+- docs(adr): document anthropometric clearance engine, parametric solver, and on-device AI diagnostics (c1e7d0e)
+- docs(changelog): update automated release notes (e1be881)
+- docs(adr): record adaptive lighting workspace, ceiling outline, and compass removal decisions (a53761e)
 - docs(changelog): update automated release notes (9495b3d)
 - docs(adr): update coordinate normalization decision record for room plan view (12e03fd)
 - docs(changelog): update automated release notes (ebd5dac)
@@ -174,6 +202,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - docs: add agentic playbook, architecture blueprint, and changelog (178cddb)
 
 ### Tooling & Maintenance
+- test(lighting): add unit coverage for room plan footprint coordinate mapping (c918f1d)
 - test(lighting): add unit coverage for room plan footprint coordinate mapping (faafea6)
 - chore(release): update changelog for spatial coordinate alignment and irregular room navigation (3454409)
 - build(ci): add line buffering to verification test pipe (7ab3944)
