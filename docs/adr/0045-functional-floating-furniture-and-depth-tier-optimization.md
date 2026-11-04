@@ -1,4 +1,4 @@
-# ADR 0044: Functional Floating Furniture and Depth-Tier Layout Optimization
+# ADR 0045: Functional Floating Furniture and Depth-Tier Layout Optimization
 
 * Status: accepted
 * Date: 2026-11-03
