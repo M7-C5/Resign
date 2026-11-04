@@ -212,7 +212,7 @@ public struct InventoryItemCard: View {
         case "television", "tv":
             return "tv.fill"
         default:
-            return "shippingbox.fill"
+            return "archivebox.fill"
         }
     }
 }

@@ -65,7 +65,7 @@ public struct FurnitureSimsActionHUD: View {
             Button {
                 onArchive()
             } label: {
-                actionButtonContent(systemName: "shippingbox.fill")
+                actionButtonContent(systemName: "archivebox.fill")
             }
             .buttonStyle(.plain)
             .frame(width: 48, height: 48)
@@ -78,7 +78,7 @@ public struct FurnitureSimsActionHUD: View {
 
             // 3. Rotate Button (Draggable along rim, strictly catches touches on the 48x48 button)
             let activeRotateAngle = currentDragAngle ?? defaultRotateAngle
-            actionButtonContent(systemName: "rotate.3d")
+            actionButtonContent(systemName: "arrow.clockwise")
                 .frame(width: 48, height: 48)
                 .contentShape(Circle())
                 .offset(

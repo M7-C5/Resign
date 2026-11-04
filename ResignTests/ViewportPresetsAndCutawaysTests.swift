@@ -19,6 +19,9 @@ struct ViewportPresetsAndCutawaysTests {
             #expect(image != nil, "SF Symbol '\(preset.systemImage)' for preset \(preset.rawValue) is invalid or unavailable")
         }
         #expect(UIImage(systemName: "rotate.3d") != nil, "rotate.3d symbol is invalid or unavailable")
+        #expect(UIImage(systemName: "arrow.clockwise") != nil, "arrow.clockwise symbol is invalid or unavailable")
+        #expect(UIImage(systemName: "archivebox.fill") != nil, "archivebox.fill symbol is invalid or unavailable")
+        #expect(UIImage(systemName: "square.and.arrow.down") != nil, "square.and.arrow.down symbol is invalid or unavailable")
     }
 
     @Test @MainActor func viewportPresetAnglesMatchArchitecturalContracts() {
