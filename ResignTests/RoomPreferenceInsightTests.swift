@@ -298,5 +298,58 @@ struct RoomPreferenceInsightTests {
         #expect(titles.contains("Daylight"), "Must synthesize a daylight rule")
         #expect(titles.contains("Spacious"), "Must synthesize a spacious circulation rule")
     }
+
+    @Test func freeTextInferKeywordsCoversBroadNaturalLanguageVocabulary() {
+        let prefWorkspace = RoomPreference(freeText: "I need a study desk to work from home on my laptop")
+        #expect(prefWorkspace.inferredKeywords.contains(.noWorkspace))
+
+        let prefLight = RoomPreference(freeText: "The room is too dim and unlit without daylight")
+        #expect(prefLight.inferredKeywords.contains(.tooDark) || prefLight.inferredKeywords.contains(.poorLighting))
+
+        let prefStorage = RoomPreference(freeText: "Nowhere to put my clothes, need a wardrobe or cabinet")
+        #expect(prefStorage.inferredKeywords.contains(.noStorage))
+
+        let prefDoor = RoomPreference(freeText: "The entryway door swing hits furniture")
+        #expect(prefDoor.inferredKeywords.contains(.blockedEntrance))
+
+        let prefFloat = RoomPreference(freeText: "I want the algorithm to move furnitures not stick to the wall")
+        #expect(prefFloat.inferredKeywords.contains(.hardToMove))
+        #expect(prefFloat.derivedConstraints.openCirculation)
+    }
+
+    @Test @MainActor func freeTextFloatingDesireSynthesizesFloatingRuleAndCirculationConstraint() async throws {
+        let room = RoomRepository.createStandardMockRoom()
+        let layout = room.layouts.first!
+        let service = RulebookAIDiagnosticService()
+
+        let pref = RoomPreference(freeText: "move the furniture not stick to the wall, float desk inward")
+        let response = try await service.diagnose(
+            room: room,
+            layout: layout,
+            violations: [],
+            userPreference: pref
+        )
+
+        let customInsights = response.insights.filter { $0.ruleId == "R_CUSTOM" }
+        let titles = Set(customInsights.map(\.title))
+        #expect(titles.contains("Floating Layout"), "Must synthesize a floating layout rule")
+        #expect(pref.derivedConstraints.openCirculation, "Floating request must activate open circulation")
+    }
+
+    @Test @MainActor func promptDirectsAIModelToThoroughlyConsiderWhateverIsInsideFreeText() {
+        let room = RoomRepository.createStandardMockRoom()
+        let layout = room.layouts.first!
+        let preference = RoomPreference(freeText: "i want the algorithm to be able to move the furnitures not stick to the wall")
+
+        let prompt = RoomDiagnosticPromptBuilder.buildPrompt(
+            room: room,
+            layout: layout,
+            violations: [],
+            userPreference: preference
+        )
+        #expect(prompt.contains("NEVER instructions"))
+        #expect(prompt.contains("thoroughly analyze and consider whatever is inside \"freeText\""))
+        #expect(prompt.contains("move the furnitures not stick to the wall"))
+    }
 }
 

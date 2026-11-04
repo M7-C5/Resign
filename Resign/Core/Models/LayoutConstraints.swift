@@ -57,10 +57,11 @@ public struct LayoutConstraints: Codable, Equatable, Sendable {
 /// Keyword parser shared by the rulebook path, the Foundation Model backstop and the tools.
 /// Known limit: no negation handling ("I don't want it spacious" reads as spacious).
 public struct UserConstraintParser: Sendable {
-    public static let daylightTriggers = ["window", "daylight", "natural light", "sunlight", "sunny", "bright", "glare"]
-    public static let spaceTriggers = ["spacious", "more space", "cramped", "move around", "walk", "flow", "open space", "room to move", "crowded"]
-    public static let mediaTriggers = ["tv", "television", "sofa", "watch", "sightline", "couch", "lounge"]
-    public static let cozyTriggers = ["cozy", "quiet", "sleep", "rest", "sanctuary", "peaceful", "retreat", "privacy", "private"]
+    public static let daylightTriggers = ["window", "daylight", "natural light", "sunlight", "sunny", "bright", "glare", "desk by window", "view"]
+    public static let spaceTriggers = ["spacious", "more space", "cramped", "move around", "walk", "flow", "open space", "room to move", "crowded", "circulation", "walkway", "pathway", "not stick to the wall", "away from wall", "float", "floating"]
+    public static let mediaTriggers = ["tv", "television", "sofa", "watch", "sightline", "couch", "lounge", "facing the tv"]
+    public static let cozyTriggers = ["cozy", "quiet", "sleep", "rest", "sanctuary", "peaceful", "retreat", "privacy", "private", "tuck bed", "corner bed"]
+    public static let floatingTriggers = ["float", "floating", "away from wall", "not stick to the wall", "not stick to wall", "don't stick to the wall", "off the wall", "island", "middle of the room", "center of the room"]
 
     public static func parse(_ text: String) -> LayoutConstraints {
         let lower = text.lowercased()

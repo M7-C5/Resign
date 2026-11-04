@@ -22,10 +22,9 @@ public enum LayoutInsightCategory: String, Codable, CaseIterable, Sendable {
 
 // MARK: - Problem Keywords
 
-/// A selectable "problem" chip. Declaration order is the display order;
-/// `isSuggested` chips are shown initially, the rest appear behind "See more".
+/// A selectable "problem" chip. Declaration order is the display order.
 public enum ProblemKeyword: String, Codable, CaseIterable, Identifiable, Sendable {
-    // Initially suggested (design order)
+    // Primary architectural categories (design order)
     case noPrivacy
     case notEnoughSpace
     case poorLighting
@@ -35,7 +34,7 @@ public enum ProblemKeyword: String, Codable, CaseIterable, Identifiable, Sendabl
     case tooDark
     case feelsCramped
     case uncomfortableSeating
-    // Behind "See more"
+    // Functional zoning & boundary categories
     case noWorkspace
     case screenGlare
     case blockedEntrance
@@ -113,18 +112,30 @@ public enum ProblemKeyword: String, Codable, CaseIterable, Identifiable, Sendabl
     /// Lowercased phrases in free text that imply this problem.
     fileprivate var triggerPhrases: [String] {
         switch self {
-        case .noPrivacy: return ["privacy", "private", "exposed"]
-        case .notEnoughSpace: return ["not enough space", "more space", "no space", "tight space", "too small"]
-        case .poorLighting: return ["poor light", "lighting", "not enough light"]
-        case .noStorage: return ["storage", "nowhere to put", "no place to put"]
-        case .tooMuchClutter: return ["clutter", "messy"]
-        case .hardToMove: return ["move around", "hard to move", "walk through", "get past", "squeeze"]
-        case .tooDark: return ["dark", "dim", "gloomy"]
-        case .feelsCramped: return ["cramped", "crowded", "claustrophob", "squeezed"]
-        case .uncomfortableSeating: return ["uncomfortable chair", "uncomfortable seat", "seating", "back pain"]
-        case .noWorkspace: return ["nowhere to work", "no desk", "no place to work", "workspace"]
-        case .screenGlare: return ["glare", "reflection on"]
-        case .blockedEntrance: return ["blocked door", "blocked entrance", "door is blocked", "door won't open"]
+        case .noPrivacy:
+            return ["privacy", "private", "exposed", "quiet", "isolate", "intimate", "seclusion", "bedroom", "distraction"]
+        case .notEnoughSpace:
+            return ["not enough space", "more space", "no space", "tight space", "too small", "small", "tiny", "spacious", "roomy", "open floor", "squeeze", "room to breathe"]
+        case .poorLighting:
+            return ["poor light", "lighting", "not enough light", "dim light", "window light", "daylight", "sunlight", "natural light", "bright"]
+        case .noStorage:
+            return ["storage", "nowhere to put", "no place to put", "closet", "wardrobe", "drawer", "shelf", "cabinet", "belongings", "clothes"]
+        case .tooMuchClutter:
+            return ["clutter", "messy", "mess", "crowded", "disorganized", "stuff everywhere", "junk", "cluttered"]
+        case .hardToMove:
+            return ["move around", "hard to move", "walk through", "get past", "squeeze", "walkway", "pathway", "circulation", "traffic", "flow", "stuck", "blocking", "blocked", "obstacle", "tight", "not stick to the wall", "away from wall", "float", "floating"]
+        case .tooDark:
+            return ["dark", "dim", "gloomy", "shadow", "murky", "unlit", "black", "dull"]
+        case .feelsCramped:
+            return ["cramped", "crowded", "claustrophob", "squeezed", "suffocating", "stuffy", "tight", "compact", "boxed in"]
+        case .uncomfortableSeating:
+            return ["uncomfortable chair", "uncomfortable seat", "seating", "back pain", "uncomfortable sofa", "couch", "sit", "armchair", "posture"]
+        case .noWorkspace:
+            return ["nowhere to work", "no desk", "no place to work", "workspace", "desk", "work from home", "office", "laptop", "study", "studying", "working", "workstation"]
+        case .screenGlare:
+            return ["glare", "reflection on", "reflection", "sun in eyes", "glare on screen", "screen reflection", "tv glare", "monitor glare"]
+        case .blockedEntrance:
+            return ["blocked door", "blocked entrance", "door is blocked", "door won't open", "door", "entrance", "entry", "doorway", "entryway", "hits the door", "door swing"]
         }
     }
 }

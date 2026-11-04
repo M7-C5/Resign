@@ -15,8 +15,6 @@ public struct PreferencePageView: View {
     public var onContinue: () -> Void
     public var onBack: (() -> Void)?
 
-    @State private var showAllKeywords = false
-
     public init(
         viewModel: InsightsViewModel,
         environmentPreset: Binding<Int> = .constant(0),
@@ -31,10 +29,6 @@ public struct PreferencePageView: View {
         self.onEnvironmentPresetChanged = onEnvironmentPresetChanged
         self.onContinue = onContinue
         self.onBack = onBack
-    }
-
-    private var displayedKeywords: [ProblemKeyword] {
-        showAllKeywords ? ProblemKeyword.allCases : ProblemKeyword.allCases.filter(\.isSuggested)
     }
 
     public var body: some View {
@@ -103,29 +97,13 @@ public struct PreferencePageView: View {
 
                     // Suggested Keywords Section
                     VStack(alignment: .leading, spacing: 12) {
-                        HStack {
-                            Text("Suggested keywords")
-                                .font(.subheadline.weight(.medium))
-                                .foregroundStyle(.primary)
-
-                            Spacer()
-
-                            Button {
-                                withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
-                                    showAllKeywords.toggle()
-                                }
-                            } label: {
-                                Text(showAllKeywords ? "See less" : "See more")
-                                    .font(.footnote)
-                                    .foregroundStyle(.secondary)
-                                    .frame(minHeight: 44)
-                                    .contentShape(Rectangle())
-                            }
-                        }
+                        Text("Suggested keywords")
+                            .font(.subheadline.weight(.medium))
+                            .foregroundStyle(.primary)
 
                         // Flowing chips grid
                         FlowLayout(spacing: 8) {
-                            ForEach(displayedKeywords) { keyword in
+                            ForEach(ProblemKeyword.allCases) { keyword in
                                 let isSelected = viewModel.selectedKeywords.contains(keyword)
                                 Button {
                                     withAnimation(.spring(response: 0.25, dampingFraction: 0.75)) {
@@ -178,7 +156,18 @@ public struct PreferencePageView: View {
                         }
                         .frame(height: 120)
 
-                        HStack {
+                        HStack(alignment: .top) {
+                            if !viewModel.preference.inferredKeywords.isEmpty {
+                                HStack(spacing: 4) {
+                                    Image(systemName: "sparkles")
+                                        .font(.caption2)
+                                        .foregroundStyle(.purple)
+                                    Text("Understood: " + viewModel.preference.inferredKeywords.map(\.title).joined(separator: ", "))
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                        .lineLimit(2)
+                                }
+                            }
                             Spacer()
                             Text("\(viewModel.userPreference.count)/\(RoomPreference.maxFreeTextLength)")
                                 .font(.caption)

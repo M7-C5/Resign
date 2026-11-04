@@ -15,7 +15,6 @@ public struct InsightsView: View {
     @Query private var rooms: [Room]
 
     @State private var environmentPreset: Int = 0
-    @State private var showAllKeywords = false
 
     public init(studioViewModel: Studio3DViewModel? = nil) {
         self.studioViewModel = studioViewModel
@@ -144,17 +143,11 @@ public struct InsightsView: View {
             Text("Pick the problems that sound familiar, describe them in your own words, or both.")
                 .font(.caption).foregroundStyle(.secondary)
 
-            HStack {
-                Text("Suggested keywords").font(.subheadline)
-                Spacer()
-                Button(showAllKeywords ? "See less" : "See more") {
-                    withAnimation { showAllKeywords.toggle() }
-                }
-                .font(.caption)
-            }
+            Text("Suggested keywords")
+                .font(.subheadline)
 
             LazyVGrid(columns: [GridItem(.adaptive(minimum: 130), spacing: 8)], alignment: .leading, spacing: 8) {
-                ForEach(showAllKeywords ? ProblemKeyword.allCases : ProblemKeyword.suggested) { keyword in
+                ForEach(ProblemKeyword.allCases) { keyword in
                     let isOn = viewModel.preference.selectedKeywords.contains(keyword)
                     Button {
                         viewModel.toggleKeyword(keyword)
@@ -181,8 +174,15 @@ public struct InsightsView: View {
                 .background(Color(.tertiarySystemBackground), in: RoundedRectangle(cornerRadius: 10))
             HStack(alignment: .top) {
                 if !viewModel.preference.inferredKeywords.isEmpty {
-                    Text("Detected: " + viewModel.preference.inferredKeywords.map(\.title).joined(separator: ", "))
-                        .font(.caption2).foregroundStyle(.secondary)
+                    HStack(spacing: 4) {
+                        Image(systemName: "sparkles")
+                            .font(.caption2)
+                            .foregroundStyle(.purple)
+                        Text("Understood: " + viewModel.preference.inferredKeywords.map(\.title).joined(separator: ", "))
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(2)
+                    }
                 }
                 Spacer()
                 Text("\(viewModel.preference.freeText.count)/\(RoomPreference.maxFreeTextLength)")

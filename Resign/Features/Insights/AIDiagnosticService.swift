@@ -115,6 +115,14 @@ public final class FoundationModelAIDiagnosticService: AIDiagnosticServiceProtoc
             }
             decodedResponse.solverSettings.pinnedItemIds = Array(mergedPins)
 
+            // Deterministic backstop: merge user free-text rules if omitted by model
+            let customRules = RulebookAIDiagnosticService.extractCustomUserRules(from: userPreference.freeText, in: activeFurnitures, room: room)
+            for rule in customRules {
+                if !decodedResponse.insights.contains(where: { $0.title == rule.title || $0.explanation == rule.explanation }) {
+                    decodedResponse.insights.append(rule)
+                }
+            }
+
             print("✅ [Resign AI] Successfully parsed Foundation Model response with \(decodedResponse.insights.count) insights.")
             return AIDiagnosticValidator.validate(decodedResponse, activeFurnitureIDs: activeIDs)
         } catch {
@@ -464,6 +472,26 @@ public final class RulebookAIDiagnosticService: AIDiagnosticServiceProtocol {
                         suggestedFix: "Bed is tucked into the most protected corner away from entry door swing and noise.",
                         sentiment: "+",
                         title: "Sanctuary"
+                    )
+                )
+            }
+        }
+
+        // 6. Floating / Island Placement Rule
+        if UserConstraintParser.floatingTriggers.contains(where: { lower.contains($0) }) {
+            let floatableItems = furnitures.filter {
+                $0.category == "desk" || $0.category == "sofa" || $0.category == "chair" ||
+                $0.name.localizedCaseInsensitiveContains("desk") || $0.name.localizedCaseInsensitiveContains("sofa")
+            }
+            if !floatableItems.isEmpty {
+                rules.append(
+                    AIDiagnosticInsight(
+                        ruleId: "R_CUSTOM",
+                        involvedFurnitureIds: floatableItems.map(\.id),
+                        explanation: "Custom Rule Applied: Floating furniture layout away from perimeter walls.",
+                        suggestedFix: "Desk and lounge seating are positioned inward creating functional zones and open circulation.",
+                        sentiment: "+",
+                        title: "Floating Layout"
                     )
                 )
             }
