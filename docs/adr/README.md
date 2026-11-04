@@ -47,6 +47,11 @@ This directory documents key architectural decisions for **Resign** using the [M
 - [ADR 0041: Dynamic Parametric Spatial Solver and Architectural Perimeter Zoning](0041-dynamic-parametric-spatial-solver-and-perimeter-zoning.md)
 - [ADR 0042: Foundation Model Tool Calling and Validated Layout Solver](0042-foundation-model-tool-calling-and-validated-layout-solver.md)
 - [ADR 0043: Universal Furniture Floor Grounding, Strict Wall Shelf Elevation, and Deterministic Legacy Migration](0043-universal-furniture-floor-grounding-and-legacy-normalization.md)
+- [ADR 0044: Automatic North Calibration During Room Scan](0044-automatic-north-calibration-during-room-scan.md)
+- [ADR 0045: Manual Light Placement on Uncertain Room Outlines](0045-manual-light-placement-on-uncertain-outlines.md)
+
+- [ADR 0046: Immediate Compass Estimates with Visible Accuracy](0046-immediate-compass-estimates.md)
+- [ADR 0047: Advisory Compass Interference Warning During Room Scanning](0047-compass-interference-advisory.md)
 
 ## How to Create a New ADR
 1. Copy [template.md](template.md) to `docs/adr/NNNN-title-in-kebab-case.md`.

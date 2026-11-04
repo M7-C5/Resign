@@ -10,6 +10,7 @@ import SwiftData
 public struct RoomScanView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.scenePhase) private var scenePhase
     @State private var viewModel = RoomScanViewModel()
 
     public var onScanComplete: ((UUID) -> Void)?
@@ -63,6 +64,13 @@ public struct RoomScanView: View {
         .onDisappear {
             viewModel.pauseScanningIfActive()
         }
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .active {
+                viewModel.resumeNorthTracking()
+            } else {
+                viewModel.suspendNorthTracking()
+            }
+        }
         .onChange(of: viewModel.state) { _, newState in
             switch newState {
             case .completed(let roomId):
@@ -75,14 +83,22 @@ public struct RoomScanView: View {
             }
         }
         .alert("Are you done scanning?", isPresented: $viewModel.isShowingConfirmationAlert) {
-            Button("No", role: .cancel) {
+            Button("Keep scanning", role: .cancel) {
                 viewModel.dismissConfirmationAlert()
             }
-            Button("Yes") {
+            Button("Finish scan") {
                 viewModel.confirmFinishScanning()
             }
         } message: {
-            Text("Your progress will be processed and you can't go back")
+            if case .calibrated(let calibration) = viewModel.northCalibrationStatus {
+                if calibration.isRefined {
+                    Text("Your scan and north calibration will be saved.")
+                } else {
+                    Text("Your scan and estimated north (±\(Int(calibration.accuracyDegrees.rounded()))°) will be saved. Keep scanning if you want to improve accuracy.")
+                }
+            } else {
+                Text("North has not been calibrated yet. Keep scanning to find north, or finish with north unknown.")
+            }
         }
         .alert("Scan Incomplete", isPresented: isShowingErrorAlert) {
             Button("Try Again") {
@@ -108,7 +124,7 @@ public struct RoomScanView: View {
                 },
                 onError: { error in
                     if !viewModel.isCancelled {
-                        viewModel.state = .error(error.localizedDescription)
+                        viewModel.failScanning(error)
                     }
                 }
             )
@@ -116,6 +132,8 @@ public struct RoomScanView: View {
 
             RoomScanOverlayView(
                 state: viewModel.state,
+                northCalibrationStatus: viewModel.northCalibrationStatus,
+                compassInterferenceWarning: viewModel.compassInterferenceWarning,
                 onDone: {
                     viewModel.requestFinishScanning()
                 },

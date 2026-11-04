@@ -6,7 +6,7 @@
 import SwiftUI
 import SwiftData
 
-/// The "Add Your Light Source" screen — Phase 4 of the Resign onboarding flow.
+/// The "Mark Your Light Source" screen — Phase 4 of the Resign onboarding flow.
 ///
 /// Presents adaptive ceiling placement points over the scanned plan where the user:
 /// 1. Taps cells to place light fixtures (auto-named "Lighting N").
@@ -177,7 +177,7 @@ public struct LightingSetupView: View {
     @ViewBuilder
     private var headerView: some View {
         ZStack {
-            Text("Add Your Light Source")
+            Text("Mark Your Light Source")
                 .font(.headline)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 52)
@@ -236,17 +236,31 @@ public struct LightingSetupView: View {
                         .position(screenPoint(draft.unitPosition, in: geometry.size))
                 }
             }
+            .overlay(alignment: .topTrailing) {
+                NorthPlanIndicator(
+                    roomHeadingDegrees: layout.room?.compass ?? 0,
+                    calibration: scanPlan?.northCalibration
+                )
+                .padding(12)
+                .allowsHitTesting(false)
+            }
         }
         .aspectRatio(roomAspectRatio, contentMode: .fit)
         .clipped()
         .overlay {
             if !roomBoundary.hasUsableBoundary {
-                Text("Room outline incomplete. Scan the room again to place new lights.")
-                    .font(.callout)
-                    .multilineTextAlignment(.center)
-                    .padding()
-                    .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
-                    .padding()
+                Label {
+                    Text("Outline uncertain. Tap only inside the visible room to place lights.")
+                } icon: {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .foregroundStyle(.orange)
+                }
+                .font(.callout)
+                .multilineTextAlignment(.center)
+                .padding()
+                .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
+                .padding()
+                .allowsHitTesting(false)
             }
         }
         .padding(.horizontal, 12)
@@ -376,6 +390,48 @@ public struct LightingSetupView: View {
         } catch {
             viewModel.saveError = error.localizedDescription
         }
+    }
+}
+
+private struct NorthPlanIndicator: View {
+    let roomHeadingDegrees: Double
+    let calibration: ScanNorthCalibration?
+    private var isCalibrated: Bool { calibration != nil }
+    private var qualityLabel: String {
+        guard let calibration else { return "Unknown" }
+        let quality = calibration.isRefined ? "Calibrated" : "Estimated"
+        return "\(quality) ±\(Int(calibration.accuracyDegrees.rounded()))°"
+    }
+
+    private var accessibilityDescription: String {
+        "North direction, \(qualityLabel)"
+    }
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Image(systemName: isCalibrated ? "location.north.fill" : "location.slash")
+                .rotationEffect(.degrees(
+                    isCalibrated
+                        ? NorthAlignmentCalibration.northArrowPlanRotationDegrees(roomHeadingDegrees: roomHeadingDegrees)
+                        : 0
+                ))
+                .font(.headline)
+                .foregroundStyle(isCalibrated ? Color.accentColor : Color.secondary)
+                .frame(width: 24, height: 24)
+
+            VStack(alignment: .leading, spacing: 1) {
+                Text("North")
+                    .font(.caption.weight(.semibold))
+                Text(qualityLabel)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .padding(.horizontal, 10)
+        .frame(minHeight: 44)
+        .background(.regularMaterial, in: Capsule())
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(accessibilityDescription)
     }
 }
 
