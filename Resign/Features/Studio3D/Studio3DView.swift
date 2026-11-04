@@ -4,6 +4,11 @@ import SwiftData
 
 public struct Studio3DView: View {
     private let layoutID: UUID?
+    @State private var activeLayoutID: UUID? = nil
+    @State private var isSaveAsAlertPresented = false
+    @State private var saveAsDraftName = ""
+    @State private var toastMessage: String? = nil
+    @State private var toastDismissTask: Task<Void, Never>? = nil
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
@@ -19,8 +24,8 @@ public struct Studio3DView: View {
     }
 
     private var selectedLayout: Layout? {
-        if let layoutID {
-            return layouts.first { $0.id == layoutID }
+        if let currentID = activeLayoutID ?? layoutID {
+            return layouts.first { $0.id == currentID }
         }
         return layouts.first { $0.room?.name == DashboardViewModel.room2Name || $0.name == "Original Layout" } ?? layouts.first
     }
@@ -147,6 +152,37 @@ public struct Studio3DView: View {
             viewModel.updateWindowDirections(directions)
         }
         .sensoryFeedback(.impact(weight: .light), trigger: snapFeedbackTrigger)
+        .alert("Save Layout As", isPresented: $isSaveAsAlertPresented) {
+            TextField("Layout Name", text: $saveAsDraftName)
+            Button("Save") {
+                handleSaveAsConfirmed()
+            }
+            Button("Cancel", role: .cancel) {
+                saveAsDraftName = ""
+            }
+        } message: {
+            Text("Enter a name for the new layout.")
+        }
+        .overlay(alignment: .top) {
+            if let toastMessage {
+                HStack(spacing: 8) {
+                    Image(systemName: "checkmark.circle.fill")
+                        .font(.subheadline)
+                        .foregroundStyle(Color.green)
+                    Text(toastMessage)
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(StudioTheme.primaryText)
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 10)
+                .background(StudioTheme.buttonBackground, in: Capsule())
+                .overlay(Capsule().stroke(StudioTheme.buttonStroke, lineWidth: 1))
+                .shadow(color: Color.black.opacity(0.12), radius: 8, x: 0, y: 3)
+                .transition(.move(edge: .top).combined(with: .opacity))
+                .padding(.top, 64)
+                .zIndex(100)
+            }
+        }
     }
 
     private var viewportLayer: some View {
@@ -231,7 +267,7 @@ public struct Studio3DView: View {
 
             Spacer()
 
-            // Trailing Actions (POV, AR, Lighting)
+            // Trailing Actions (POV, AR, Lighting, Save)
             HStack(spacing: 8) {
                 // Point of View Snap Button
                 Menu {
@@ -305,6 +341,33 @@ public struct Studio3DView: View {
                     .accessibilityLabel("Lighting Controls")
                     .disabled(viewModel.isLightingPresented)
                 }
+
+                // Save / Layout Options Menu (Top Right)
+                Menu {
+                    Button {
+                        handleSave()
+                    } label: {
+                        Label("Save", systemImage: "square.and.arrow.down")
+                    }
+
+                    Button {
+                        let currentName = selectedLayout?.name ?? "Layout"
+                        saveAsDraftName = "\(currentName) Copy"
+                        isSaveAsAlertPresented = true
+                    } label: {
+                        Label("Save As...", systemImage: "plus.square.on.square")
+                    }
+                } label: {
+                    Image(systemName: "square.and.arrow.down")
+                        .font(.body.weight(.semibold))
+                        .foregroundStyle(StudioTheme.primaryText)
+                        .frame(width: 44, height: 44)
+                        .background(StudioTheme.buttonBackground, in: Circle())
+                        .overlay(Circle().stroke(StudioTheme.buttonStroke, lineWidth: 1))
+                        .shadow(color: Color.black.opacity(0.04), radius: 4, x: 0, y: 2)
+                }
+                .accessibilityLabel("Save Layout Options")
+                .disabled(selectedLayout == nil)
             }
         }
         .overlay(
@@ -395,6 +458,40 @@ public struct Studio3DView: View {
             viewModel.archiveFurniture(id: id, in: selectedLayout, context: modelContext)
             controller.archiveFurnitureEntity(id: id)
             snapFeedbackTrigger.toggle()
+        }
+    }
+
+    private func handleSave() {
+        guard let layout = selectedLayout else { return }
+        viewModel.saveCurrentLayout(layout, context: modelContext)
+        showToast(message: "Layout Saved")
+        snapFeedbackTrigger.toggle()
+    }
+
+    private func handleSaveAsConfirmed() {
+        guard let layout = selectedLayout else { return }
+        let newLayout = viewModel.saveLayoutAs(name: saveAsDraftName, from: layout, context: modelContext)
+        withAnimation(.spring(response: 0.35, dampingFraction: 0.75)) {
+            viewModel.deselectFurniture(in: layout, context: modelContext)
+            controller.setSelection(furnitureID: nil)
+            activeLayoutID = newLayout.id
+            controller.setRoomAndLayout(room: newLayout.room, layout: newLayout)
+        }
+        showToast(message: "Saved as \(newLayout.name)")
+        snapFeedbackTrigger.toggle()
+        saveAsDraftName = ""
+    }
+
+    private func showToast(message: String) {
+        toastDismissTask?.cancel()
+        withAnimation(.snappy(duration: 0.25)) {
+            toastMessage = message
+        }
+        toastDismissTask = Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 2_000_000_000)
+            withAnimation(.easeOut(duration: 0.3)) {
+                toastMessage = nil
+            }
         }
     }
 
