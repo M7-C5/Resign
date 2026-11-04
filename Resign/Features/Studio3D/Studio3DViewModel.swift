@@ -485,6 +485,74 @@ public final class Studio3DViewModel {
         return last
     }
 
+    // MARK: - Layout Persistence & Duplication
+
+    /// Persists the active layout changes to SwiftData and updates timestamp.
+    public func saveCurrentLayout(_ layout: Layout, context: ModelContext) {
+        layout.updatedAt = Date()
+        try? context.save()
+    }
+
+    /// Duplicates the given layout into a new Layout with all furnitures and lights cloned.
+    /// Returns the newly created layout.
+    @discardableResult
+    public func saveLayoutAs(
+        name: String,
+        from sourceLayout: Layout,
+        context: ModelContext
+    ) -> Layout {
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        let finalName = trimmed.isEmpty ? "\(sourceLayout.name) Copy" : trimmed
+
+        let newLayout = Layout(
+            name: finalName,
+            usdzURL: sourceLayout.usdzURL,
+            createdAt: Date(),
+            updatedAt: Date()
+        )
+        newLayout.room = sourceLayout.room
+        sourceLayout.room?.layouts.append(newLayout)
+
+        // Deep clone furnitures
+        for f in sourceLayout.furnitures {
+            let cloned = Furniture(
+                name: f.name,
+                category: f.category,
+                texture: f.texture,
+                positionX: f.positionX,
+                positionY: f.positionY,
+                positionZ: f.positionZ,
+                rotationYaw: f.rotationYaw,
+                length: f.length,
+                width: f.width,
+                height: f.height,
+                isArchived: f.isArchived,
+                usdzURL: f.usdzURL
+            )
+            cloned.layout = newLayout
+            newLayout.furnitures.append(cloned)
+        }
+
+        // Deep clone lights
+        for l in sourceLayout.lights {
+            let clonedLight = Light(
+                name: l.name,
+                coordinateX: l.coordinateX,
+                coordinateY: l.coordinateY,
+                elevationZ: l.elevationZ,
+                brightness: l.brightness,
+                colorTemp: l.colorTemp,
+                isOn: l.isOn
+            )
+            clonedLight.layout = newLayout
+            newLayout.lights.append(clonedLight)
+        }
+
+        context.insert(newLayout)
+        try? context.save()
+        return newLayout
+    }
+
     // MARK: - Inventory & Archival
 
     public func activeFurnitures(in layout: Layout?) -> [Furniture] {

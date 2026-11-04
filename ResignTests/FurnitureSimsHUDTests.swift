@@ -315,4 +315,106 @@ struct FurnitureSimsHUDTests {
             #expect(abs(result.yaw - target) < 0.001)
         }
     }
+
+    @Test @MainActor func saveCurrentLayoutUpdatesTimestamp() throws {
+        let container = try ModelContainer.createInMemoryContainer()
+        let context = container.mainContext
+        let room = Room(name: "Living Room", length: 6.0, width: 4.5, height: 2.6)
+        let layout = Layout(name: "Original", createdAt: Date().addingTimeInterval(-3600), updatedAt: Date().addingTimeInterval(-3600))
+        room.layouts.append(layout)
+        context.insert(room)
+        try context.save()
+
+        let originalTimestamp = layout.updatedAt
+        let viewModel = Studio3DViewModel()
+        viewModel.saveCurrentLayout(layout, context: context)
+
+        #expect(layout.updatedAt > originalTimestamp)
+    }
+
+    @Test @MainActor func saveLayoutAsClonesFurnituresAndLightsDeeply() throws {
+        let container = try ModelContainer.createInMemoryContainer()
+        let context = container.mainContext
+        let room = Room(name: "Master Bedroom", length: 5.0, width: 4.0, height: 2.6)
+        let sourceLayout = Layout(name: "Draft 1")
+        let desk = Furniture(
+            name: "Writing Desk",
+            category: "desk",
+            positionX: 1.2,
+            positionY: 0.0,
+            positionZ: -0.5,
+            rotationYaw: .pi / 4.0,
+            length: 1.2,
+            width: 0.6,
+            height: 0.75
+        )
+        let chair = Furniture(
+            name: "Desk Chair",
+            category: "chair",
+            positionX: 1.2,
+            positionY: 0.0,
+            positionZ: 0.2,
+            rotationYaw: 0.0,
+            length: 0.6,
+            width: 0.6,
+            height: 0.85
+        )
+        let ceilingLight = Light(
+            name: "Ceiling Chandelier",
+            coordinateX: 2.5,
+            coordinateY: 2.0,
+            elevationZ: 2.5,
+            brightness: 1200,
+            colorTemp: 2700,
+            isOn: true
+        )
+        desk.layout = sourceLayout
+        chair.layout = sourceLayout
+        ceilingLight.layout = sourceLayout
+        sourceLayout.furnitures = [desk, chair]
+        sourceLayout.lights = [ceilingLight]
+        sourceLayout.room = room
+        room.layouts.append(sourceLayout)
+        context.insert(room)
+        try context.save()
+
+        let viewModel = Studio3DViewModel()
+        let newLayout = viewModel.saveLayoutAs(name: "Draft 2", from: sourceLayout, context: context)
+
+        #expect(newLayout.name == "Draft 2")
+        #expect(newLayout.room?.id == room.id)
+        #expect(room.layouts.contains { $0.id == newLayout.id })
+        #expect(newLayout.furnitures.count == 2)
+        #expect(newLayout.lights.count == 1)
+
+        // Verify deep copy: IDs must be distinct from source
+        let clonedDesk = try #require(newLayout.furnitures.first { $0.name == "Writing Desk" })
+        #expect(clonedDesk.id != desk.id)
+        #expect(clonedDesk.positionX == desk.positionX)
+        #expect(clonedDesk.positionZ == desk.positionZ)
+        #expect(clonedDesk.rotationYaw == desk.rotationYaw)
+        #expect(clonedDesk.layout?.id == newLayout.id)
+
+        let clonedLight = try #require(newLayout.lights.first)
+        #expect(clonedLight.id != ceilingLight.id)
+        #expect(clonedLight.brightness == ceilingLight.brightness)
+        #expect(clonedLight.colorTemp == ceilingLight.colorTemp)
+        #expect(clonedLight.layout?.id == newLayout.id)
+    }
+
+    @Test @MainActor func saveLayoutAsUsesFallbackNameWhenBlank() throws {
+        let container = try ModelContainer.createInMemoryContainer()
+        let context = container.mainContext
+        let room = Room(name: "Den", length: 4.0, width: 3.5, height: 2.6)
+        let sourceLayout = Layout(name: "Minimalist")
+        sourceLayout.room = room
+        room.layouts.append(sourceLayout)
+        context.insert(room)
+        try context.save()
+
+        let viewModel = Studio3DViewModel()
+        let newLayout = viewModel.saveLayoutAs(name: "   \n  ", from: sourceLayout, context: context)
+
+        #expect(newLayout.name == "Minimalist Copy")
+    }
 }
