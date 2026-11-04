@@ -70,4 +70,50 @@ struct USDZRoomLoaderTests {
         #expect(prompt.contains("500 cm") || prompt.contains("420 cm"))
         #expect(prompt.contains("Do NOT calculate 3D coordinates"))
     }
+
+    @Test @MainActor func loadRoom2FromUSDZExtractsCenteredFurnitureAndBounds() throws {
+        guard let url = Bundle.main.url(forResource: "Room-2", withExtension: "usdz") else {
+            #expect(Bool(false), "Room-2.usdz must exist in Bundle.main")
+            return
+        }
+
+        let loader = USDZRoomLoader()
+        let room = try loader.loadRoom(from: url)
+
+        // Room span should be roughly 4.0m x 4.2m
+        #expect(room.width > 3.5 && room.width < 5.5)
+        #expect(room.length > 3.5 && room.length < 5.5)
+
+        // Openings
+        #expect(!room.openings.isEmpty, "Room-2 must contain door and window openings")
+
+        // Furnitures
+        guard let layout = room.layouts.first else {
+            #expect(Bool(false), "Room-2 must contain an initial layout")
+            return
+        }
+        #expect(layout.furnitures.count >= 4)
+
+        // Bed must have realistic human dimensions, not 6x6 meters
+        guard let bed = layout.furnitures.first(where: { $0.category == "bed" }) else {
+            #expect(Bool(false), "Bed must be present in parsed furniture")
+            return
+        }
+        #expect(bed.width > 1.2 && bed.width < 2.5)
+        #expect(bed.length > 1.8 && bed.length < 2.5)
+        #expect(bed.positionY == 0.0)
+
+        // Table / Desk must have realistic dimensions, not 4.3x6.6 meters
+        guard let desk = layout.furnitures.first(where: { $0.category == "desk" }) else {
+            #expect(Bool(false), "Desk/Table must be present in parsed furniture")
+            return
+        }
+        #expect(desk.width > 0.4 && desk.width < 2.0)
+        #expect(desk.length > 0.4 && desk.length < 2.0)
+        #expect(desk.positionY == 0.0)
+
+        // Table and Bed must not be at the exact same position
+        let dist = hypot(bed.positionX - desk.positionX, bed.positionZ - desk.positionZ)
+        #expect(dist > 0.5, "Bed and Desk must not overlap at the same coordinates (dist was \(dist))")
+    }
 }

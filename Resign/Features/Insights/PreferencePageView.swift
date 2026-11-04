@@ -56,8 +56,10 @@ public struct PreferencePageView: View {
                             }
 
                             Picker("Test Room", selection: $environmentPreset) {
-                                Text("USDZ Mock Room").tag(0)
-                                Text("Clashes Demo Room").tag(1)
+                                Text("MockRoom").tag(0)
+                                Text("Room-2 (USDZ)").tag(1)
+                                Text("Room-1 (USDZ)").tag(2)
+                                Text("Clashes Demo").tag(3)
                             }
                             .pickerStyle(.segmented)
                             .onChange(of: environmentPreset) { _, newValue in

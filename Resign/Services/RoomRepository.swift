@@ -19,6 +19,24 @@ public final class RoomRepository {
         return try USDZRoomLoader().loadRoom(from: url)
     }
 
+    /// Dynamically loads and extracts the scanned 3D room, openings, and furniture directly from `Room-2.usdz`.
+    @MainActor
+    public static func loadRoom2FromUSDZ() throws -> Room {
+        guard let url = USDZRoomLoader.findBundledRoom2URL() else {
+            throw USDZRoomLoaderError.fileNotFound("Room-2.usdz")
+        }
+        return try USDZRoomLoader().loadRoom(from: url)
+    }
+
+    /// Dynamically loads and extracts the scanned 3D room, openings, and furniture directly from `Room.usdz`.
+    @MainActor
+    public static func loadRoom1FromUSDZ() throws -> Room {
+        guard let url = USDZRoomLoader.findBundledRoomURL() else {
+            throw USDZRoomLoaderError.fileNotFound("Room.usdz")
+        }
+        return try USDZRoomLoader().loadRoom(from: url)
+    }
+
     /// Creates the standard 5.0m x 4.2m reference room matching `MockRoom.usdz`.
     public static func createStandardMockRoom() -> Room {
         let room = Room(

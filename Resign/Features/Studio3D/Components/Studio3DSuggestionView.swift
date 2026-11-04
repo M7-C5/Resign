@@ -53,10 +53,23 @@ public struct Studio3DSuggestionView: View {
                     do {
                         setupStudioLighting(in: content)
 
-                        let entity = try await Entity(contentsOf: url)
+                        let loaded = try await Entity(contentsOf: url)
+                        let isBundledMockRoom = loaded.findEntity(named: "Bed") != nil && loaded.findEntity(named: "Desk") != nil
+                        if !isBundledMockRoom {
+                            let bounds = loaded.visualBounds(relativeTo: nil)
+                            let floorY = loaded.findEntity(named: "Floor_grp")?.visualBounds(relativeTo: nil).center.y
+                                ?? loaded.findEntity(named: "Floor0")?.visualBounds(relativeTo: nil).center.y
+                                ?? bounds.min.y
+                            let cx = (bounds.min.x + bounds.max.x) * 0.5
+                            let cz = (bounds.min.z + bounds.max.z) * 0.5
+                            loaded.position = [-cx, -floorY, -cz]
+                        }
+
+                        let entity = Entity()
                         entity.name = "RoomRoot"
                         entity.position = [0, -0.45, -2.7]
                         entity.scale = simd_float3(repeating: zoomScale)
+                        entity.addChild(loaded)
                         applyOrientation(to: entity)
                         syncViolationOverlay(on: entity)
                         syncFurniturePositions(on: entity, animated: false)

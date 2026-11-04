@@ -26,13 +26,23 @@ public struct InsightsView: View {
                 VStack(spacing: 20) {
                     // MARK: - Room Mode Selector
                     Picker("Room Source", selection: $environmentPreset) {
-                        Text("Live USDZ Mock Room").tag(0)
-                        Text("Clashes Demo Room").tag(1)
+                        Text("MockRoom").tag(0)
+                        Text("Room-2 (USDZ)").tag(1)
+                        Text("Room-1 (USDZ)").tag(2)
+                        Text("Clashes Demo").tag(3)
                     }
                     .pickerStyle(.segmented)
                     .onChange(of: environmentPreset) { _, newValue in
                         if newValue == 0 {
                             if let room = try? RoomRepository.loadMockRoomFromUSDZ() {
+                                viewModel.loadRoom(room)
+                            }
+                        } else if newValue == 1 {
+                            if let room = try? RoomRepository.loadRoom2FromUSDZ() {
+                                viewModel.loadRoom(room)
+                            }
+                        } else if newValue == 2 {
+                            if let room = try? RoomRepository.loadRoom1FromUSDZ() {
                                 viewModel.loadRoom(room)
                             }
                         } else {

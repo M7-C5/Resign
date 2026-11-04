@@ -128,6 +128,14 @@ public struct SpatialJourneyFlowView: View {
             if let usdzRoom = try? RoomRepository.loadMockRoomFromUSDZ() {
                 viewModel.loadRoom(usdzRoom)
             }
+        } else if preset == 1 {
+            if let usdzRoom = try? RoomRepository.loadRoom2FromUSDZ() {
+                viewModel.loadRoom(usdzRoom)
+            }
+        } else if preset == 2 {
+            if let usdzRoom = try? RoomRepository.loadRoom1FromUSDZ() {
+                viewModel.loadRoom(usdzRoom)
+            }
         } else {
             let mock = RoomRepository.createViolatingMockRoom()
             viewModel.loadRoom(mock)
@@ -144,6 +152,10 @@ public struct SpatialJourneyFlowView: View {
         if let targetRoom {
             viewModel.loadRoom(targetRoom, initialLayout: initialLayout)
         } else if environmentPreset == 0, let usdzRoom = try? RoomRepository.loadMockRoomFromUSDZ() {
+            viewModel.loadRoom(usdzRoom)
+        } else if environmentPreset == 1, let usdzRoom = try? RoomRepository.loadRoom2FromUSDZ() {
+            viewModel.loadRoom(usdzRoom)
+        } else if environmentPreset == 2, let usdzRoom = try? RoomRepository.loadRoom1FromUSDZ() {
             viewModel.loadRoom(usdzRoom)
         } else if let first = rooms.first {
             viewModel.loadRoom(first)
