@@ -82,9 +82,9 @@ public struct InventoryDrawerView: View {
             ZStack(alignment: .topTrailing) {
                 Image(systemName: "archivebox.fill")
                     .font(.body)
-                    .foregroundStyle(isHoveringArchiveTarget ? Color.orange : Color.primary)
+                    .foregroundStyle(.white)
                     .frame(width: 44, height: 44)
-                    .background(.regularMaterial, in: Circle())
+                    .background(isHoveringArchiveTarget ? Color.orange : StudioTheme.inventoryBackground, in: Circle())
                     .overlay(
                         Circle()
                             .stroke(

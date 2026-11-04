@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - feat: add scan north estimates and resilient lighting setup (9ab1dfc)
+- feat(studio-3d): implement Sims-style circular halo HUD and circular motion rotation tracking (4c74b6c)
+- feat(theme): establish Studio design tokens and update drawer icon styling (d956d18)
+- feat(interaction): gate furniture floor translation behind explicit selection tap (98eb6e4)
+- feat(viewport): modernize architectural preset symbols and verify SDK glyph compatibility (b2f64f9)
 - feat(lighting): optimize tablet placement workspace scaling and vertical centering (e514481)
 - feat(dashboard): add spatial diagnostics entry point to room details and enforce Dynamic Type (9c5a383)
 - feat(insights): integrate Foundation Models spatial diagnostics, tool calling, and 3D suggestion flow (551b018)
@@ -88,6 +92,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - fix(lighting): synchronize saved fixtures when rendering simulations (0946daa)
+- fix(studio-3d): isolate floating HUD rotation gesture bounds to button frame (9c0e0e1)
 - fix(lighting): align furniture footprint coordinates and yaw in scanned room plan (4fbe875)
 - fix(scan): reject single-wall slice scans in capture quality gate (733f8ac)
 - fix(viewport): enforce universal floor grounding and deterministic legacy migration (8ae9178)
@@ -140,7 +145,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - fix(lighting-simulation): shape natural light to the window (5fbb493)
 
 ### Documentation
+- docs(changelog): record lighting simulation synchronization (34b5950)
 - docs(changelog): update automated release notes (2b8fedf)
+- docs(changelog): update automated release notes (e59d53a)
+- docs(adr): document Sims floating HUD architecture and compile release notes (f9ab377)
 - docs(changelog): update automated release notes (a3e2d92)
 - docs(adr): update coordinate normalization decision record for room plan view (4cb1adb)
 - docs(changelog): update automated release notes (689a36f)

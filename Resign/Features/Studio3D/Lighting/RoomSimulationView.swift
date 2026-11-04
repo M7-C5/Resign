@@ -2,15 +2,17 @@ import SwiftUI
 import RealityKit
 import UIKit
 import simd
+import Combine
 
 struct RoomSimulationView: View {
     let controller: RoomSceneController
     let settings: LightingSimulationSettings
     let fixtures: [RoomLightingFixture]?
+    var selectedFurnitureID: UUID? = nil
     var archiveTargetCenter: CGPoint? = nil
     var onSelectFurniture: ((UUID?) -> Void)?
     var onMoveFurniture: ((UUID, SIMD2<Float>) -> Void)?
-    var onRotateFurniture: ((UUID, Float) -> Void)?
+    var onProjectSelectedFurniture: ((CGPoint?) -> Void)? = nil
     var onArchiveHover: ((Bool) -> Void)?
     var onArchiveDrop: ((UUID) -> Void)?
     var onBoundsResolved: (((minX: Float, maxX: Float, minZ: Float, maxZ: Float)) -> Void)?
@@ -24,10 +26,11 @@ struct RoomSimulationView: View {
                 controller: controller,
                 settings: settings,
                 fixtures: fixtures,
+                selectedFurnitureID: selectedFurnitureID,
                 archiveTargetCenter: archiveTargetCenter,
                 onSelectFurniture: onSelectFurniture,
                 onMoveFurniture: onMoveFurniture,
-                onRotateFurniture: onRotateFurniture,
+                onProjectSelectedFurniture: onProjectSelectedFurniture,
                 onArchiveHover: onArchiveHover,
                 onArchiveDrop: onArchiveDrop,
                 onBoundsResolved: onBoundsResolved,
@@ -83,10 +86,11 @@ private struct RoomRenderSurface: UIViewRepresentable {
     let controller: RoomSceneController
     let settings: LightingSimulationSettings
     let fixtures: [RoomLightingFixture]?
+    var selectedFurnitureID: UUID?
     var archiveTargetCenter: CGPoint?
     var onSelectFurniture: ((UUID?) -> Void)?
     var onMoveFurniture: ((UUID, SIMD2<Float>) -> Void)?
-    var onRotateFurniture: ((UUID, Float) -> Void)?
+    var onProjectSelectedFurniture: ((CGPoint?) -> Void)?
     var onArchiveHover: ((Bool) -> Void)?
     var onArchiveDrop: ((UUID) -> Void)?
     var onBoundsResolved: (((minX: Float, maxX: Float, minZ: Float, maxZ: Float)) -> Void)?
@@ -95,12 +99,14 @@ private struct RoomRenderSurface: UIViewRepresentable {
     final class Coordinator: NSObject, UIGestureRecognizerDelegate {
         weak var view: ARView?
         unowned var controller: RoomSceneController
+        var selectedFurnitureID: UUID?
         var archiveTargetCenter: CGPoint?
         var onSelectFurniture: ((UUID?) -> Void)?
         var onMoveFurniture: ((UUID, SIMD2<Float>) -> Void)?
-        var onRotateFurniture: ((UUID, Float) -> Void)?
+        var onProjectSelectedFurniture: ((CGPoint?) -> Void)?
         var onArchiveHover: ((Bool) -> Void)?
         var onArchiveDrop: ((UUID) -> Void)?
+        var updateSubscription: (any Cancellable)?
 
         var loadTask: Task<Void, Never>?
         private var isHoveringArchive = false
@@ -108,29 +114,28 @@ private struct RoomRenderSurface: UIViewRepresentable {
         private enum DragMode {
             case none
             case translating(furnitureID: UUID, offset: SIMD2<Float>)
-            case rotating(furnitureID: UUID, initialTouchAngle: Float, initialYaw: Float, center: SIMD3<Float>)
             case orbiting(startYaw: Float, startPitch: Float)
         }
 
         private var dragMode: DragMode = .none
-        private var selectedFurnitureID: UUID?
         private var pinchStartDistance: Float = 12
-        private var twoFingerStartYaw: Float = 0
 
         init(
             controller: RoomSceneController,
+            selectedFurnitureID: UUID?,
             archiveTargetCenter: CGPoint?,
             onSelectFurniture: ((UUID?) -> Void)?,
             onMoveFurniture: ((UUID, SIMD2<Float>) -> Void)?,
-            onRotateFurniture: ((UUID, Float) -> Void)?,
+            onProjectSelectedFurniture: ((CGPoint?) -> Void)?,
             onArchiveHover: ((Bool) -> Void)?,
             onArchiveDrop: ((UUID) -> Void)?
         ) {
             self.controller = controller
+            self.selectedFurnitureID = selectedFurnitureID
             self.archiveTargetCenter = archiveTargetCenter
             self.onSelectFurniture = onSelectFurniture
             self.onMoveFurniture = onMoveFurniture
-            self.onRotateFurniture = onRotateFurniture
+            self.onProjectSelectedFurniture = onProjectSelectedFurniture
             self.onArchiveHover = onArchiveHover
             self.onArchiveDrop = onArchiveDrop
         }
@@ -150,9 +155,24 @@ private struct RoomRenderSurface: UIViewRepresentable {
             pinch.delegate = self
             arView.addGestureRecognizer(pinch)
 
-            let rotation = UIRotationGestureRecognizer(target: self, action: #selector(handleRotation(_:)))
-            rotation.delegate = self
-            arView.addGestureRecognizer(rotation)
+            updateSubscription = arView.scene.subscribe(to: SceneEvents.Update.self) { [weak self] _ in
+                self?.updateSelectedProjection()
+            }
+        }
+
+        func updateSelectedProjection() {
+            guard let arView = view,
+                  let id = selectedFurnitureID,
+                  let container = arView.scene.findEntity(named: "Furniture_\(id.uuidString)") else {
+                onProjectSelectedFurniture?(nil)
+                return
+            }
+            let bounds = container.visualBounds(relativeTo: nil)
+            let yPos = bounds.max.y.isFinite ? bounds.max.y + 0.08 : container.position.y + 0.8
+            let pos = container.position(relativeTo: nil)
+            let topCenter = SIMD3<Float>(pos.x, yPos, pos.z)
+            let projected = arView.project(topCenter)
+            onProjectSelectedFurniture?(projected)
         }
 
         @objc private func handleTap(_ gesture: UITapGestureRecognizer) {
@@ -161,22 +181,15 @@ private struct RoomRenderSurface: UIViewRepresentable {
 
             if let hitEntity = arView.entity(at: point) {
                 var current: Entity? = hitEntity
-                while let p = current, !p.name.hasPrefix("Furniture_") && !p.name.hasPrefix("FurnitureRotationHandle_") {
+                while let p = current, !p.name.hasPrefix("Furniture_") {
                     current = p.parent
-                }
-                if let handle = current, handle.name.hasPrefix("FurnitureRotationHandle_") {
-                    let uuidStr = String(handle.name.dropFirst("FurnitureRotationHandle_".count))
-                    if let id = UUID(uuidString: uuidStr) {
-                        selectedFurnitureID = id
-                        onSelectFurniture?(id)
-                        return
-                    }
                 }
                 if let container = current, container.name.hasPrefix("Furniture_") {
                     let uuidStr = String(container.name.dropFirst("Furniture_".count))
                     if let id = UUID(uuidString: uuidStr) {
                         selectedFurnitureID = id
                         onSelectFurniture?(id)
+                        updateSelectedProjection()
                         return
                     }
                 }
@@ -184,6 +197,7 @@ private struct RoomRenderSurface: UIViewRepresentable {
             // Tapped on empty floor or background
             selectedFurnitureID = nil
             onSelectFurniture?(nil)
+            onProjectSelectedFurniture?(nil)
         }
 
         @objc private func handlePan(_ gesture: UIPanGestureRecognizer) {
@@ -194,35 +208,14 @@ private struct RoomRenderSurface: UIViewRepresentable {
             case .began:
                 if let hitEntity = arView.entity(at: point) {
                     var current: Entity? = hitEntity
-                    while let p = current, !p.name.hasPrefix("FurnitureRotationHandle_") && !p.name.hasPrefix("Furniture_") {
+                    while let p = current, !p.name.hasPrefix("Furniture_") {
                         current = p.parent
                     }
 
-                    // 1. Hit rotation handle: enter interactive rotation drag
-                    if let handle = current, handle.name.hasPrefix("FurnitureRotationHandle_") {
-                        let uuidStr = String(handle.name.dropFirst("FurnitureRotationHandle_".count))
-                        if let id = UUID(uuidString: uuidStr),
-                           let container = arView.scene.findEntity(named: "Furniture_\(uuidStr)") {
-                            selectedFurnitureID = id
-                            onSelectFurniture?(id)
-                            if let floorPos = projectToFloor(from: point, in: arView) {
-                                let center = container.position
-                                let dx = floorPos.x - center.x
-                                let dz = floorPos.z - center.z
-                                let initialTouchAngle = atan2(dx, dz)
-                                let initialYaw = container.orientation.angle * (container.orientation.axis.y >= 0 ? 1 : -1)
-                                dragMode = .rotating(furnitureID: id, initialTouchAngle: initialTouchAngle, initialYaw: initialYaw, center: center)
-                                return
-                            }
-                        }
-                    }
-
-                    // 2. Hit furniture body: enter floor translation drag
+                    // Only enter floor translation drag if this furniture is ALREADY selected (must press/tap first)
                     if let container = current, container.name.hasPrefix("Furniture_") {
                         let uuidStr = String(container.name.dropFirst("Furniture_".count))
-                        if let id = UUID(uuidString: uuidStr) {
-                            selectedFurnitureID = id
-                            onSelectFurniture?(id)
+                        if let id = UUID(uuidString: uuidStr), id == selectedFurnitureID {
                             if let floorPos = projectToFloor(from: point, in: arView) {
                                 let fPos = container.position
                                 let offset = SIMD2<Float>(fPos.x - floorPos.x, fPos.z - floorPos.z)
@@ -230,12 +223,13 @@ private struct RoomRenderSurface: UIViewRepresentable {
                             } else {
                                 dragMode = .translating(furnitureID: id, offset: .zero)
                             }
+                            updateSelectedProjection()
                             return
                         }
                     }
                 }
 
-                // 3. Began outside furniture: Camera orbit mode
+                // Began outside furniture: Camera orbit mode
                 dragMode = .orbiting(startYaw: controller.yaw, startPitch: controller.pitch)
 
             case .changed:
@@ -244,6 +238,7 @@ private struct RoomRenderSurface: UIViewRepresentable {
                     if let floorPos = projectToFloor(from: point, in: arView) {
                         let target = SIMD2<Float>(floorPos.x + offset.x, floorPos.z + offset.y)
                         onMoveFurniture?(id, target)
+                        updateSelectedProjection()
                     }
                     if let targetCenter = archiveTargetCenter {
                         let windowTouch = arView.convert(point, to: nil)
@@ -265,22 +260,13 @@ private struct RoomRenderSurface: UIViewRepresentable {
                         }
                     }
 
-                case .rotating(let id, let initialTouchAngle, let initialYaw, let center):
-                    if let floorPos = projectToFloor(from: point, in: arView) {
-                        let dx = floorPos.x - center.x
-                        let dz = floorPos.z - center.z
-                        let currentTouchAngle = atan2(dx, dz)
-                        let delta = currentTouchAngle - initialTouchAngle
-                        let targetYaw = initialYaw + delta
-                        onRotateFurniture?(id, targetYaw)
-                    }
-
                 case .orbiting(let startYaw, let startPitch):
                     let translation = gesture.translation(in: arView)
                     controller.setOrbit(
                         yaw: startYaw - Float(translation.x) * 0.007,
                         pitch: startPitch + Float(translation.y) * 0.007
                     )
+                    updateSelectedProjection()
 
                 case .none:
                     break
@@ -322,30 +308,8 @@ private struct RoomRenderSurface: UIViewRepresentable {
             }
         }
 
-        @objc private func handleRotation(_ gesture: UIRotationGestureRecognizer) {
-            guard let arView = view, let id = selectedFurnitureID else { return }
-            guard let container = arView.scene.findEntity(named: "Furniture_\(id.uuidString)") else { return }
-
-            switch gesture.state {
-            case .began:
-                twoFingerStartYaw = container.orientation.angle * (container.orientation.axis.y >= 0 ? 1 : -1)
-
-            case .changed:
-                let delta = Float(gesture.rotation)
-                let targetYaw = twoFingerStartYaw - delta
-                onRotateFurniture?(id, targetYaw)
-
-            default:
-                break
-            }
-        }
-
         func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldRecognizeSimultaneouslyWith otherGestureRecognizer: UIGestureRecognizer) -> Bool {
-            if (gestureRecognizer is UIPinchGestureRecognizer && otherGestureRecognizer is UIRotationGestureRecognizer) ||
-               (gestureRecognizer is UIRotationGestureRecognizer && otherGestureRecognizer is UIPinchGestureRecognizer) {
-                return true
-            }
-            return false
+            false
         }
 
         @objc private func handlePinch(_ gesture: UIPinchGestureRecognizer) {
@@ -356,6 +320,7 @@ private struct RoomRenderSurface: UIViewRepresentable {
                 let scale = Float(gesture.scale)
                 if scale > 0.05 {
                     controller.setDistance(pinchStartDistance / scale)
+                    updateSelectedProjection()
                 }
             default:
                 break
@@ -378,10 +343,11 @@ private struct RoomRenderSurface: UIViewRepresentable {
     func makeCoordinator() -> Coordinator {
         Coordinator(
             controller: controller,
+            selectedFurnitureID: selectedFurnitureID,
             archiveTargetCenter: archiveTargetCenter,
             onSelectFurniture: onSelectFurniture,
             onMoveFurniture: onMoveFurniture,
-            onRotateFurniture: onRotateFurniture,
+            onProjectSelectedFurniture: onProjectSelectedFurniture,
             onArchiveHover: onArchiveHover,
             onArchiveDrop: onArchiveDrop
         )
@@ -390,7 +356,7 @@ private struct RoomRenderSurface: UIViewRepresentable {
     func makeUIView(context: Context) -> ARView {
         let view = RoomPreviewARView(frame: .zero, cameraMode: .nonAR, automaticallyConfigureSession: false)
         view.onViewportChange = { [weak controller] size in controller?.setViewportSize(size) }
-        view.environment.background = .color(UIColor(red: 250.0 / 255, green: 249.0 / 255, blue: 246.0 / 255, alpha: 1))
+        view.environment.background = .color(StudioTheme.uiCanvasBackground)
         view.renderOptions.insert([.disableMotionBlur, .disableDepthOfField])
 
         controller.setLightingFixtures(fixtures)
@@ -416,16 +382,19 @@ private struct RoomRenderSurface: UIViewRepresentable {
         controller.setLightingFixtures(fixtures)
         controller.apply(settings)
         view.environment.lighting.intensityExponent = controller.rig.ambientExponent
+        context.coordinator.selectedFurnitureID = selectedFurnitureID
         context.coordinator.archiveTargetCenter = archiveTargetCenter
         context.coordinator.onSelectFurniture = onSelectFurniture
         context.coordinator.onMoveFurniture = onMoveFurniture
-        context.coordinator.onRotateFurniture = onRotateFurniture
+        context.coordinator.onProjectSelectedFurniture = onProjectSelectedFurniture
         context.coordinator.onArchiveHover = onArchiveHover
         context.coordinator.onArchiveDrop = onArchiveDrop
+        context.coordinator.updateSelectedProjection()
     }
 
     static func dismantleUIView(_ view: ARView, coordinator: Coordinator) {
         coordinator.loadTask?.cancel()
+        coordinator.updateSubscription?.cancel()
         (view as? RoomPreviewARView)?.onViewportChange = nil
         view.scene.anchors.removeAll()
     }

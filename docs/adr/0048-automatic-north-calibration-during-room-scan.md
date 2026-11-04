@@ -1,4 +1,4 @@
-# ADR 0044: Automatic North Calibration During Room Scan
+# ADR 0048: Automatic North Calibration During Room Scan
 
 The strict acceptance threshold is amended by [ADR 0046](0046-immediate-compass-estimates.md), which permits provisional compass estimates with visible uncertainty.
 

@@ -2,7 +2,7 @@
 
 - Status: Accepted
 - Date: 2026-11-03
-- Amends: [ADR 0044](0044-automatic-north-calibration-during-room-scan.md)
+- Amends: [ADR 0048](0048-automatic-north-calibration-during-room-scan.md)
 
 ## Context
 
