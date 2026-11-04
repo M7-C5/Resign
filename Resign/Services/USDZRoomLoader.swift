@@ -94,7 +94,37 @@ public final class USDZRoomLoader: Sendable {
         // Prefer leaf meshes over hierarchical container group nodes ending in _grp
         let leafCandidates = allObjects.filter { !$0.name.hasSuffix("_grp") }
 
-        // 1. Extract Room Dimensions from Floor / Ceiling / Walls
+        // 1. Calculate dominant wall tilt and un-tilted room dimensions
+        let wallObjects = leafCandidates.filter { $0.name.lowercased().hasPrefix("wall") }
+        var wallLengths: [Float] = []
+        var wallAngles: [Float] = []
+
+        func normalizeQuarterTurn(_ angle: Float) -> Float {
+            let quarter = Float.pi / 2.0
+            var rem = angle.truncatingRemainder(dividingBy: quarter)
+            if rem > quarter / 2.0 { rem -= quarter }
+            else if rem < -quarter / 2.0 { rem += quarter }
+            return rem
+        }
+
+        for w in wallObjects {
+            let t = w.transform?.matrix ?? matrix_identity_float4x4
+            let forward = simd_normalize(simd_float3(t.columns.0.x, t.columns.0.y, t.columns.0.z))
+            let len = simd_length(simd_float3(t.columns.0.x, t.columns.0.y, t.columns.0.z))
+            if len > 0.5 { wallLengths.append(len) }
+            let a = atan2(forward.z, forward.x)
+            wallAngles.append(normalizeQuarterTurn(a))
+        }
+
+        wallAngles.sort()
+        let dominantTilt = wallAngles.isEmpty ? 0.0 : wallAngles[wallAngles.count / 2]
+
+        let cosT = cos(dominantTilt)
+        let sinT = sin(dominantTilt)
+        func rotateY(_ v: simd_float3) -> simd_float3 {
+            return simd_float3(v.x * cosT + v.z * sinT, v.y, -v.x * sinT + v.z * cosT)
+        }
+
         var roomWidth: Float = 5.0
         var roomLength: Float = 4.2
         var roomHeight: Float = 2.6
@@ -104,22 +134,32 @@ public final class USDZRoomLoader: Sendable {
 
         if let floor = leafCandidates.first(where: { $0.name.lowercased().hasPrefix("floor") }) ?? allObjects.first(where: { $0.name.lowercased().hasPrefix("floor") }),
            let bounds = computeBounds(for: floor) {
-            let dx = bounds.max.x - bounds.min.x
-            let dy = bounds.max.y - bounds.min.y
-            let dz = bounds.max.z - bounds.min.z
-            if dy < 0.05 {
-                roomWidth = max(dx, 3.0)
-                roomLength = max(dz, 3.0)
-            } else if dz < 0.05 {
-                roomWidth = max(dx, 3.0)
-                roomLength = max(dy, 3.0)
-            } else {
-                roomWidth = max(dx, 3.0)
-                roomLength = max(max(dy, dz), 3.0)
-            }
-            roomCenterX = (bounds.min.x + bounds.max.x) / 2.0
-            roomCenterZ = (bounds.min.z + bounds.max.z) / 2.0
+            let rawDx = bounds.max.x - bounds.min.x
+            let rawDy = bounds.max.y - bounds.min.y
+            let rawDz = bounds.max.z - bounds.min.z
+
+            let rawCenter = (bounds.min + bounds.max) * 0.5
+            let rotCenter = rotateY(rawCenter)
+            roomCenterX = rotCenter.x
+            roomCenterZ = rotCenter.z
             floorLevelY = bounds.min.y
+
+            let cosT = cos(dominantTilt)
+            let sinT = abs(sin(dominantTilt))
+            let denom = cosT * cosT - sinT * sinT
+
+            let extentX = rawDx
+            let extentZ = (rawDy < 0.05) ? rawDz : max(rawDy, rawDz)
+
+            if denom > 0.05 {
+                let unTiltedW = abs((extentX * cosT - extentZ * sinT) / denom)
+                let unTiltedL = abs((extentZ * cosT - extentX * sinT) / denom)
+                roomWidth = max(unTiltedW, 3.0)
+                roomLength = max(unTiltedL, 3.0)
+            } else {
+                roomWidth = max(extentX, 3.0)
+                roomLength = max(extentZ, 3.0)
+            }
         }
 
         if let ceiling = leafCandidates.first(where: { $0.name.lowercased().hasPrefix("ceiling") }) ?? allObjects.first(where: { $0.name.lowercased().hasPrefix("ceiling") }),
@@ -151,11 +191,13 @@ public final class USDZRoomLoader: Sendable {
                 if let b = computeBounds(for: obj) {
                     let w = max(b.max.x - b.min.x, b.max.z - b.min.z)
                     let h = b.max.y - b.min.y
+                    let rawCenter = (b.min + b.max) * 0.5
+                    let rotCenter = rotateY(rawCenter)
                     let opening = RoomOpening(
                         type: "window",
-                        posX: (b.min.x + b.max.x) / 2.0 - roomCenterX,
-                        posY: (b.min.y + b.max.y) / 2.0 - floorLevelY,
-                        posZ: (b.min.z + b.max.z) / 2.0 - roomCenterZ,
+                        posX: rotCenter.x - roomCenterX,
+                        posY: rotCenter.y - floorLevelY,
+                        posZ: rotCenter.z - roomCenterZ,
                         width: max(w, 0.8),
                         height: max(h, 1.0)
                     )
@@ -165,11 +207,13 @@ public final class USDZRoomLoader: Sendable {
                 if let b = computeBounds(for: obj) {
                     let w = max(b.max.x - b.min.x, b.max.z - b.min.z)
                     let h = b.max.y - b.min.y
+                    let rawCenter = (b.min + b.max) * 0.5
+                    let rotCenter = rotateY(rawCenter)
                     let opening = RoomOpening(
                         type: "door",
-                        posX: (b.min.x + b.max.x) / 2.0 - roomCenterX,
-                        posY: (b.min.y + b.max.y) / 2.0 - floorLevelY,
-                        posZ: (b.min.z + b.max.z) / 2.0 - roomCenterZ,
+                        posX: rotCenter.x - roomCenterX,
+                        posY: rotCenter.y - floorLevelY,
+                        posZ: rotCenter.z - roomCenterZ,
                         width: max(w, 0.8),
                         height: max(h, 2.0)
                     )
@@ -208,8 +252,10 @@ public final class USDZRoomLoader: Sendable {
                 let dx = b.max.x - b.min.x
                 let dy = b.max.y - b.min.y
                 let dz = b.max.z - b.min.z
-                let cx = (b.min.x + b.max.x) / 2.0 - roomCenterX
-                let cz = (b.min.z + b.max.z) / 2.0 - roomCenterZ
+                let rawCenter = (b.min + b.max) * 0.5
+                let rotCenter = rotateY(rawCenter)
+                let cx = rotCenter.x - roomCenterX
+                let cz = rotCenter.z - roomCenterZ
 
                 let item = Furniture(
                     name: target.name,

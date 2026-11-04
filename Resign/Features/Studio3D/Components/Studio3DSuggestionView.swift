@@ -55,21 +55,38 @@ public struct Studio3DSuggestionView: View {
 
                         let loaded = try await Entity(contentsOf: url)
                         let isBundledMockRoom = loaded.findEntity(named: "Bed") != nil && loaded.findEntity(named: "Desk") != nil
-                        if !isBundledMockRoom {
-                            let bounds = loaded.visualBounds(relativeTo: nil)
-                            let floorY = loaded.findEntity(named: "Floor_grp")?.visualBounds(relativeTo: nil).center.y
-                                ?? loaded.findEntity(named: "Floor0")?.visualBounds(relativeTo: nil).center.y
-                                ?? bounds.min.y
-                            let cx = (bounds.min.x + bounds.max.x) * 0.5
-                            let cz = (bounds.min.z + bounds.max.z) * 0.5
-                            loaded.position = [-cx, -floorY, -cz]
-                        }
 
                         let entity = Entity()
                         entity.name = "RoomRoot"
                         entity.position = [0, -0.45, -2.7]
                         entity.scale = simd_float3(repeating: zoomScale)
-                        entity.addChild(loaded)
+
+                        if !isBundledMockRoom {
+                            let tilt = Self.dominantWallTilt(in: loaded)
+                            let captureSpace = Entity()
+                            captureSpace.name = "CaptureSpace"
+                            captureSpace.orientation = simd_quatf(angle: tilt, axis: [0, 1, 0])
+                            captureSpace.addChild(loaded)
+                            entity.addChild(captureSpace)
+
+                            let rotatedBounds = loaded.visualBounds(relativeTo: entity)
+                            let cx = (rotatedBounds.min.x + rotatedBounds.max.x) * 0.5
+                            let cz = (rotatedBounds.min.z + rotatedBounds.max.z) * 0.5
+                            let rawFloorY: Float
+                            if let floorGrp = loaded.findEntity(named: "Floor_grp") {
+                                rawFloorY = floorGrp.visualBounds(relativeTo: entity).center.y
+                            } else if let floor0 = loaded.findEntity(named: "Floor0") {
+                                rawFloorY = floor0.visualBounds(relativeTo: entity).center.y
+                            } else {
+                                rawFloorY = rotatedBounds.min.y
+                            }
+
+                            // Center un-tilted room horizontally at (0, 0) and ground floor at Y = 0.0
+                            captureSpace.position = [-cx, -rawFloorY, -cz]
+                        } else {
+                            entity.addChild(loaded)
+                        }
+
                         applyOrientation(to: entity)
                         syncViolationOverlay(on: entity)
                         syncFurniturePositions(on: entity, animated: false)
@@ -657,6 +674,48 @@ public struct Studio3DSuggestionView: View {
         }
 
         return nil
+    }
+
+    // MARK: - Wall Tilt Derivation
+
+    /// Derives dominant wall angle relative to coordinate axes so scanned room shells can be squarely un-tilted.
+    private static func dominantWallTilt(in loaded: Entity) -> Float {
+        var wallModels: [Entity] = []
+        func collectWalls(in entity: Entity) {
+            if entity.name.lowercased().contains("wall") {
+                wallModels.append(entity)
+            }
+            for child in entity.children {
+                collectWalls(in: child)
+            }
+        }
+        collectWalls(in: loaded)
+
+        var candidateAngles: [Float] = []
+        for wall in wallModels {
+            let orient = wall.orientation(relativeTo: loaded)
+            let dir = orient.act(SIMD3<Float>(1, 0, 0))
+            if abs(dir.x) > 0.001 || abs(dir.z) > 0.001 {
+                let angle = atan2(dir.z, dir.x)
+                let diff = normalizeQuarterTurn(angle)
+                candidateAngles.append(diff)
+            }
+        }
+
+        guard !candidateAngles.isEmpty else { return 0.0 }
+        candidateAngles.sort()
+        return candidateAngles[candidateAngles.count / 2]
+    }
+
+    private static func normalizeQuarterTurn(_ angle: Float) -> Float {
+        let quarter = Float.pi / 2.0
+        var rem = angle.truncatingRemainder(dividingBy: quarter)
+        if rem > quarter / 2.0 {
+            rem -= quarter
+        } else if rem < -quarter / 2.0 {
+            rem += quarter
+        }
+        return rem
     }
 }
 
