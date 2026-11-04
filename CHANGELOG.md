@@ -71,6 +71,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - refactor(arch): scaffold vertical feature-slice architecture with skeleton modules (3419a7d)
 
 ### Fixed
+- fix(studio3d): un-tilt scanned rooms using transform matrix heading and filter leaf mesh bounds (e23c43b)
 - fix(spatial): un-tilt scanned room shells and align dimensions with dominant wall tilt (b477db8)
 - fix(spatial): center scanned USDZ shells and resolve leaf mesh dimensions in room loader (0cc40fb)
 - fix(ai): compact diagnostic prompt payload to prevent foundation model token overflow (2611c6d)
@@ -112,6 +113,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - fix(lighting-simulation): shape natural light to the window (5fbb493)
 
 ### Documentation
+- docs(changelog): update automated changelog (c9cc6eb)
 - docs(changelog): update automated changelog (bb66c5a)
 - docs(adr): renumber floating furniture decision record to 0045 and compile release notes (a544963)
 - docs(changelog): update automated release notes (ac031fd)
