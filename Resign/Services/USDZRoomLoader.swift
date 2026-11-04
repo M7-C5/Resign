@@ -288,11 +288,13 @@ public final class USDZRoomLoader: Sendable {
         var foundMesh = false
 
         func inspect(_ obj: MDLObject) {
-            let b = obj.boundingBox(atTime: 0.0)
-            if b.maxBounds.x > b.minBounds.x || b.maxBounds.y > b.minBounds.y || b.maxBounds.z > b.minBounds.z {
-                minPt = simd_min(minPt, b.minBounds)
-                maxPt = simd_max(maxPt, b.maxBounds)
-                foundMesh = true
+            if let mesh = obj as? MDLMesh {
+                let b = mesh.boundingBox(atTime: 0.0)
+                if b.maxBounds.x > b.minBounds.x || b.maxBounds.y > b.minBounds.y || b.maxBounds.z > b.minBounds.z {
+                    minPt = simd_min(minPt, b.minBounds)
+                    maxPt = simd_max(maxPt, b.maxBounds)
+                    foundMesh = true
+                }
             }
             for i in 0..<obj.children.count {
                 inspect(obj.children[i])

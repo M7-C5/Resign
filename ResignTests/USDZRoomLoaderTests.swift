@@ -116,4 +116,34 @@ struct USDZRoomLoaderTests {
         let dist = hypot(bed.positionX - desk.positionX, bed.positionZ - desk.positionZ)
         #expect(dist > 0.5, "Bed and Desk must not overlap at the same coordinates (dist was \(dist))")
     }
+
+    @Test @MainActor func room2GeneratesLayoutsWithinRoomBounds() throws {
+        guard let url = Bundle.main.url(forResource: "Room-2", withExtension: "usdz") else {
+            #expect(Bool(false), "Room-2.usdz must exist in Bundle.main")
+            return
+        }
+
+        let loader = USDZRoomLoader()
+        let room = try loader.loadRoom(from: url)
+        guard let baseLayout = room.layouts.first else {
+            #expect(Bool(false))
+            return
+        }
+
+        let engine = LayoutOptimizerEngine()
+        let layouts = engine.generateLayouts(for: room, from: baseLayout, settings: SolverSettings(pinnedItemIds: []))
+        #expect(layouts.count == 3)
+
+        let halfW = room.width / 2.0
+        let halfL = room.length / 2.0
+
+        for layout in layouts {
+            for item in layout.furnitures where !item.isArchived {
+                #expect(item.positionX >= -halfW - 0.15 && item.positionX <= halfW + 0.15,
+                        "\(item.name) at X=\(item.positionX) must be within room width \(room.width)")
+                #expect(item.positionZ >= -halfL - 0.15 && item.positionZ <= halfL + 0.15,
+                        "\(item.name) at Z=\(item.positionZ) must be within room length \(room.length)")
+            }
+        }
+    }
 }

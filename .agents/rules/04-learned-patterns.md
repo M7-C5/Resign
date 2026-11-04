@@ -19,6 +19,7 @@
 | **LP-008** | SwiftData | Dynamic Query Navigation Destination Trap | Initializing `@Query` inside an inner struct inside `.navigationDestination(for:)` causes delayed or empty queries in iOS 17/18. Use synchronous `modelContext.fetch` on appear with hierarchy fallback instead. | 2026-10-27 |
 | **LP-009** | Spatial LiDAR | Floor Cross-Clamping, VIO Drift Projection & Zero-Thickness Walls | Never clamp wall clear spans with `min(wallSpan, floorPoly)` (causes 90° alcove axis cross-clamping), never apply arbitrary thickness insets to zero-thickness `CapturedRoom.Surface` planes, and project opposing walls along their own length-weighted normal to prevent VIO angular drift errors in rooms > 5m. | 2026-10-28 |
 | **LP-012** | RoomPlan | Interior Partition Perimeter Trap | Prune open interior branches for perimeter validation; retain all walls for fixture clearance. | 2026-10-30 |
+| **LP-013** | RealityKit / USD | USD Transform Matrix & Leaf Mesh Scanned Bounds Trap | RealityKit `entity.orientation` fails to decompose non-orthogonal or 4x4 matrix wall orientations—read `entity.transform.matrix.columns.0` directly. ModelIO `MDLObject.boundingBox` on parent groups unions all instances—filter to `MDLMesh` leaves only. | 2026-11-04 |
 | **LP-010** | 3D Ergonomics | Permissive Dragging with Red Collision Gate | Never hard-freeze or lock furniture translation when intersecting obstacles during drag in cluttered rooms; preserve touch grab offsets, allow free dragging across obstacles, signal collision via a red halo, and block saving until clean. | 2026-10-28 |
 
 ---
@@ -180,3 +181,11 @@
 ### LP-012: RoomPlan Interior Partitions Are Not Perimeter Edges
 * **Context**: A real iPad scan contained a valid eight-segment perimeter plus an interior wall extending from a corner. Requiring every captured wall to join the perimeter falsely reported an incomplete outline.
 * **Rule**: Prune open branches before validating the perimeter cycle, but retain all nondegenerate captured walls for placement clearance. Never discard interior partitions from collision checks or replace incomplete traces with rectangular bounds. Reproduce device wall geometry in regression tests before changing join tolerances.
+
+---
+
+### LP-013: RealityKit USD Transform Matrix & Leaf Mesh Scanned Bounds Trap
+* **Context**: RoomPlan USDZ exports authored with `matrix4d xformOp:transform` exhibit two critical traps when loaded via RealityKit and ModelIO:
+  1. RealityKit's `entity.orientation(relativeTo:)` decomposes quaternions but returns identity `[0, 0, 0, 1]` when USD transforms include non-orthogonal transforms or shear matrices. Reading `entity.transform.matrix.columns.0` directly extracts the true wall heading vector `(x, 0, z)`, allowing exact `atan2(col0.z, col0.x)` dominant tilt calculation.
+  2. ModelIO's `MDLObject.boundingBox(atTime: 0)` on parent group nodes (like `Bed_grp`, `Table_grp`, `Storage_grp`) aggregates all child parts or transforms across coordinate spaces, inflating a 1.6m bed into a 6.0m bounding box. Bounding box computation must filter strictly to `MDLMesh` leaves.
+  3. Scanned static furniture meshes in USDZ shells must be removed via `entity.removeFromParent()` rather than `entity.isEnabled = false`, guaranteeing they are eliminated from the rendering pipeline so only dynamic layout entities appear.

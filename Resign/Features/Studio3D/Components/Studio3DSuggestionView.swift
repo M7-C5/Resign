@@ -616,10 +616,10 @@ public struct Studio3DSuggestionView: View {
             let lower = entity.name.lowercased()
             let isStructural = structuralPrefixes.contains { lower.hasPrefix($0) || lower.contains($0) }
             if !isStructural && furnitureTokens.contains(where: { lower.contains($0) }) {
-                entity.isEnabled = false
+                entity.removeFromParent()
                 return
             }
-            for child in entity.children {
+            for child in Array(entity.children) {
                 walk(child)
             }
         }
@@ -680,27 +680,30 @@ public struct Studio3DSuggestionView: View {
 
     /// Derives dominant wall angle relative to coordinate axes so scanned room shells can be squarely un-tilted.
     private static func dominantWallTilt(in loaded: Entity) -> Float {
-        var wallModels: [Entity] = []
+        var candidateAngles: [Float] = []
         func collectWalls(in entity: Entity) {
-            if entity.name.lowercased().contains("wall") {
-                wallModels.append(entity)
+            let lower = entity.name.lowercased()
+            if lower.contains("wall") && !lower.hasSuffix("_grp") {
+                let m = entity.transform.matrix
+                let col0 = SIMD3<Float>(m.columns.0.x, m.columns.0.y, m.columns.0.z)
+                let len = simd_length(col0)
+                if len > 0.1 {
+                    let angle = atan2(col0.z, col0.x)
+                    candidateAngles.append(normalizeQuarterTurn(angle))
+                } else {
+                    let orient = entity.orientation(relativeTo: loaded)
+                    let dir = orient.act(SIMD3<Float>(1, 0, 0))
+                    if abs(dir.x) > 0.001 || abs(dir.z) > 0.001 {
+                        let angle = atan2(dir.z, dir.x)
+                        candidateAngles.append(normalizeQuarterTurn(angle))
+                    }
+                }
             }
             for child in entity.children {
                 collectWalls(in: child)
             }
         }
         collectWalls(in: loaded)
-
-        var candidateAngles: [Float] = []
-        for wall in wallModels {
-            let orient = wall.orientation(relativeTo: loaded)
-            let dir = orient.act(SIMD3<Float>(1, 0, 0))
-            if abs(dir.x) > 0.001 || abs(dir.z) > 0.001 {
-                let angle = atan2(dir.z, dir.x)
-                let diff = normalizeQuarterTurn(angle)
-                candidateAngles.append(diff)
-            }
-        }
 
         guard !candidateAngles.isEmpty else { return 0.0 }
         candidateAngles.sort()
