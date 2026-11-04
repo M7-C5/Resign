@@ -87,6 +87,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - refactor(arch): scaffold vertical feature-slice architecture with skeleton modules (3419a7d)
 
 ### Fixed
+- fix(lighting): synchronize saved fixtures when rendering simulations (0946daa)
 - fix(lighting): align furniture footprint coordinates and yaw in scanned room plan (4fbe875)
 - fix(scan): reject single-wall slice scans in capture quality gate (733f8ac)
 - fix(viewport): enforce universal floor grounding and deterministic legacy migration (8ae9178)
@@ -139,6 +140,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - fix(lighting-simulation): shape natural light to the window (5fbb493)
 
 ### Documentation
+- docs(changelog): update automated release notes (2b8fedf)
 - docs(changelog): update automated release notes (a3e2d92)
 - docs(adr): update coordinate normalization decision record for room plan view (4cb1adb)
 - docs(changelog): update automated release notes (689a36f)
