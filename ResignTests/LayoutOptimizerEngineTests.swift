@@ -144,5 +144,48 @@ struct LayoutOptimizerEngineTests {
             #expect(criticalWalkways.isEmpty, "Layout \(variant.name) with pinned TV must have zero critical walkway bottlenecks: \(criticalWalkways.map(\.message).joined(separator: "; "))")
         }
     }
+
+    @Test @MainActor func floatingLayoutAllowsFurnitureToMoveInwardWithCompliantClearances() {
+        // Spacious 7.0m x 5.0m room has ample depth (>= 4.8m) for floating seating/desks
+        let room = SolverFixtures.variedRooms.first { $0.name.hasPrefix("large") }!.room
+        let baseLayout = SolverFixtures.baseLayout()
+
+        let variants = optimizer.generateLayouts(for: room, from: baseLayout, settings: SolverSettings())
+        #expect(variants.count == 3)
+
+        var foundFloatingPiece = false
+        let halfW = room.width / 2.0
+        let halfL = room.length / 2.0
+
+        for variant in variants {
+            // Verify all items are within room bounds
+            for item in variant.furnitures {
+                let box = clearanceEngine.boundingBox(for: item)
+                #expect(box.minX >= -halfW - 0.01 && box.maxX <= halfW + 0.01)
+                #expect(box.minZ >= -halfL - 0.01 && box.maxZ <= halfL + 0.01)
+
+                // Measure clearance to nearest wall
+                let wallGaps = [
+                    box.minZ - (-halfL), // North
+                    halfL - box.maxZ,    // South
+                    halfW - box.maxX,    // East
+                    box.minX - (-halfW)  // West
+                ]
+                let minWallGap = wallGaps.min() ?? 0
+                if (item.category == "sofa" || item.category == "desk") && minWallGap > 0.25 {
+                    foundFloatingPiece = true
+                }
+            }
+
+            // Must preserve compliant clearances
+            let criticalWalkways = clearanceEngine.checkWalkwayClearances(furnitures: variant.furnitures, roomLength: room.length, roomWidth: room.width).filter { $0.severity == .critical }
+            #expect(criticalWalkways.isEmpty, "Floating layout \(variant.name) must maintain clean walkways: \(criticalWalkways.map(\.message).joined(separator: "; "))")
+
+            let doorViolations = clearanceEngine.checkDoorSwing(furnitures: variant.furnitures, doors: room.openings.filter { $0.type.localizedCaseInsensitiveContains("door") })
+            #expect(doorViolations.isEmpty, "Floating layout \(variant.name) must clear door swings")
+        }
+
+        #expect(foundFloatingPiece, "Optimizer should utilize depth tiers to float furniture away from walls in spacious rooms")
+    }
 }
 

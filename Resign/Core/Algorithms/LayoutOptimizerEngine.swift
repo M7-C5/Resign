@@ -179,6 +179,7 @@ public struct LayoutOptimizerEngine: Sendable {
         var placed: [Furniture] = baseItems.filter { pinned.contains($0.id) }.compactMap { clones[$0.id] }
 
         let hasDesk = baseItems.contains { Self.role(of: $0) == .desk }
+        let hasBothBedAndSofa = baseItems.contains { Self.role(of: $0) == .bed } && baseItems.contains { Self.role(of: $0) == .sofa }
         var pairedChairID: UUID?
         if hasDesk {
             pairedChairID = baseItems.first { !pinned.contains($0.id) && Self.role(of: $0) == .chair }?.id
@@ -209,7 +210,8 @@ public struct LayoutOptimizerEngine: Sendable {
                 scene: scene,
                 weights: weights,
                 strategy: strategy,
-                earlierPlacements: earlier.compactMap { $0[item.id] }
+                earlierPlacements: earlier.compactMap { $0[item.id] },
+                hasBothBedAndSofa: hasBothBedAndSofa
             )
 
             if let chosen {
@@ -218,8 +220,8 @@ public struct LayoutOptimizerEngine: Sendable {
                 clone.rotationYaw = chosen.yaw
                 placements[item.id] = Placement(wall: chosen.wall, along: chosen.along, x: chosen.x, z: chosen.z, yaw: chosen.yaw)
             } else {
-                let candidates = makeCandidates(for: clone, role: itemRole, placed: placed, scene: scene)
-                let wallCandidates = (itemRole == .sofa || itemRole == .tv) ? candidates : makeCandidates(for: clone, role: itemRole, placed: placed, scene: scene, forceAllWalls: true)
+                let candidates = makeCandidates(for: clone, role: itemRole, placed: placed, scene: scene, strategy: strategy, hasBothBedAndSofa: hasBothBedAndSofa)
+                let wallCandidates = (itemRole == .sofa || itemRole == .tv) ? candidates : makeCandidates(for: clone, role: itemRole, placed: placed, scene: scene, strategy: strategy, forceAllWalls: true, hasBothBedAndSofa: hasBothBedAndSofa)
                 if let fallback = bestFallbackCandidate(for: clone, candidates: wallCandidates, placed: placed, scene: scene) {
                     clone.positionX = fallback.x
                     clone.positionZ = fallback.z
@@ -455,9 +457,10 @@ public struct LayoutOptimizerEngine: Sendable {
         scene: Scene,
         weights: Weights,
         strategy: Strategy,
-        earlierPlacements: [Placement]
+        earlierPlacements: [Placement],
+        hasBothBedAndSofa: Bool = false
     ) -> Candidate? {
-        let candidates = makeCandidates(for: clone, role: role, placed: placed, scene: scene)
+        let candidates = makeCandidates(for: clone, role: role, placed: placed, scene: scene, strategy: strategy, hasBothBedAndSofa: hasBothBedAndSofa)
         guard !candidates.isEmpty else { return nil }
 
         let probe = cloneFurniture(clone)
@@ -607,7 +610,9 @@ public struct LayoutOptimizerEngine: Sendable {
         role: Role,
         placed: [Furniture],
         scene: Scene,
-        forceAllWalls: Bool = false
+        strategy: Strategy = .circadian,
+        forceAllWalls: Bool = false,
+        hasBothBedAndSofa: Bool = false
     ) -> [Candidate] {
         if role == .pairedChair, let desk = placed.first(where: { Self.role(of: $0) == .desk }) {
             return pairedChairCandidates(chair: item, desk: desk)
@@ -645,17 +650,24 @@ public struct LayoutOptimizerEngine: Sendable {
                 let b = Self.box(x: 0, z: 0, yaw: yaw, width: item.width, length: item.length)
                 let ex = b.width / 2
                 let ez = b.length / 2
+                let offsets = depthOffsets(for: role, wall: wall, scene: scene, strategy: strategy, itemBox: b, hasBothBedAndSofa: hasBothBedAndSofa)
 
                 switch wall {
                 case .north, .south:
-                    let z = wall == .north ? -scene.halfL + ez + Self.wallGap : scene.halfL - ez - Self.wallGap
-                    for x in Self.slidePositions(low: -scene.halfW + ex + Self.wallGap, high: scene.halfW - ex - Self.wallGap) {
-                        result.append(Candidate(x: x, z: z, yaw: yaw, wall: wall, along: x))
+                    for depthOffset in offsets {
+                        let z = wall == .north ? -scene.halfL + ez + depthOffset : scene.halfL - ez - depthOffset
+                        let step: Float = depthOffset == Self.wallGap ? Self.slideStep : 0.05
+                        for x in Self.slidePositions(low: -scene.halfW + ex + Self.wallGap, high: scene.halfW - ex - Self.wallGap, step: step) {
+                            result.append(Candidate(x: x, z: z, yaw: yaw, wall: wall, along: x))
+                        }
                     }
                 case .east, .west:
-                    let x = wall == .east ? scene.halfW - ex - Self.wallGap : -scene.halfW + ex + Self.wallGap
-                    for z in Self.slidePositions(low: -scene.halfL + ez + Self.wallGap, high: scene.halfL - ez - Self.wallGap) {
-                        result.append(Candidate(x: x, z: z, yaw: yaw, wall: wall, along: z))
+                    for depthOffset in offsets {
+                        let x = wall == .east ? scene.halfW - ex - depthOffset : -scene.halfW + ex + depthOffset
+                        let step: Float = depthOffset == Self.wallGap ? Self.slideStep : 0.05
+                        for z in Self.slidePositions(low: -scene.halfL + ez + Self.wallGap, high: scene.halfL - ez - Self.wallGap, step: step) {
+                            result.append(Candidate(x: x, z: z, yaw: yaw, wall: wall, along: z))
+                        }
                     }
                 }
             }
@@ -672,6 +684,48 @@ public struct LayoutOptimizerEngine: Sendable {
         }
 
         return result
+    }
+
+    private func depthOffsets(
+        for role: Role,
+        wall: RoomWall,
+        scene: Scene,
+        strategy: Strategy,
+        itemBox: Box,
+        hasBothBedAndSofa: Bool
+    ) -> [Float] {
+        var offsets: [Float] = [Self.wallGap]
+
+        // Open Flow specifically maximizes perimeter hugging for central circulation
+        guard strategy != .openFlow else { return offsets }
+
+        let axisDimension = (wall == .north || wall == .south) ? scene.halfL * 2 : scene.halfW * 2
+        let itemDepth = (wall == .north || wall == .south) ? itemBox.length : itemBox.width
+
+        // In studio rooms with both a bed and a sofa, require spacious depth (>= 4.8m) to float seating
+        let minAxisDepth: Float = hasBothBedAndSofa ? 4.8 : 3.8
+        guard axisDimension >= minAxisDepth else { return offsets }
+
+        switch role {
+        case .sofa:
+            if axisDimension >= 4.8 && (axisDimension - itemDepth) >= 2.8 {
+                offsets.append(0.80)
+            }
+            if axisDimension >= 5.5 && (axisDimension - itemDepth) >= 3.5 {
+                offsets.append(1.20)
+            }
+        case .desk:
+            if axisDimension >= 4.8 && (axisDimension - itemDepth) >= 2.8 {
+                offsets.append(0.762)
+            }
+        case .chair, .other:
+            if axisDimension >= 4.5 && (axisDimension - itemDepth) >= 2.4 {
+                offsets.append(0.60)
+            }
+        case .bed, .closet, .tv, .pairedChair:
+            break
+        }
+        return offsets
     }
 
     private func oppositeWallHasRoomForSofa(wall: RoomWall, scene: Scene, placed: [Furniture]) -> Bool {
@@ -792,13 +846,13 @@ public struct LayoutOptimizerEngine: Sendable {
         return result
     }
 
-    private static func slidePositions(low: Float, high: Float) -> [Float] {
+    private static func slidePositions(low: Float, high: Float, step: Float = slideStep) -> [Float] {
         guard high >= low else { return [] }
         var positions: [Float] = []
         var p = low
         while p <= high + 0.0001 {
             positions.append(p)
-            p += slideStep
+            p += step
         }
         if let last = positions.last, high - last > 0.01 { positions.append(high) }
         return positions
@@ -1297,6 +1351,10 @@ public struct LayoutOptimizerEngine: Sendable {
                     ? abs(candidate.x - partner.positionX)
                     : abs(candidate.z - partner.positionZ)
                 total += 12.0 * max(0, 2.0 - lateralOffset)
+
+                if role == .sofa, strategy == .sanctuary, distance >= 2.0 && distance <= 3.2 {
+                    total += 15.0
+                }
             }
         }
 
@@ -1394,7 +1452,7 @@ public struct LayoutOptimizerEngine: Sendable {
             for earlier in earlierPlacements {
                 let sameSpot: Bool
                 if let wall = candidate.wall, let earlierWall = earlier.wall {
-                    sameSpot = wall == earlierWall && abs(candidate.along - earlier.along) < 0.6
+                    sameSpot = wall == earlierWall && abs(candidate.along - earlier.along) < 0.6 && hypot(candidate.x - earlier.x, candidate.z - earlier.z) < 0.6
                 } else {
                     sameSpot = hypot(candidate.x - earlier.x, candidate.z - earlier.z) < 0.4
                 }
@@ -1415,35 +1473,11 @@ public struct LayoutOptimizerEngine: Sendable {
     }
 
     private func clampInside(_ item: Furniture, scene: Scene) {
-        let isWallItem = ["bed", "desk", "closet", "wardrobe", "sofa", "couch", "television", "tv"].contains(item.category.lowercased())
-        if isWallItem {
-            let wall = RoomWall.nearest(toX: item.positionX, z: item.positionZ, halfWidth: scene.halfW, halfLength: scene.halfL)
-            let yaw = FurnitureOrientation.yaw(forCategory: item.category, backTowards: wall.towardWall)
-            let b = Self.box(x: 0, z: 0, yaw: yaw, width: item.width, length: item.length)
-            item.rotationYaw = yaw
-            let ex = b.width / 2
-            let ez = b.length / 2
-            switch wall {
-            case .north:
-                item.positionZ = -scene.halfL + ez + Self.wallGap
-                item.positionX = min(max(item.positionX, -scene.halfW + ex + Self.wallGap), scene.halfW - ex - Self.wallGap)
-            case .south:
-                item.positionZ = scene.halfL - ez - Self.wallGap
-                item.positionX = min(max(item.positionX, -scene.halfW + ex + Self.wallGap), scene.halfW - ex - Self.wallGap)
-            case .east:
-                item.positionX = scene.halfW - ex - Self.wallGap
-                item.positionZ = min(max(item.positionZ, -scene.halfL + ez + Self.wallGap), scene.halfL - ez - Self.wallGap)
-            case .west:
-                item.positionX = -scene.halfW + ex + Self.wallGap
-                item.positionZ = min(max(item.positionZ, -scene.halfL + ez + Self.wallGap), scene.halfL - ez - Self.wallGap)
-            }
-        } else {
-            let box = clearance.boundingBox(for: item)
-            let marginX = box.width / 2
-            let marginZ = box.length / 2
-            item.positionX = min(max(item.positionX, -scene.halfW + marginX), scene.halfW - marginX)
-            item.positionZ = min(max(item.positionZ, -scene.halfL + marginZ), scene.halfL - marginZ)
-        }
+        let box = clearance.boundingBox(for: item)
+        let marginX = box.width / 2
+        let marginZ = box.length / 2
+        item.positionX = min(max(item.positionX, -scene.halfW + marginX + Self.wallGap), scene.halfW - marginX - Self.wallGap)
+        item.positionZ = min(max(item.positionZ, -scene.halfL + marginZ + Self.wallGap), scene.halfL - marginZ - Self.wallGap)
     }
 
     private func cloneFurniture(_ item: Furniture) -> Furniture {
