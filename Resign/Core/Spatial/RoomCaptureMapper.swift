@@ -14,7 +14,8 @@ public final class RoomCaptureMapper: Sendable {
         self.sanitizer = sanitizer
     }
 
-    public func mapToRoom(payload: CapturedRoomPayload, roomName: String = "Scanned Room") -> Room {
+    public func mapToRoom(payload: CapturedRoomPayload, roomName: String = "Scanned Room",
+                          northCalibration: ScanNorthCalibration? = nil) -> Room {
         let longerSide = max(payload.roomLength, payload.roomWidth)
         let shorterSide = min(payload.roomLength, payload.roomWidth)
         let room = Room(
@@ -28,9 +29,12 @@ public final class RoomCaptureMapper: Sendable {
         )
         let snapshot: RoomPlanSnapshot?
         if !payload.walls.isEmpty {
-            let snap = RoomPlanSnapshot(walls: payload.walls, floorLevel: payload.floorLevel)
+            let snap = RoomPlanSnapshot(walls: payload.walls, floorLevel: payload.floorLevel, northCalibration: northCalibration)
             snapshot = snap
             room.planSnapshotData = try? JSONEncoder().encode(snap)
+            if let northCalibration {
+                room.compass = northCalibration.roomHeadingDegrees(planYawRadians: snap.yawRadians)
+            }
         } else {
             snapshot = nil
         }

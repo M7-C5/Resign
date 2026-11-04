@@ -167,4 +167,3 @@ public struct SpatialJourneyFlowView: View {
         }
     }
 }
-

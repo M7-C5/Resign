@@ -129,9 +129,12 @@ public struct RoomPlanSnapshot: Codable, Sendable, Hashable {
     public let yawRadians: Float
     public let floorLevel: Float?
     public let wallSegments: [WallSegment]
+    /// Nil for older rooms or scans without a reliable true-north estimate.
+    public let northCalibration: ScanNorthCalibration?
 
-    public init(walls: [ScannedWallPayload], floorLevel: Float? = nil) {
+    public init(walls: [ScannedWallPayload], floorLevel: Float? = nil, northCalibration: ScanNorthCalibration? = nil) {
         self.floorLevel = floorLevel
+        self.northCalibration = northCalibration
         guard let primaryWall = walls.max(by: { $0.dimensions.x < $1.dimensions.x }) else {
             centerX = 0
             centerZ = 0

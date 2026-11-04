@@ -25,6 +25,7 @@ struct RoomSimulationView: View {
             RoomRenderSurface(
                 controller: controller,
                 settings: settings,
+                fixtures: fixtures,
                 selectedFurnitureID: selectedFurnitureID,
                 archiveTargetCenter: archiveTargetCenter,
                 onSelectFurniture: onSelectFurniture,
@@ -74,9 +75,6 @@ struct RoomSimulationView: View {
             }
         }
         .accessibilityLabel(settings.previewMode == .layoutOnly ? "Room layout preview" : "Room 3D viewport")
-        .onChange(of: fixtures) { _, newFixtures in
-            controller.setLightingFixtures(newFixtures)
-        }
         .onChange(of: controller.resolvedWindowAzimuths) { _, directions in
             if let directions { onWindowDirectionsResolved?(directions) }
         }
@@ -87,6 +85,7 @@ struct RoomSimulationView: View {
 private struct RoomRenderSurface: UIViewRepresentable {
     let controller: RoomSceneController
     let settings: LightingSimulationSettings
+    let fixtures: [RoomLightingFixture]?
     var selectedFurnitureID: UUID?
     var archiveTargetCenter: CGPoint?
     var onSelectFurniture: ((UUID?) -> Void)?
@@ -360,6 +359,7 @@ private struct RoomRenderSurface: UIViewRepresentable {
         view.environment.background = .color(StudioTheme.uiCanvasBackground)
         view.renderOptions.insert([.disableMotionBlur, .disableDepthOfField])
 
+        controller.setLightingFixtures(fixtures)
         controller.install(in: view)
         controller.apply(settings)
         view.environment.lighting.intensityExponent = controller.rig.ambientExponent
@@ -379,6 +379,7 @@ private struct RoomRenderSurface: UIViewRepresentable {
     }
 
     func updateUIView(_ view: ARView, context: Context) {
+        controller.setLightingFixtures(fixtures)
         controller.apply(settings)
         view.environment.lighting.intensityExponent = controller.rig.ambientExponent
         context.coordinator.selectedFurnitureID = selectedFurnitureID

@@ -299,4 +299,3 @@ struct RoomPreferenceInsightTests {
         #expect(titles.contains("Spacious"), "Must synthesize a spacious circulation rule")
     }
 }
-

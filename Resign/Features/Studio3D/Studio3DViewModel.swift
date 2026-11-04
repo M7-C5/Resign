@@ -79,7 +79,6 @@ public final class Studio3DViewModel {
     public var currentLayout: Layout? = nil
     public var shouldAnimateLayoutChange: Bool = true
     public var activeLayoutVersion: Int = 0
-
     private(set) var lightingSettings = LightingSimulationSettings(previewMode: .layoutOnly)
     var lightingDraft = LightingSimulationSettings(previewMode: .layoutOnly)
     var isLightingPresented = false

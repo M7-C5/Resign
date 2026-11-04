@@ -161,6 +161,8 @@ Calculates the exact sun vector in room coordinate space:
    where $\phi$ is latitude, $\delta$ is solar declination, and $h$ is hour angle.
 5. **Room Coordinate Transform**: Rotates the real-world solar azimuth by the room's true-north alignment heading:
    $$\theta_{\text{room}} = \theta_{\text{solar}} - \theta_{\text{true\_north}} - \theta_{\text{avatar\_offset}}$$
+
+During a RoomPlan scan, a foreground sensor adapter pairs true-heading readings with the same-time AR camera orientation. A small scan badge distinguishes searching, calibrated, paused, permission-required, compass-unavailable, and uncalibrated states. The accepted bearing is stored with `RoomPlanSnapshot`; Configure Lighting rotates a north marker from that saved room bearing. Older snapshots remain valid. If a captured perimeter cannot be verified, the lighting editor keeps a manual placement lattice within the available plan bounds and warns users to place lights inside the visible room. See [ADR 0048](adr/0048-automatic-north-calibration-during-room-scan.md) and [ADR 0045](adr/0045-manual-light-placement-on-uncertain-outlines.md).
 6. **RealityKit DirectionalLightEntity**: Directly updates the sunlight direction and color temperature (Kelvin to RGB gradient) to cast physically accurate window shadows in real time.
 
 ### B. Spatial Clearance & Layout Scoring Engine
@@ -202,6 +204,8 @@ Connects scanned room data to deterministic clearance checks and LLM qualitative
 ---
 
 ## 5. Codebase Layout & Architectural Invariants
+
+The lighting viewport synchronizes saved fixture inputs before initial installation and on every SwiftUI surface update. This includes positions, brightness, temperature, on/off state, and an explicitly empty fixture list. Configure Lighting saves those values to the selected layout; reopening Studio 3D or updating the same layout supplies them to the existing lighting rig without waiting for an additional change event. Preview fixtures are used only when no selected-layout fixture input is supplied.
 
 The repository is organized following the **Vertical Feature-Slice Architecture** to maximize team velocity, prevent git merge collisions, and guarantee 120 FPS rendering performance:
 

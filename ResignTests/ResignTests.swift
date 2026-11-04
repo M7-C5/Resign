@@ -468,6 +468,13 @@ struct RoomNorthOrientationTests {
         #expect(NorthAlignmentCalibration.roomHeadingDegrees(northArrowPlanRotationDegrees: -90) == 90)
         #expect(NorthAlignmentCalibration.roomHeadingDegrees(northArrowPlanRotationDegrees: 360) == 0)
     }
+
+    @Test func northIndicatorRotationPointsFromRoomFrameTowardTrueNorth() {
+        #expect(NorthAlignmentCalibration.northArrowPlanRotationDegrees(roomHeadingDegrees: 0) == 0)
+        #expect(NorthAlignmentCalibration.northArrowPlanRotationDegrees(roomHeadingDegrees: 90) == 270)
+        #expect(NorthAlignmentCalibration.northArrowPlanRotationDegrees(roomHeadingDegrees: 270) == 90)
+        #expect(NorthAlignmentCalibration.northArrowPlanRotationDegrees(roomHeadingDegrees: 360) == 0)
+    }
 }
 
 @Suite("Lighting simulation modal")
@@ -1066,8 +1073,9 @@ struct AdaptiveCeilingPlacementTests {
         #expect(!grid.points.contains { $0.x > 1.0 / 3 && $0.y > 1.0 / 3 })
         #expect(!grid.points.contains([0.5, 0.5])) // The bounds center lies outside this L-shaped room.
         let incomplete = CeilingLightPlacementGrid(bounds: bounds, walls: Array(walls.dropLast()))
-        #expect(incomplete.points.isEmpty) // Never offer outside positions for an unclosed scan.
         #expect(!incomplete.hasUsableBoundary)
+        #expect(!incomplete.points.isEmpty) // Uncertain scans keep manual placement available.
+        #expect(incomplete.allowsPlacement(at: [0.5, 0.5])) // UI warns users to tap within visible walls.
     }
 
     @Test func smallScanGapsAreJoinedWithoutFillingConcaveCutout() {
@@ -1106,7 +1114,8 @@ struct AdaptiveCeilingPlacementTests {
             #expect(abs(x) + abs(z) < 2 - 0.2 * Float(2).squareRoot())
         }
         let open = CeilingLightPlacementGrid(bounds: bounds, walls: Array(walls.dropLast()))
-        #expect(open.points.isEmpty && !open.allowsPlacement(at: [0.5, 0.5]))
+        #expect(!open.hasUsableBoundary && !open.points.isEmpty)
+        #expect(open.allowsPlacement(at: [0.5, 0.5]))
     }
 
     @Test func scannedOutlineAcceptsDuplicateAndOverlappingWallFragments() {
@@ -1146,7 +1155,8 @@ struct AdaptiveCeilingPlacementTests {
         #expect(grid.hasUsableBoundary && grid.points.contains([0.5, 0.5]))
         #expect(!grid.allowsPlacement(at: [0.99, 0.5]))
         let incomplete = CeilingLightPlacementGrid(bounds: bounds, walls: Array(walls.dropLast()))
-        #expect(!incomplete.hasUsableBoundary && incomplete.points.isEmpty)
+        #expect(!incomplete.hasUsableBoundary && !incomplete.points.isEmpty)
+        #expect(incomplete.allowsPlacement(at: [0.5, 0.5]))
     }
 
     @Test @MainActor func fractionalPlacementSurvivesSaveAndSimulation() throws {

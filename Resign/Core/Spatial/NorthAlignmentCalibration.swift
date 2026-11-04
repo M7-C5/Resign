@@ -7,6 +7,10 @@ struct NorthAlignmentCalibration: Equatable {
         normalized(-northArrowPlanRotationDegrees)
     }
 
+    static func northArrowPlanRotationDegrees(roomHeadingDegrees: Double) -> Double {
+        normalized(-roomHeadingDegrees)
+    }
+
     static func normalized(_ degrees: Double) -> Double {
         let remainder = degrees.truncatingRemainder(dividingBy: 360)
         return remainder >= 0 ? remainder : remainder + 360

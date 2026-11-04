@@ -66,12 +66,18 @@ struct CeilingLightPlacementGrid: Sendable {
                                boundary: [RoomPlanSnapshot.WallSegment]?,
                                capturedWalls: [RoomPlanSnapshot.WallSegment], clearance: Float) -> Bool {
         guard unit.x.isFinite, unit.y.isFinite,
-              (0...1).contains(unit.x), (0...1).contains(unit.y), let boundary else { return false }
+              (0...1).contains(unit.x), (0...1).contains(unit.y) else { return false }
+        let edgeClearance = min(unit.x, 1 - unit.x) * bounds.width >= clearance
+            && min(unit.y, 1 - unit.y) * bounds.length >= clearance
         let point = SIMD2<Float>(bounds.minX + unit.x * bounds.width, bounds.minZ + unit.y * bounds.length)
+        guard let boundary else {
+            // Keep manual placement available when captured walls do not prove a closed room.
+            // Users select points against the visible plan while the UI labels the outline uncertain.
+            return edgeClearance
+        }
         if boundary.isEmpty {
             // The displayed plan is rectangular only when no captured wall metadata exists.
-            return min(unit.x, 1 - unit.x) * bounds.width >= clearance
-                && min(unit.y, 1 - unit.y) * bounds.length >= clearance
+            return edgeClearance
         }
         guard contains(point, walls: boundary) else { return false }
         return boundary.allSatisfy { distanceToWallSquared(point, $0) >= clearance * clearance }

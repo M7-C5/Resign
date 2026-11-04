@@ -13,7 +13,7 @@ public enum USDZRoomLoaderError: Error, LocalizedError {
     case fileNotFound(String)
     case unreadableAsset(URL)
     case noMeshElementsFound
-    
+
     public var errorDescription: String? {
         switch self {
         case .fileNotFound(let path):

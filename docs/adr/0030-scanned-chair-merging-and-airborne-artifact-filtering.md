@@ -33,17 +33,17 @@ Chosen Option: **Option 2 (Sanitizer Pipeline Chair Merging, Artifact Filtering,
 flowchart TD
     RawScan[Raw RoomPlan Scanned Objects] --> TableMerge[mergeCollidingTables]
     TableMerge --> ChairPass[mergeAndFilterChairs]
-    
+
     subgraph ChairSanitization["Chair Sanitization Pass"]
         ChairPass --> FilterAirborne["Discard chairs with bottom > 0.5m above floor"]
         FilterAirborne --> PairCheck["Find co-located chair backrest + seat pairs (dist <= 0.45m)"]
         PairCheck --> MergeBoxes["Merge into single chair volume: combined bounds, backrest yaw"]
     end
-    
+
     ChairSanitization --> Grounding["Enforce Floor Grounding: baseY = floorLevel"]
     Grounding --> LocalNorm["RoomCaptureMapper: localCoordinates, localYaw, Y = 0.0"]
     LocalNorm --> SwiftData[Layout.furnitures in SwiftData]
-    
+
     SwiftData --> Factory["FurnitureEntityFactory"]
     Factory --> OpenTable["Table / Desk: Tabletop Slab + 4 Corner Legs (Open Cavity)"]
     Factory --> SingleChair["Chair: Unified Bounding Box Grounded at Y = 0.0"]

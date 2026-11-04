@@ -81,7 +81,7 @@ public struct RoomDiagnosticPromptBuilder: Sendable {
         userPreference: RoomPreference
     ) -> String {
         let payload = createPayload(room: room, layout: layout, violations: violations, userPreference: userPreference)
-        
+
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
         let jsonString: String

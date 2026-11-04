@@ -33,18 +33,18 @@ Chosen Option: **Option 2 (Ingestion-time coordinate normalization with legacy m
 flowchart TD
     ScanPayload[CapturedRoomPayload: Raw ARKit Space] --> Snapshot[Compute RoomPlanSnapshot: Center, Primary Yaw, FloorLevel]
     ScanPayload --> Sanitize[RoomCaptureSanitizer: Merge, Wall Snap, Resolve Elevation]
-    
+
     Sanitize --> Normalize[RoomCaptureMapper Normalization]
     Snapshot --> Normalize
-    
+
     Normalize -->|X, Z| LocalXZ["localCoordinates(worldX, worldZ) -> (posX, posZ)"]
     Normalize -->|Yaw| LocalYaw["localYaw(worldYaw) -> rotationYaw"]
     Normalize -->|Y| LocalY["max(0, obj.position.y - floorLevel) -> positionY"]
-    
+
     LocalXZ --> SwiftData[SwiftData: Furniture in Normalized Room Space]
     LocalYaw --> SwiftData
     LocalY --> SwiftData
-    
+
     SwiftData --> Studio3D[RoomSceneController / Studio3DView]
     Studio3D --> DisableObjects["Disable Object_grp in loaded USDZ"]
     Studio3D --> AlignMesh["Align USDZ via RoomPlanSnapshot: center (0,0), floor Y = 0.0"]

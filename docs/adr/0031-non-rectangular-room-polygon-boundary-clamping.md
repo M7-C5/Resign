@@ -32,7 +32,7 @@ Chosen Option: **Option 3 (Dual-Stage Full-Envelope Clamping with Polygon Projec
 flowchart TD
     TouchDrag[User Drag Gesture: floorPos (X, Z)] --> FullBox["Stage 1: Clamp to Full Envelope [minX, maxX] x [minZ, maxZ] (RoomPlanBounds)"]
     FullBox --> PolygonCheck{"Stage 2: Point in Polygon? (Ray-Casting against wallSegments)"}
-    
+
     PolygonCheck -->|Inside Room Polygon| AllowMove["Move Furniture to Clamped (X, Z)"]
     PolygonCheck -->|Outside in Notch/Void| Project["Project to Closest Wall Segment + Interior Margin"]
     Project --> AllowMove

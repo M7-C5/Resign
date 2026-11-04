@@ -27,12 +27,15 @@ public final class RoomScanViewModel {
     public var state: ScanState = .checkingHardware
     public var isShowingConfirmationAlert: Bool = false
     public var isCancelled: Bool = false
+    public var northCalibrationStatus: NorthCalibrationStatus = .searching
+    public var compassInterferenceWarning: CompassInterferenceWarning?
 
     public var isSupported: Bool {
         RoomCaptureSession.isSupported
     }
 
     @ObservationIgnored private var _captureView: RoomCaptureView?
+    @ObservationIgnored private var northTracker: ScanNorthTrackingService?
 
     @MainActor
     public var captureView: RoomCaptureView {
@@ -68,6 +71,8 @@ public final class RoomScanViewModel {
 
     @MainActor
     public func reset() {
+        northTracker?.stop(discard: true)
+        northCalibrationStatus = .searching
         isCancelled = false
         isShowingConfirmationAlert = false
         checkHardware()
@@ -84,7 +89,21 @@ public final class RoomScanViewModel {
         isShowingConfirmationAlert = false
         let configuration = RoomCaptureSession.Configuration()
         captureView.captureSession.run(configuration: configuration)
+        startNorthTracking()
         state = .scanning
+    }
+
+    @MainActor
+    private func startNorthTracking() {
+        let tracker = northTracker ?? ScanNorthTrackingService()
+        northTracker = tracker
+        tracker.onStatusChange = { [weak self] status in
+            self?.northCalibrationStatus = status
+        }
+        tracker.onInterferenceChange = { [weak self] warning in
+            self?.compassInterferenceWarning = warning
+        }
+        tracker.start(session: captureView.captureSession.arSession)
     }
 
     @MainActor
@@ -106,6 +125,7 @@ public final class RoomScanViewModel {
 
     @MainActor
     public func stopScanning() {
+        northTracker?.stop(discard: false)
         isCancelled = false
         _captureView?.captureSession.stop()
         state = .processing
@@ -113,6 +133,7 @@ public final class RoomScanViewModel {
 
     @MainActor
     public func cancelScanning() {
+        northTracker?.stop(discard: true)
         isCancelled = true
         isShowingConfirmationAlert = false
         _captureView?.captureSession.stop(pauseARSession: true)
@@ -121,8 +142,28 @@ public final class RoomScanViewModel {
 
     @MainActor
     public func pauseScanningIfActive() {
+        // Always release location/heading updates when this screen leaves foreground.
+        northTracker?.stop(discard: state == .scanning)
         guard state == .scanning else { return }
         _captureView?.captureSession.stop(pauseARSession: true)
+    }
+
+    @MainActor
+    public func suspendNorthTracking() {
+        // A saved estimate must survive inactive transitions during scan processing.
+        northTracker?.stop(discard: state == .scanning)
+    }
+
+    @MainActor
+    public func resumeNorthTracking() {
+        guard state == .scanning else { return }
+        startNorthTracking()
+    }
+
+    @MainActor
+    public func failScanning(_ error: Error) {
+        northTracker?.stop(discard: true)
+        state = .error(error.localizedDescription)
     }
 
     public func isValidScan(payload: CapturedRoomPayload) -> Bool {
@@ -159,7 +200,9 @@ public final class RoomScanViewModel {
             return
         }
 
-        let room = mapper.mapToRoom(payload: payload, roomName: roomName)
+        northTracker?.stop(discard: false)
+        let room = mapper.mapToRoom(payload: payload, roomName: roomName,
+                                    northCalibration: northTracker?.calibration)
 
         if let exportAction {
             let docsDir = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]

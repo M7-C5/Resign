@@ -146,4 +146,3 @@ struct SpatialJourneyFlowTests {
         #expect(room.layouts.contains(where: { $0.id == selected.id }))
     }
 }
-

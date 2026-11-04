@@ -46,19 +46,19 @@ public struct SpatialViolation: Identifiable, Codable, Equatable, Sendable {
 public struct PaneroZelnikRule: Sendable {
     /// Walkways critical clearance threshold: 76.2 cm (30 inches)
     public static let walkwayCritical = "R1"
-    
+
     /// Walkways recommended clearance threshold: 91.4 cm (36 inches)
     public static let walkwayRecommended = "R2"
-    
+
     /// Desk rear clearance for chair pull-back and seated egress: 76.2 cm (30 inches)
     public static let deskRearClearance = "R3"
-    
+
     /// Bed operational zone for bed-making: 66.0 – 99.0 cm (26 – 39 inches)
     public static let bedOperationalZone = "R4"
-    
+
     /// Under-bed drawer / storage operational clearance: 116.0 – 157.0 cm (46 – 62 inches)
     public static let bedStorageZone = "R5"
-    
+
     /// Door swing must remain 100% unobstructed (0 cm margin allowed)
     public static let doorSwingUnobstructed = "R6"
 }

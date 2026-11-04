@@ -250,4 +250,3 @@ struct AIDiagnosticPipelineTests {
         #expect(decoded?.solverSettings.goalWeights.spacious == 0.5)
     }
 }
-

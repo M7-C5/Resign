@@ -40,7 +40,7 @@ flowchart TD
 3. **Model & USDZ Asset Generation**:
    - Translates detected bounding boxes and spatial dimensions into a unified USDZ 3D room hierarchy, automatically substituting generic wireframes with curated 3D model assets.
 4. **Post-Scan Lighting Setup**:
-   - Scan review opens Configure Lighting directly, with placement points over the saved room plan. The standalone compass and manual north-marker screen have been removed. Existing stored room bearings remain available to lighting simulation; capturing north during scanning is a separate future change. See [ADR 0036](docs/adr/0036-remove-standalone-compass.md).
+   - Scan review opens Configure Lighting directly, with placement points over the saved room plan. While RoomPlan scans, the app samples true-north heading alongside the AR camera orientation and distinguishes searching, calibrated, paused, permission-required, and compass-unavailable states. Configure Lighting shows a north arrow when a saved calibration exists. If the captured outline cannot be verified, manual placement remains available over the available plan bounds with an uncertainty notice. See [ADR 0036](docs/adr/0036-remove-standalone-compass.md), [ADR 0048](docs/adr/0048-automatic-north-calibration-during-room-scan.md), and [ADR 0045](docs/adr/0045-manual-light-placement-on-uncertain-outlines.md).
 5. **Photometric Calibration**:
    - Allows users to specify luminosity (lux / lumens) and correlated color temperature (Kelvin: warm 2700K to daylight 6500K) for each fixture.
 6. **User Needs & Pain Point Intake**:
@@ -63,6 +63,10 @@ flowchart TD
     - **1:1 Immersive AR View**: Drops the user into the re-arranged 3D render at scale, letting them physically walk through the proposed room redesign in augmented reality using ARKit.
 
 The Dashboard starts the room scanner in its creation flow. Scan review continues directly to Configure Lighting. Saving lights returns to the Dashboard; opening that saved layout in Studio 3D uses its stored room bearing and fixtures.
+
+North appears as an estimate as soon as a valid compass reading is paired with the scan camera. Both the scan badge and lighting-plan arrow show its uncertainty; a stable, accurate estimate becomes calibrated. See [ADR 0046](docs/adr/0046-immediate-compass-estimates.md).
+
+During scanning, sustained high magnetic-field readings or poor compass accuracy show an inline advisory about possible interference from magnetic cases, accessories, or nearby metal. The banner clears when readings recover and does not block scanning or saving estimates. This cannot identify a magnetic case with certainty. See [ADR 0047](docs/adr/0047-compass-interference-advisory.md).
 
 ---
 
