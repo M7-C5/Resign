@@ -23,6 +23,7 @@ struct RoomSimulationView: View {
             RoomRenderSurface(
                 controller: controller,
                 settings: settings,
+                fixtures: fixtures,
                 archiveTargetCenter: archiveTargetCenter,
                 onSelectFurniture: onSelectFurniture,
                 onMoveFurniture: onMoveFurniture,
@@ -71,9 +72,6 @@ struct RoomSimulationView: View {
             }
         }
         .accessibilityLabel(settings.previewMode == .layoutOnly ? "Room layout preview" : "Room 3D viewport")
-        .onChange(of: fixtures) { _, newFixtures in
-            controller.setLightingFixtures(newFixtures)
-        }
         .onChange(of: controller.resolvedWindowAzimuths) { _, directions in
             if let directions { onWindowDirectionsResolved?(directions) }
         }
@@ -84,6 +82,7 @@ struct RoomSimulationView: View {
 private struct RoomRenderSurface: UIViewRepresentable {
     let controller: RoomSceneController
     let settings: LightingSimulationSettings
+    let fixtures: [RoomLightingFixture]?
     var archiveTargetCenter: CGPoint?
     var onSelectFurniture: ((UUID?) -> Void)?
     var onMoveFurniture: ((UUID, SIMD2<Float>) -> Void)?
@@ -394,6 +393,7 @@ private struct RoomRenderSurface: UIViewRepresentable {
         view.environment.background = .color(UIColor(red: 250.0 / 255, green: 249.0 / 255, blue: 246.0 / 255, alpha: 1))
         view.renderOptions.insert([.disableMotionBlur, .disableDepthOfField])
 
+        controller.setLightingFixtures(fixtures)
         controller.install(in: view)
         controller.apply(settings)
         view.environment.lighting.intensityExponent = controller.rig.ambientExponent
@@ -413,6 +413,7 @@ private struct RoomRenderSurface: UIViewRepresentable {
     }
 
     func updateUIView(_ view: ARView, context: Context) {
+        controller.setLightingFixtures(fixtures)
         controller.apply(settings)
         view.environment.lighting.intensityExponent = controller.rig.ambientExponent
         context.coordinator.archiveTargetCenter = archiveTargetCenter

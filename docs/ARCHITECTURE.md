@@ -205,6 +205,8 @@ Connects scanned room data to deterministic clearance checks and LLM qualitative
 
 ## 5. Codebase Layout & Architectural Invariants
 
+The lighting viewport synchronizes saved fixture inputs before initial installation and on every SwiftUI surface update. This includes positions, brightness, temperature, on/off state, and an explicitly empty fixture list. Configure Lighting saves those values to the selected layout; reopening Studio 3D or updating the same layout supplies them to the existing lighting rig without waiting for an additional change event. Preview fixtures are used only when no selected-layout fixture input is supplied.
+
 The repository is organized following the **Vertical Feature-Slice Architecture** to maximize team velocity, prevent git merge collisions, and guarantee 120 FPS rendering performance:
 
 ```text

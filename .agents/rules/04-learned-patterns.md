@@ -26,6 +26,10 @@
 
 ## 🔍 Detailed Heuristic Profiles
 
+### LP-015: Saved Fixtures Must Reach the Initial Render
+* **Context**: A default-created scene controller retained preview fixtures because a SwiftUI `onChange` without initial execution never applied already-saved layout lights on first appearance.
+* **Rule**: Pass fixture values into the render surface and synchronize them before installation and each surface update. Preserve nil as preview input and an empty array as a saved layout with no fixtures. Test Save-to-rig updates, deletion, and empty input.
+
 ### LP-014: Heading Callback Rate Must Not Shorten Calibration Time
 * **Context**: A count-limited heading buffer can retain less than the required observation duration when callback frequency increases, leaving calibration permanently searching.
 * **Rule**: Space accepted samples in time and retain a window long enough for the minimum observation duration. Test with high-frequency callback replays. Preserve the frozen calibration through processing transitions; searching is not a successful calibration.
