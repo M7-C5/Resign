@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- feat: add scan north estimates and resilient lighting setup (9ab1dfc)
 - feat(lighting): optimize tablet placement workspace scaling and vertical centering (e514481)
 - feat(dashboard): add spatial diagnostics entry point to room details and enforce Dynamic Type (9c5a383)
 - feat(insights): integrate Foundation Models spatial diagnostics, tool calling, and 3D suggestion flow (551b018)
