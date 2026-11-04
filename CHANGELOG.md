@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
 - feat(studio-3d): implement Sims-style circular halo HUD and circular motion rotation tracking (4c74b6c)
 - feat(theme): establish Studio design tokens and update drawer icon styling (d956d18)
 - feat(interaction): gate furniture floor translation behind explicit selection tap (98eb6e4)
@@ -25,6 +26,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - feat(spatial): support aperture-aware ceiling outlines and interior wall partitions (ba278e7)
 =======
 =======
+=======
+- feat(insights): display all problem chips directly and deepen free-text intent understanding (bf1d5a0)
+>>>>>>> f331585 (docs(changelog): update automated release notes)
 - feat(solver): enable multi-depth floating furniture tiers and island layout optimization (edbaefd)
 >>>>>>> 5586840 (docs(changelog): update automated release notes)
 - feat(lighting): optimize tablet placement workspace scaling and vertical centering (243bc15)
@@ -139,6 +143,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
 - docs(adr): document Sims floating HUD architecture and compile release notes (f9ab377)
 - docs(changelog): update automated release notes (a3e2d92)
 - docs(adr): update coordinate normalization decision record for room plan view (4cb1adb)
@@ -153,6 +158,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 =======
 =======
 =======
+=======
+- docs(changelog): update automated release notes (5586840)
+>>>>>>> f331585 (docs(changelog): update automated release notes)
 - docs(changelog): update automated release notes (1b5fc73)
 >>>>>>> 5586840 (docs(changelog): update automated release notes)
 - docs(changelog): update automated release notes (beeb207)
