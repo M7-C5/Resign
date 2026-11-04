@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- feat(studio-3d): anchor layout save options menu to top right navigation (7cd8f38)
+- feat(studio-3d): support layout persistence and deep-cloned layout creation (8e4c2fa)
 - feat(studio-3d): implement Sims-style circular halo HUD and circular motion rotation tracking (4c74b6c)
 - feat(theme): establish Studio design tokens and update drawer icon styling (d956d18)
 - feat(interaction): gate furniture floor translation behind explicit selection tap (98eb6e4)
@@ -69,6 +71,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - refactor(arch): scaffold vertical feature-slice architecture with skeleton modules (3419a7d)
 
 ### Fixed
+- fix(studio-3d): update action icons and isolate touch targets (64cc33b)
 - fix(studio-3d): isolate floating HUD rotation gesture bounds to button frame (602a562)
 - fix(lighting): align furniture footprint coordinates and yaw in scanned room plan (4fbe875)
 - fix(scan): reject single-wall slice scans in capture quality gate (733f8ac)
@@ -106,6 +109,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - fix(lighting-simulation): shape natural light to the window (5fbb493)
 
 ### Documentation
+- docs(changelog): update automated release notes (47adac3)
 - docs(adr): document Sims floating HUD architecture and compile release notes (f9ab377)
 - docs(changelog): update automated release notes (a3e2d92)
 - docs(adr): update coordinate normalization decision record for room plan view (4cb1adb)
