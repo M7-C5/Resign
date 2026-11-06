@@ -282,11 +282,34 @@ struct AIDiagnosticPipelineTests {
             userPreference: "Spacious Circulation"
         )
 
-        // Verifies that whether on-device Foundation Model is active or fallback engages,
+        // Verifies that whether Private Cloud Compute, on-device Foundation Model, or fallback engages,
         // a valid, sanitized AIDiagnosticResponse is guaranteed
         #expect(!response.solverSettings.mustHaveItemIds.isEmpty)
         #expect(response.solverSettings.goalWeights.spacious >= 0.0)
-        #expect(response.engineSource == .rulebookFallback || response.engineSource == .appleIntelligence)
+        #expect(response.engineSource == .rulebookFallback || response.engineSource == .appleIntelligence || response.engineSource == .privateCloudCompute)
+    }
+
+    @Test @MainActor func foundationModelComputeTargetDefaultsToPrivateCloudCompute() async throws {
+        let defaultService = FoundationModelAIDiagnosticService()
+        #expect(defaultService.computeTarget == .privateCloudCompute)
+
+        let onDeviceService = FoundationModelAIDiagnosticService(computeTarget: .onDevice)
+        #expect(onDeviceService.computeTarget == .onDevice)
+
+        let autoService = FoundationModelAIDiagnosticService(computeTarget: .automatic)
+        #expect(autoService.computeTarget == .automatic)
+    }
+
+    @Test func privateCloudComputeEngineSourceEncodesAndDecodesCleanly() throws {
+        let response = AIDiagnosticResponse(
+            insights: [],
+            solverSettings: SolverSettings(),
+            engineSource: .privateCloudCompute
+        )
+        let data = try JSONEncoder().encode(response)
+        let decoded = try JSONDecoder().decode(AIDiagnosticResponse.self, from: data)
+        #expect(decoded.engineSource == .privateCloudCompute)
+        #expect(decoded.engineSource.rawValue == "Private Cloud Compute")
     }
 
     @Test func foundationModelResilientDecoderHandlesMissingIDAndMalformedFields() {

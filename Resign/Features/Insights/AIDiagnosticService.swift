@@ -28,9 +28,14 @@ public protocol AIDiagnosticServiceProtocol {
 
 @MainActor
 public final class FoundationModelAIDiagnosticService: AIDiagnosticServiceProtocol {
+    public let computeTarget: FoundationModelComputeTarget
     private let fallbackService: AIDiagnosticServiceProtocol
 
-    public init(fallbackService: AIDiagnosticServiceProtocol? = nil) {
+    public init(
+        computeTarget: FoundationModelComputeTarget = .privateCloudCompute,
+        fallbackService: AIDiagnosticServiceProtocol? = nil
+    ) {
+        self.computeTarget = computeTarget
         self.fallbackService = fallbackService ?? RulebookAIDiagnosticService()
     }
 
@@ -49,20 +54,6 @@ public final class FoundationModelAIDiagnosticService: AIDiagnosticServiceProtoc
         let activeFurnitures = layout.furnitures.filter { !$0.isArchived }
         let activeIDs = Set(activeFurnitures.map(\.id))
 
-        // Check if Apple Foundation Models are available on-device
-        guard !Self.isRunningInTestEnvironment && SystemLanguageModel.default.isAvailable else {
-            print("ℹ️ [Resign AI] SystemLanguageModel.default is disabled for testing or unavailable. Routing through RulebookAIDiagnosticService fallback.")
-            return try await fallbackService.diagnose(
-                room: room,
-                layout: layout,
-                violations: violations,
-                userPreference: userPreference
-            )
-        }
-
-        print("✨ [Resign AI] SystemLanguageModel.default.isAvailable is TRUE!")
-        print("✨ [Resign AI] Dispatching prompt to Apple Foundation Model (LanguageModelSession)...")
-
         let prompt = RoomDiagnosticPromptBuilder.buildPrompt(
             room: room,
             layout: layout,
@@ -79,13 +70,54 @@ public final class FoundationModelAIDiagnosticService: AIDiagnosticServiceProtoc
         Always output raw valid JSON adhering strictly to the required schema. Do not output markdown code blocks or explanatory commentary outside the JSON payload.
         """)
 
-        let session = LanguageModelSession(tools: tools, instructions: instructions)
+        var activeSession: LanguageModelSession?
+        var activeSource: DiagnosticEngineSource = .privateCloudCompute
+
+        if !Self.isRunningInTestEnvironment {
+            if #available(iOS 27.0, macOS 27.0, *) {
+                if computeTarget == .privateCloudCompute || computeTarget == .automatic {
+                    let pcc = PrivateCloudComputeLanguageModel()
+                    if pcc.isAvailable {
+                        print("✨ [Resign AI] PrivateCloudComputeLanguageModel.isAvailable is TRUE!")
+                        print("✨ [Resign AI] Dispatching prompt to Apple Private Cloud Compute Foundation Model (LanguageModelSession)...")
+                        activeSession = LanguageModelSession(model: pcc, tools: tools, instructions: instructions)
+                        activeSource = .privateCloudCompute
+                    } else {
+                        print("ℹ️ [Resign AI] PrivateCloudComputeLanguageModel is unavailable. Checking on-device SystemLanguageModel...")
+                    }
+                }
+
+                if activeSession == nil && (computeTarget == .onDevice || computeTarget == .automatic) {
+                    if SystemLanguageModel.default.isAvailable {
+                        print("✨ [Resign AI] SystemLanguageModel.default.isAvailable is TRUE!")
+                        print("✨ [Resign AI] Dispatching prompt to On-Device Apple Foundation Model (LanguageModelSession)...")
+                        activeSession = LanguageModelSession(model: SystemLanguageModel.default, tools: tools, instructions: instructions)
+                        activeSource = .appleIntelligence
+                    }
+                }
+            } else {
+                if SystemLanguageModel.default.isAvailable {
+                    activeSession = LanguageModelSession(tools: tools, instructions: instructions)
+                    activeSource = .appleIntelligence
+                }
+            }
+        }
+
+        guard let session = activeSession else {
+            print("ℹ️ [Resign AI] Foundation Model (\(computeTarget.rawValue)) is disabled for testing or unavailable. Routing through RulebookAIDiagnosticService fallback.")
+            return try await fallbackService.diagnose(
+                room: room,
+                layout: layout,
+                violations: violations,
+                userPreference: userPreference
+            )
+        }
 
         var rawResponseContent: String = ""
         do {
             let response = try await session.respond(to: prompt)
             rawResponseContent = response.content
-            print("📥 [Resign AI] Raw Foundation Model output received (\(response.content.count) chars).")
+            print("📥 [Resign AI] Raw Foundation Model output received from \(activeSource.rawValue) (\(response.content.count) chars).")
             let sanitizedJSON = Self.sanitizeJSONResponse(response.content)
 
             guard let jsonData = sanitizedJSON.data(using: .utf8) else {
@@ -99,7 +131,7 @@ public final class FoundationModelAIDiagnosticService: AIDiagnosticServiceProtoc
             }
 
             var decodedResponse = try JSONDecoder().decode(AIDiagnosticResponse.self, from: jsonData)
-            decodedResponse.engineSource = .appleIntelligence
+            decodedResponse.engineSource = activeSource
 
             // Deterministic backstop: merge derived constraints and tool context constraints
             let combinedConstraints = userPreference.derivedConstraints
@@ -149,7 +181,34 @@ public final class FoundationModelAIDiagnosticService: AIDiagnosticServiceProtoc
         let candidates = engine.candidates(room: room, layout: layout, violations: violations)
         guard !candidates.isEmpty else { return [] }
 
-        guard !Self.isRunningInTestEnvironment && SystemLanguageModel.default.isAvailable else {
+        var activeSession: LanguageModelSession?
+
+        if !Self.isRunningInTestEnvironment {
+            let instructions = Instructions("""
+            You write short, factual interior layout insight cards. Output raw valid JSON only, matching the requested schema. Never add claims beyond the verified facts provided.
+            """)
+
+            if #available(iOS 27.0, macOS 27.0, *) {
+                if computeTarget == .privateCloudCompute || computeTarget == .automatic {
+                    let pcc = PrivateCloudComputeLanguageModel()
+                    if pcc.isAvailable {
+                        activeSession = LanguageModelSession(model: pcc, instructions: instructions)
+                    }
+                }
+
+                if activeSession == nil && (computeTarget == .onDevice || computeTarget == .automatic) {
+                    if SystemLanguageModel.default.isAvailable {
+                        activeSession = LanguageModelSession(model: SystemLanguageModel.default, instructions: instructions)
+                    }
+                }
+            } else {
+                if SystemLanguageModel.default.isAvailable {
+                    activeSession = LanguageModelSession(instructions: instructions)
+                }
+            }
+        }
+
+        guard let session = activeSession else {
             return await fallbackService.generateLayoutInsights(
                 room: room, layout: layout, violations: violations, preference: preference
             )
@@ -160,9 +219,6 @@ public final class FoundationModelAIDiagnosticService: AIDiagnosticServiceProtoc
             candidates: candidates,
             preference: preference
         )
-        let session = LanguageModelSession(instructions: Instructions("""
-        You write short, factual interior layout insight cards. Output raw valid JSON only, matching the requested schema. Never add claims beyond the verified facts provided.
-        """))
 
         do {
             let response = try await session.respond(to: prompt)

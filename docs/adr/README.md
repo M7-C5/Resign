@@ -49,6 +49,7 @@ This directory documents key architectural decisions for **Resign** using the [M
 - [ADR 0043: Universal Furniture Floor Grounding, Strict Wall Shelf Elevation, and Deterministic Legacy Migration](0043-universal-furniture-floor-grounding-and-legacy-normalization.md)
 - [ADR 0044: Sims-Style Projected Furniture Floating HUD and Control Streamlining](0044-sims-style-furniture-floating-hud.md)
 - [ADR 0045: Functional Floating Furniture and Depth-Tier Layout Optimization](0045-functional-floating-furniture-and-depth-tier-optimization.md)
+- [ADR 0046: Private Cloud Compute Foundation Model Integration for Spatial Diagnostics](0046-private-cloud-compute-foundation-model-diagnostics.md)
 
 ## How to Create a New ADR
 1. Copy [template.md](template.md) to `docs/adr/NNNN-title-in-kebab-case.md`.

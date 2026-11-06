@@ -270,8 +270,15 @@ public struct SolverSettings: Codable, Equatable, Sendable {
 }
 
 public enum DiagnosticEngineSource: String, Codable, Equatable, Sendable {
+    case privateCloudCompute = "Private Cloud Compute"
     case appleIntelligence = "Apple Intelligence"
     case rulebookFallback = "Rulebook Engine (Simulator)"
+}
+
+public enum FoundationModelComputeTarget: String, Codable, Equatable, Sendable, CaseIterable {
+    case privateCloudCompute = "Private Cloud Compute"
+    case onDevice = "On-Device Neural Engine"
+    case automatic = "Automatic (PCC with On-Device Fallback)"
 }
 
 public struct AIDiagnosticResponse: Codable, Equatable, Sendable {
@@ -282,7 +289,7 @@ public struct AIDiagnosticResponse: Codable, Equatable, Sendable {
     public init(
         insights: [AIDiagnosticInsight],
         solverSettings: SolverSettings,
-        engineSource: DiagnosticEngineSource = .appleIntelligence
+        engineSource: DiagnosticEngineSource = .privateCloudCompute
     ) {
         self.insights = insights
         self.solverSettings = solverSettings
@@ -297,7 +304,7 @@ public struct AIDiagnosticResponse: Codable, Equatable, Sendable {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         self.insights = (try? container.decode([AIDiagnosticInsight].self, forKey: .insights)) ?? []
         self.solverSettings = (try? container.decode(SolverSettings.self, forKey: .solverSettings)) ?? SolverSettings()
-        self.engineSource = (try? container.decodeIfPresent(DiagnosticEngineSource.self, forKey: .engineSource)) ?? .appleIntelligence
+        self.engineSource = (try? container.decodeIfPresent(DiagnosticEngineSource.self, forKey: .engineSource)) ?? .privateCloudCompute
     }
 }
 

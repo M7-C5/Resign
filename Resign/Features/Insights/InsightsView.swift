@@ -303,7 +303,7 @@ public struct InsightsView: View {
 
                 // Transparent Engine Source Indicator Badge
                 HStack(spacing: 6) {
-                    Image(systemName: response.engineSource == .appleIntelligence ? "sparkles" : "cpu")
+                    Image(systemName: response.engineSource == .privateCloudCompute ? "cloud.fill" : (response.engineSource == .appleIntelligence ? "sparkles" : "cpu"))
                         .font(.caption2)
                     Text("Engine: \(response.engineSource.rawValue)")
                         .font(.caption2).bold()
@@ -311,15 +311,19 @@ public struct InsightsView: View {
                 .padding(.horizontal, 8)
                 .padding(.vertical, 3)
                 .background(
-                    response.engineSource == .appleIntelligence
-                        ? Color.purple.opacity(0.12)
-                        : Color.blue.opacity(0.12),
+                    response.engineSource == .privateCloudCompute
+                        ? Color.cyan.opacity(0.12)
+                        : (response.engineSource == .appleIntelligence
+                            ? Color.purple.opacity(0.12)
+                            : Color.blue.opacity(0.12)),
                     in: Capsule()
                 )
                 .foregroundStyle(
-                    response.engineSource == .appleIntelligence
-                        ? Color.purple
-                        : Color.blue
+                    response.engineSource == .privateCloudCompute
+                        ? Color.cyan
+                        : (response.engineSource == .appleIntelligence
+                            ? Color.purple
+                            : Color.blue)
                 )
             }
 
