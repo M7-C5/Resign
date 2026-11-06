@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- feat(ai): integrate Private Cloud Compute Foundation Model for spatial diagnostics (59c1040)
 - feat(insights): display all problem chips directly and deepen free-text intent understanding (da8f4da)
 - feat(solver): enable multi-depth floating furniture tiers and island layout optimization (11b28c0)
 - feat(studio-3d): implement Sims-style circular halo HUD and circular motion rotation tracking (4c74b6c)
@@ -113,6 +114,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - fix(lighting-simulation): shape natural light to the window (5fbb493)
 
 ### Documentation
+- docs(changelog): update automated changelog (72f3b91)
 - docs(changelog): update automated changelog (c9cc6eb)
 - docs(changelog): update automated changelog (bb66c5a)
 - docs(adr): renumber floating furniture decision record to 0045 and compile release notes (a544963)
